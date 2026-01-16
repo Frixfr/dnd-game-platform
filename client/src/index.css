@@ -1,0 +1,15 @@
+/* index.css - ПОЛНОСТЬЮ ЗАМЕНИТЬ ЭТОТ ФАЙЛ */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ТОЛЬКО БАЗОВЫЕ СТИЛИ БЕЗ КОНФЛИКТОВ */
+body {
+  margin: 0;
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+/* УДАЛИТЬ ВСЁ ОСТАЛЬНОЕ: :root, a, button, @media и т.д. */
