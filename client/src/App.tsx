@@ -3,7 +3,11 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
 import MasterDashboardPage from './pages/MasterDashboardPage';
-import Layout from './components/layout/Layout'; // ← Обёртка с сайдбаром
+import ItemsPage from './pages/ItemsPage';
+import AbilitiesPage from './pages/AbilitiesPage';
+import EffectsPage from './pages/EffectsPage';
+import EnemiesPage from './pages/EnemiesPage';
+import MasterLayout from './components/layout/MasterLayout'; // ← Обёртка с сайдбаром
 
 const App: React.FC = () => {
   return (
@@ -12,15 +16,14 @@ const App: React.FC = () => {
         {/* Публичная страница — без Layout */}
         <Route path="/" element={<LoginPage />} />
 
-        {/* Защищённые страницы — с Layout */}
-        <Route
-          path="/master"
-          element={
-            <Layout>
-              <MasterDashboardPage />
-            </Layout>
-          }
-        />
+        {/* Все страницы мастера внутри одного Layout */}
+        <Route path="/master" element={<MasterLayout />}>
+          <Route index element={<MasterDashboardPage />} />  // /master
+          <Route path="items" element={<ItemsPage />} />     // /master/items
+          <Route path="abilities" element={<AbilitiesPage />} />
+          <Route path="effects" element={<EffectsPage />} />
+          <Route path="enemies" element={<EnemiesPage />} />
+        </Route>
       </Routes>
     </Router>
   );

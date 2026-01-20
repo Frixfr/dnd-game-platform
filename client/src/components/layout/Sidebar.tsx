@@ -1,5 +1,6 @@
-// Простой сайдбар — если он у вас уже есть, можно использовать его как есть
+// Sidebar.tsx
 import React from 'react';
+import { NavLink } from 'react-router-dom';
 
 const Sidebar: React.FC = () => {
   return (
@@ -9,8 +10,72 @@ const Sidebar: React.FC = () => {
       </div>
       <nav className="mt-6 flex-1 px-4">
         <ul className="space-y-2">
-          <li><a href="/master" className="block px-4 py-2 text-slate-700 hover:bg-slate-100 rounded">Мастерская</a></li>
-          {/* Другие пункты... */}
+          {/* Обратите внимание на использование NavLink */}
+          <li>
+            <NavLink 
+              to="/master"
+              end // ← важно для точного совпадения
+              className={({ isActive }) => 
+                `block px-4 py-2 rounded transition-colors ${isActive 
+                  ? 'bg-blue-100 text-blue-700 font-medium' 
+                  : 'text-slate-700 hover:bg-slate-100'}`
+              }
+            >
+              👥 Игроки
+            </NavLink>
+          </li>          
+          
+          <li>
+            <NavLink 
+              to="/master/abilities"
+              className={({ isActive }) => 
+                `block px-4 py-2 rounded transition-colors ${isActive 
+                  ? 'bg-blue-100 text-blue-700 font-medium' 
+                  : 'text-slate-700 hover:bg-slate-100'}`
+              }
+            >
+              ⚡ Способности
+            </NavLink>
+          </li>
+          
+          <li>
+            <NavLink 
+              to="/master/items"
+              className={({ isActive }) => 
+                `block px-4 py-2 rounded transition-colors ${isActive 
+                  ? 'bg-blue-100 text-blue-700 font-medium' 
+                  : 'text-slate-700 hover:bg-slate-100'}`
+              }
+            >
+              🎒 Предметы
+            </NavLink>
+          </li>
+          
+          <li>
+            <NavLink 
+              to="/master/effects"
+              className={({ isActive }) => 
+                `block px-4 py-2 rounded transition-colors ${isActive 
+                  ? 'bg-blue-100 text-blue-700 font-medium' 
+                  : 'text-slate-700 hover:bg-slate-100'}`
+              }
+            >
+              ✨ Эффекты
+            </NavLink>
+          </li>
+          
+          <li>
+            <NavLink 
+              to="/master/enemies"
+              className={({ isActive }) => 
+                `block px-4 py-2 rounded transition-colors ${isActive 
+                  ? 'bg-blue-100 text-blue-700 font-medium' 
+                  : 'text-slate-700 hover:bg-slate-100'}`
+              }
+            >
+              🐉 Враги
+            </NavLink>
+          </li>
         </ul>
       </nav>
     </aside>
