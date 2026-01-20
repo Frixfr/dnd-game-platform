@@ -1,6 +1,7 @@
 // client/src/components/ui/CreateItemModal.tsx
 import { useState, useEffect } from 'react';
 import type { ItemType, EffectType } from '../../types';
+import { useItemStore } from '../../stores/itemStore';
 
 interface CreateItemModalProps {
   onClose: () => void;
@@ -20,6 +21,7 @@ export const CreateItemModal = ({ onClose, effects = [] }: CreateItemModalProps)
   
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const { fetchItems } = useItemStore();
   
   // Загрузка эффектов при монтировании
   useEffect(() => {
@@ -33,7 +35,7 @@ export const CreateItemModal = ({ onClose, effects = [] }: CreateItemModalProps)
       const response = await fetch('http://localhost:5000/api/effects');
       if (!response.ok) throw new Error('Ошибка загрузки эффектов');
       const data = await response.json();
-      // Здесь нужно обновить список эффектов в родительском компоненте или хранилище
+      // Здесь нужно обновить список эффектов в родительском компоненте или хранилище      
     } catch (error) {
       console.error('Ошибка загрузки эффектов:', error);
     }
@@ -85,6 +87,7 @@ export const CreateItemModal = ({ onClose, effects = [] }: CreateItemModalProps)
         throw new Error(responseData.error || 'Ошибка сервера');
       }
       
+      await fetchItems();
       // Сервер сам обновит состояние через сокеты
       onClose();
     } catch (err) {

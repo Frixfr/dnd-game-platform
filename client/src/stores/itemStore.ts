@@ -9,6 +9,7 @@ interface ItemState {
   addItem: (item: ItemType) => void;
   setItems: (items: ItemType[]) => void;
   initializeSocket: () => void;
+  fetchItems: () => Promise<void>;
 }
 
 export const useItemStore = create<ItemState>((set) => ({
@@ -27,18 +28,38 @@ export const useItemStore = create<ItemState>((set) => ({
   initializeSocket: () => {
     if (typeof window === 'undefined') return;
     
-    const newSocket = io('http://localhost:5000', {
+    const socket = io('http://localhost:5000', {
+      withCredentials: true,
+      transports: ['websocket', 'polling'], // Явно указываем транспорты
       autoConnect: true,
       reconnection: true,
       reconnectionAttempts: 5
     });
     
-    newSocket.on('itemCreated', (item: ItemType) => {
+    socket.on('itemCreated', (item: ItemType) => {
       set(state => ({
         items: [...state.items, item]
       }));
     });
+
+    // Инициализация: загружаем начальный список игроков
+    socket.on('connect', async () => {
+      const { fetchItems } = get();
+      await fetchItems();
+    });
     
-    set({ socket: newSocket });
+    set({ socket: socket });
+  },
+
+  fetchItems: async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/items');
+      if (response.ok) {
+        const items = await response.json();
+        set({ items });
+      }
+    } catch (error) {
+      console.error('Ошибка загрузки игроков:', error);
+    }
   }
 }));

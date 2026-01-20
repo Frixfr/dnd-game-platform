@@ -1,7 +1,7 @@
 // client/src/components/ui/CreatePlayerModal.tsx
 import { useState } from 'react';
 import type { PlayerType } from '../../types';
-//import { usePlayerStore } from '../../store/playerStore';
+import { usePlayerStore } from '../../stores/playerStore';
 
 // Форма создания игрока с валидацией
 export const CreatePlayerModal = ({ onClose }: { onClose: () => void }) => {
@@ -24,6 +24,7 @@ export const CreatePlayerModal = ({ onClose }: { onClose: () => void }) => {
   });
   
   const [error, setError] = useState('');
+  const { fetchPlayers } = usePlayerStore();
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,8 +47,9 @@ export const CreatePlayerModal = ({ onClose }: { onClose: () => void }) => {
       });
       
       if (!response.ok) throw new Error('Ошибка сервера');
-      
-      // Сервер сам обновит состояние через сокеты
+
+      await fetchPlayers();
+
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Неизвестная ошибка');

@@ -274,37 +274,7 @@ export const EffectCard = ({ effect, onClick, showDescription = true, compact = 
               {effect.modifier > 0 ? '+' : ''}{effect.modifier}
             </div>
           </div>
-          
-          <div className="p-3 bg-white/50 rounded-lg border border-gray-100">
-            <div className="text-xs text-gray-500 mb-1">Значение</div>
-            <div className="text-sm font-medium text-gray-800">
-              {Math.abs(effect.modifier)} {effect.modifier > 0 ? '↑' : effect.modifier < 0 ? '↓' : '='}
-            </div>
-          </div>
         </div>
-
-        {/* Визуальный индикатор силы эффекта */}
-        {effect.modifier !== 0 && (
-          <div className="pt-2">
-            <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-              <span>Сила эффекта</span>
-              <span>{Math.abs(effect.modifier)}/100</span>
-            </div>
-            <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-              <div 
-                className={`h-full ${
-                  effect.modifier > 0 
-                    ? 'bg-gradient-to-r from-green-400 to-emerald-500' 
-                    : 'bg-gradient-to-r from-red-400 to-rose-500'
-                }`}
-                style={{ 
-                  width: `${Math.min(Math.abs(effect.modifier), 100)}%`,
-                  transform: effect.modifier > 0 ? 'none' : 'scaleX(-1)'
-                }}
-              />
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Индикатор кликабельности */}

@@ -1,5 +1,6 @@
 // client/src/components/ui/CreateEffectModal.tsx
 import { useState } from 'react';
+import { useEffectStore } from '../../stores/effectStore';
 
 interface EffectFormData {
   name: string;
@@ -36,6 +37,7 @@ export const CreateEffectModal = ({ onClose }: { onClose: () => void }) => {
   
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
+  const { fetchEffects } = useEffectStore();
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -102,6 +104,8 @@ export const CreateEffectModal = ({ onClose }: { onClose: () => void }) => {
       if (!response.ok) {
         throw new Error(data.error || 'Ошибка сервера');
       }
+
+      await fetchEffects();
 
       onClose();
     } catch (err) {
@@ -338,36 +342,6 @@ export const CreateEffectModal = ({ onClose }: { onClose: () => void }) => {
                 </div>
               </div>
             )}
-
-            {/* Предпросмотр эффекта */}
-            <div className="bg-gray-50 p-4 rounded-md border border-gray-200">
-              <h3 className="font-medium text-gray-800 mb-2">Предпросмотр</h3>
-              <div className="text-sm text-gray-600">
-                <div className="space-y-1">
-                  <div><span className="font-medium">Название:</span> {formData.name || 'Не указано'}</div>
-                  {formData.attribute && (
-                    <div><span className="font-medium">Атрибут:</span> {
-                      ATTRIBUTE_OPTIONS.find(a => a.value === formData.attribute)?.label || formData.attribute
-                    }</div>
-                  )}
-                  <div><span className="font-medium">Модификатор:</span> 
-                    <span className={formData.modifier >= 0 ? 'text-green-600' : 'text-red-600'}>
-                      {' '}{formData.modifier >= 0 ? '+' : ''}{formData.modifier}
-                    </span>
-                  </div>
-                  <div><span className="font-medium">Тип:</span> {formData.is_permanent ? 'Постоянный' : 'Временный'}</div>
-                  {!formData.is_permanent && (
-                    <div>
-                      <span className="font-medium">Длительность:</span> 
-                      {formData.duration_turns && ` ${formData.duration_turns} ходов`}
-                      {formData.duration_turns && formData.duration_days && ' или '}
-                      {formData.duration_days && ` ${formData.duration_days} дней`}
-                      {!formData.duration_turns && !formData.duration_days && ' Не указана'}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
 
             {/* Кнопки действий */}
             <div className="flex justify-end space-x-3 pt-4 border-t">

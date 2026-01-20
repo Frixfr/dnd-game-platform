@@ -665,31 +665,169 @@ app.patch('/api/players/:id', async (req, res) => {
   }
 });
 
-// API удаление игрока
-app.delete('/api/players/:id', async (req, res) => {
+// PUT /api/players/:id - обновление игрока
+app.put('/api/players/:id', async (req, res) => {
+  const { id } = req.params;
+  const {
+    name,
+    gender,
+    health,
+    max_health,
+    armor,
+    strength,
+    agility,
+    intelligence,
+    physique,
+    wisdom,
+    charisma,
+    history,
+    in_battle,
+    is_online,
+    is_card_shown
+  } = req.body;
+  
+  // Валидация ID
+  if (!id || isNaN(Number(id))) {
+    return res.status(400).json({ 
+      error: 'Некорректный идентификатор игрока' 
+    });
+  }
+  
   try {
-    const deleted = await db('players')
-      .where({ id: req.params.id })
-      .delete();
-    
-    if (!deleted) {
+    // Проверяем существование игрока
+    const existingPlayer = await db('players').where('id', id).first();
+    if (!existingPlayer) {
       return res.status(404).json({ 
         error: 'Игрок не найден' 
       });
     }
     
-    io.emit('player:deleted', { id: req.params.id });
+    // Валидация данных
+    if (name !== undefined) {
+      if (!name || typeof name !== 'string' || name.trim().length === 0) {
+        return res.status(400).json({ 
+          error: 'Имя игрока обязательно' 
+        });
+      }
+      
+      if (name.length > 50) {
+        return res.status(400).json({ 
+          error: 'Имя не должно превышать 50 символов' 
+        });
+      }
+    }
+    
+    if (gender !== undefined && gender !== 'male' && gender !== 'female') {
+      return res.status(400).json({ 
+        error: 'Пол должен быть "male" или "female"' 
+      });
+    }
+    
+    // Валидация здоровья
+    if (health !== undefined && (typeof health !== 'number' || health < 0)) {
+      return res.status(400).json({ 
+        error: 'Здоровье должно быть неотрицательным числом' 
+      });
+    }
+    
+    if (max_health !== undefined && (typeof max_health !== 'number' || max_health <= 0)) {
+      return res.status(400).json({ 
+        error: 'Максимальное здоровье должно быть положительным числом' 
+      });
+    }
+    
+    if (health !== undefined && max_health !== undefined && health > max_health) {
+      return res.status(400).json({ 
+        error: 'Текущее здоровье не может превышать максимальное' 
+      });
+    }
+    
+    // Подготовка данных для обновления
+    const updateData: any = {};
+    if (name !== undefined) updateData.name = name.trim();
+    if (gender !== undefined) updateData.gender = gender;
+    if (health !== undefined) updateData.health = health;
+    if (max_health !== undefined) updateData.max_health = max_health;
+    if (armor !== undefined) updateData.armor = armor;
+    if (strength !== undefined) updateData.strength = strength;
+    if (agility !== undefined) updateData.agility = agility;
+    if (intelligence !== undefined) updateData.intelligence = intelligence;
+    if (physique !== undefined) updateData.physique = physique;
+    if (wisdom !== undefined) updateData.wisdom = wisdom;
+    if (charisma !== undefined) updateData.charisma = charisma;
+    if (history !== undefined) updateData.history = history || '';
+    if (in_battle !== undefined) updateData.in_battle = Boolean(in_battle);
+    if (is_online !== undefined) updateData.is_online = Boolean(is_online);
+    if (is_card_shown !== undefined) updateData.is_card_shown = Boolean(is_card_shown);
+    
+    const [updatedPlayer] = await db('players')
+      .where('id', id)
+      .update(updateData)
+      .returning('*');
+    
+    console.log(`Игрок "${updatedPlayer.name}" (ID: ${updatedPlayer.id}) обновлен`);
+    
+    // Отправляем уведомление через Socket.IO
+    io.emit('playerUpdated', updatedPlayer);
     
     res.json({
       success: true,
-      message: 'Игрок успешно удален'
+      message: 'Игрок успешно обновлен',
+      player: updatedPlayer
     });
+    
+  } catch (error: any) {
+    console.error('Ошибка обновления игрока:', error);
+    
+    if (error.code === 'SQLITE_CONSTRAINT') {
+      return res.status(409).json({ 
+        error: 'Игрок с таким именем уже существует' 
+      });
+    }
+    
+    res.status(500).json({ 
+      error: 'Внутренняя ошибка сервера при обновлении игрока' 
+    });
+  }
+});
 
-    console.log(`Игрок удален с ID: ${req.params.id}`);
+// DELETE /api/players/:id - удаление игрока
+app.delete('/api/players/:id', async (req, res) => {
+  const { id } = req.params;
+  
+  // Валидация ID
+  if (!id || isNaN(Number(id))) {
+    return res.status(400).json({ 
+      error: 'Некорректный идентификатор игрока' 
+    });
+  }
+  
+  try {
+    // Проверяем существование игрока
+    const existingPlayer = await db('players').where('id', id).first();
+    if (!existingPlayer) {
+      return res.status(404).json({ 
+        error: 'Игрок не найден' 
+      });
+    }
+    
+    await db('players').where('id', id).delete();
+    
+    console.log(`Игрок "${existingPlayer.name}" (ID: ${id}) удален`);
+    
+    // Отправляем уведомление через Socket.IO
+    io.emit('playerDeleted', Number(id));
+    
+    res.json({
+      success: true,
+      message: 'Игрок успешно удален',
+      deleted_id: id
+    });
+    
   } catch (error) {
     console.error('Ошибка удаления игрока:', error);
     res.status(500).json({ 
-      error: 'Внутренняя ошибка сервера' 
+      error: 'Внутренняя ошибка сервера при удалении игрока' 
     });
   }
 });

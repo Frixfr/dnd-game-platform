@@ -1,6 +1,7 @@
 // client/src/components/ui/CreateAbilityModal.tsx
 import { useState, useEffect } from 'react';
 import type { AbilityType, EffectType } from '../../types';
+import { useAbilityStore } from '../../stores/abilityStore';
 
 export const CreateAbilityModal = ({ onClose }: { onClose: () => void }) => {
   const [formData, setFormData] = useState<Omit<AbilityType, 'id' | 'created_at' | 'updated_at'>>({
@@ -16,6 +17,7 @@ export const CreateAbilityModal = ({ onClose }: { onClose: () => void }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const { fetchAbilities } = useAbilityStore();
   
   // Загружаем список эффектов для выпадающего списка
   useEffect(() => {
@@ -90,13 +92,10 @@ export const CreateAbilityModal = ({ onClose }: { onClose: () => void }) => {
         throw new Error(result.error || 'Ошибка сервера');
       }
       
-      setSuccess('Способность успешно создана!');
+      setSuccess('Способность успешно создана!');         
       
-      // Закрываем модальное окно через 1.5 секунды
-      setTimeout(() => {
-        onClose();
-      }, 1500);
-      
+      onClose();
+      await fetchAbilities();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Неизвестная ошибка');
     } finally {
