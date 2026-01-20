@@ -10,20 +10,45 @@ export const AbilitiesPage = () => {
     const [loading, setLoading] = useState(true);
     const { initializeSocket, socket } = useAbilityStore();
 
+    // Инициализация сокетов при монтировании
+    useEffect(() => {
+        initializeSocket();
+    }, []);
+
     // Загрузка начальных данных
     useEffect(() => {
         const fetchData = async () => {
         try {
-            const response = await fetch('http://localhost:5000/api/abilities');
-            if (!response.ok) throw new Error('Ошибка загрузки');
-            const data = await response.json();
-            setAbilities(data);
+            const [abilitiesRes, effectsRes] = await Promise.all([
+                fetch('http://localhost:5000/api/abilities'),
+                fetch('http://localhost:5000/api/effects')
+            ]);
+            
+            if (!abilitiesRes.ok || !effectsRes.ok) {
+                throw new Error('Ошибка загрузки данных');
+            }
+            
+            const abilitiesData = await abilitiesRes.json();
+            const effectsData = await effectsRes.json();
+            
+            // Создаем карту effects для быстрого поиска
+            const effectsMap = new Map(effectsData.map(effect => [effect.id, effect]));
+            
+            const abilitiesWithEffects = abilitiesData.map(ability => {
+                const { effect_id, ...rest } = ability;
+                return {
+                    ...rest,
+                    effect: effect_id ? effectsMap.get(effect_id) || null : null
+                };
+            });
+            
+            setAbilities(abilitiesWithEffects);
         } catch (error) {
             console.error('Ошибка:', error);
         } finally {
             setLoading(false);
         }
-        };
+    };
         
         fetchData();
         
@@ -49,7 +74,7 @@ export const AbilitiesPage = () => {
                   <div className="text-center py-12">Загрузка...</div>
                 ) : abilities.length === 0 ? (
                   <div className="text-center py-12 text-gray-500">
-                    Нет созданных игроков. Нажмите кнопку выше для создания первого.
+                    Нет созданных способностей. Нажмите кнопку выше для создания первой.
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

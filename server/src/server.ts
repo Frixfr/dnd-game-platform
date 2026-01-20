@@ -705,6 +705,31 @@ app.get('/api/effects', async (req, res) => {
   }
 });
 
+// API Получение игрока по id
+app.get('/api/effects/:id', async (req, res) => {
+  try {
+    const effect = await db('effects')
+      .where({ id: req.params.id })
+      .first();
+    
+    if (!effect) {
+      return res.status(404).json({ 
+        error: 'Эффект не найден' 
+      });
+    }
+    
+    res.json({
+      success: true,
+      effect
+    });
+  } catch (error) {
+    console.error('Ошибка получения эффекта:', error);
+    res.status(500).json({ 
+      error: 'Внутренняя ошибка сервера' 
+    });
+  }
+});
+
 // API эндпоинт для создания эффекта
 app.post('/api/effects', async (req, res) => {
   const { 

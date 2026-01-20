@@ -19,20 +19,21 @@ export const CreateAbilityModal = ({ onClose }: { onClose: () => void }) => {
   
   // Загружаем список эффектов для выпадающего списка
   useEffect(() => {
-    const fetchEffects = async () => {
-      try {
+    const loadEffects = async () => {
+        try {
+        console.log('Загрузка эффектов...');
         const response = await fetch('http://localhost:5000/api/effects');
-        if (response.ok) {
-          const data = await response.json();
-          setEffects(data.data || []);
+        const data = await response.json();
+        console.log('Получены эффекты:', data);
+        setEffects(data);
+
+        } catch (error) {
+        console.error('Ошибка загрузки эффектов:', error);
         }
-      } catch (err) {
-        console.error('Ошибка загрузки эффектов:', err);
-      }
     };
-    
-    fetchEffects();
-  }, []);
+
+    loadEffects();
+    }, []);
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -275,51 +276,6 @@ export const CreateAbilityModal = ({ onClose }: { onClose: () => void }) => {
               </select>
               <div className="text-xs text-gray-500 mt-1">
                 Выберите эффект, который применяет эта способность (необязательно)
-              </div>
-            </div>
-            
-            {/* Предпросмотр способности */}
-            <div className="border-t border-gray-200 pt-6">
-              <h3 className="text-lg font-medium text-gray-800 mb-3">Предпросмотр</h3>
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <div className="flex justify-between items-start mb-2">
-                  <h4 className="font-medium text-gray-800">{formData.name || 'Название способности'}</h4>
-                  <span className={`px-2 py-1 text-xs rounded ${
-                    formData.ability_type === 'active' 
-                      ? 'bg-blue-100 text-blue-800' 
-                      : 'bg-green-100 text-green-800'
-                  }`}>
-                    {formData.ability_type === 'active' ? 'Активная' : 'Пассивная'}
-                  </span>
-                </div>
-                
-                {formData.description && (
-                  <p className="text-sm text-gray-600 mb-3">{formData.description}</p>
-                )}
-                
-                <div className="flex space-x-4 text-sm">
-                  {(formData.cooldown_turns > 0 || formData.cooldown_days > 0) && (
-                    <div className="flex items-center text-gray-600">
-                      <span className="mr-1">⏳</span>
-                      {formData.cooldown_turns > 0 && (
-                        <span>{formData.cooldown_turns} ходов</span>
-                      )}
-                      {formData.cooldown_turns > 0 && formData.cooldown_days > 0 && (
-                        <span> / </span>
-                      )}
-                      {formData.cooldown_days > 0 && (
-                        <span>{formData.cooldown_days} дней</span>
-                      )}
-                    </div>
-                  )}
-                  
-                  {formData.effect_id && (
-                    <div className="flex items-center text-purple-600">
-                      <span className="mr-1">✨</span>
-                      <span>С эффектом</span>
-                    </div>
-                  )}
-                </div>
               </div>
             </div>
             

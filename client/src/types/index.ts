@@ -44,9 +44,31 @@ export interface EffectType {
   is_permanent: boolean;
 }
 
+// Добавляем тип для редкости предметов
+export type RarityType = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary' | 'mythical' | 'story';
+
+// Основной интерфейс предмета
+export interface ItemType {
+  id: number;
+  name: string;
+  description: string | null;
+  rarity: RarityType;
+  base_quantity: number;
+  active_effect_id: number | null;
+  passive_effect_id: number | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// Расширенный тип предмета с загруженными эффектами
+export type ItemWithEffects = ItemType & {
+  active_effect?: EffectType | null;
+  passive_effect?: EffectType | null;
+};
+
 // Тип для способности с загруженным эффектом
 export type AbilityWithEffect = AbilityType & {
-  effect?: EffectType;
+  effect?: EffectType | null;
 };
 
 // Дополнительные типы для будущего расширения

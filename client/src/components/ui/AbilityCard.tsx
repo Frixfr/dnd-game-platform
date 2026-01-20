@@ -1,10 +1,8 @@
 // client/src/components/ui/AbilityCard.tsx
-import type { AbilityType, EffectType } from '../../types';
+import type { AbilityType, AbilityWithEffect, EffectType } from '../../types';
 
 interface AbilityCardProps {
-  ability: AbilityType & {
-    effect?: EffectType | null;
-  };
+  ability: AbilityWithEffect;
   onClick?: () => void;
 }
 
