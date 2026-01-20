@@ -9,7 +9,8 @@ const Sidebar: React.FC = () => {
       </div>
       <nav className="mt-6 flex-1 px-4">
         <ul className="space-y-2">
-          <li><a href="/master" className="block px-4 py-2 text-slate-700 hover:bg-slate-100 rounded">Мастерская</a></li>
+          <li><a href="/master" className="block px-4 py-2 text-slate-700 hover:bg-slate-100 rounded">Игроки</a></li>
+          <li><a href="/master" className="block px-4 py-2 text-slate-700 hover:bg-slate-100 rounded">Враги</a></li>
           {/* Другие пункты... */}
         </ul>
       </nav>
