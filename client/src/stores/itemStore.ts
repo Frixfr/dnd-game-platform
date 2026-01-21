@@ -12,7 +12,7 @@ interface ItemState {
   fetchItems: () => Promise<void>;
 }
 
-export const useItemStore = create<ItemState>((set) => ({
+export const useItemStore = create<ItemState>((set, get) => ({
   items: [],
   socket: null,
   

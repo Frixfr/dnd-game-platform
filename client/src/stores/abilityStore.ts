@@ -12,7 +12,7 @@ interface AbilityState {
   fetchAbilities: () => Promise<void>;
 }
 
-export const useAbilityStore = create<AbilityState>((set) => ({
+export const useAbilityStore = create<AbilityState>((set, get) => ({
   abilities: [],
   socket: null,
   

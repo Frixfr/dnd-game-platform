@@ -12,7 +12,7 @@ interface EffectState {
   fetchEffects: () => Promise<void>;
 }
 
-export const useEffectStore = create<EffectState>((set) => ({
+export const useEffectStore = create<EffectState>((set, get) => ({
   effects: [],
   socket: null,
   

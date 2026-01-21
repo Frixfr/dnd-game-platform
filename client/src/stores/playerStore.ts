@@ -14,7 +14,7 @@ interface PlayerStore {
   fetchPlayers: () => Promise<void>;
 }
 
-export const usePlayerStore = create<PlayerStore>((set) => ({
+export const usePlayerStore = create<PlayerStore>((set, get) => ({
   players: [],
   socket: null,
   
