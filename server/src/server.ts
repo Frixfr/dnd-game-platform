@@ -401,48 +401,7 @@ function calculateFinalStats(basePlayer: any, activeEffects: any[], items: any[]
 // API Получение полной информации игрока по id
 app.get('/api/players/:id/full', async (req, res) => {
   try {
-    const player = await db('players')
-      .where('players.id', req.params.id)
-      .first()
-      .then(async (playerData) => {
-        if (!playerData) return null;
-        
-        // Используем Promise.all для параллельного выполнения запросов
-        const [abilities, items, effects] = await Promise.all([
-          // Способности
-          db('player_abilities')
-            .where('player_id', playerData.id)
-            .join('abilities', 'ability_id', 'abilities.id')
-            .select('abilities.*', 'player_abilities.is_active'),
-          
-          // Предметы с эффектами
-          db('player_items')
-            .where('player_id', playerData.id)
-            .join('items', 'item_id', 'items.id')
-            .leftJoin('effects as ae', 'items.active_effect_id', 'ae.id')
-            .leftJoin('effects as pe', 'items.passive_effect_id', 'pe.id')
-            .select(
-              'items.*',
-              'player_items.quantity',
-              'player_items.is_equipped',
-              'ae.name as active_effect_name',
-              'pe.name as passive_effect_name'
-            ),
-          
-          // Активные эффекты
-          db('player_active_effects')
-            .where('player_id', playerData.id)
-            .join('effects', 'effect_id', 'effects.id')
-            .select('effects.*', 'player_active_effects.remaining_turns')
-        ]);
-        
-        return {
-          ...playerData,
-          abilities,
-          items,
-          active_effects: effects
-        };
-      });
+    const player = await getFullPlayerData(req.params.id)    
     
     if (!player) {
       return res.status(404).json({ error: 'Игрок не найден' });
@@ -835,11 +794,14 @@ app.delete('/api/players/:id', async (req, res) => {
 // API эндпоинты для эффектов
 app.get('/api/effects', async (req, res) => {
   try {
-    const effects = await db('effects').select('*');
-    res.json(effects);
+    const effects = await db('effects')
+      .select('*')
+      .orderBy('name', 'asc');
+    
+    res.json({ effects });
   } catch (error) {
     console.error('Ошибка получения эффектов:', error);
-    res.status(500).json({ error: 'Ошибка сервера' });
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
   }
 });
 
@@ -1035,11 +997,14 @@ app.post('/api/effects', async (req, res) => {
 // API эндпоинты для способностей
 app.get('/api/abilities', async (req, res) => {
   try {
-    const abilities = await db('abilities').select('*');
-    res.json(abilities);
+    const abilities = await db('abilities')
+      .select('*')
+      .orderBy('name', 'asc');
+    
+    res.json({ abilities });
   } catch (error) {
     console.error('Ошибка получения способностей:', error);
-    res.status(500).json({ error: 'Ошибка сервера' });
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
   }
 });
 
@@ -1353,11 +1318,14 @@ app.post('/api/player-abilities', async (req, res) => {
 // API эндпоинты для предметов
 app.get('/api/items', async (req, res) => {
   try {
-    const items = await db('items').select('*');
-    res.json(items);
+    const items = await db('items')
+      .select('*')
+      .orderBy('name', 'asc');
+    
+    res.json({ items });
   } catch (error) {
     console.error('Ошибка получения предметов:', error);
-    res.status(500).json({ error: 'Ошибка сервера' });
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
   }
 });
 
@@ -1848,7 +1816,579 @@ app.post('/api/player-active-effects', async (req, res) => {
   }
 });
 
+// POST /api/players/:playerId/items/batch - массовое добавление предметов
+app.post('/api/players/:playerId/items/batch', async (req, res) => {
+  const { playerId } = req.params;
+  const { items } = req.body; // items = [{ item_id: number, quantity: number }]
+  
+  if (!playerId) {
+    return res.status(400).json({ error: 'Неверный ID игрока' });
+  }
+  
+  if (!Array.isArray(items)) {
+    return res.status(400).json({ error: 'items должен быть массивом' });
+  }
+  
+  try {
+    const player = await db('players').where('id', playerId).first();
+    if (!player) {
+      return res.status(404).json({ error: 'Игрок не найден' });
+    }
+    
+    const results = [];
+    
+    for (const itemData of items) {
+      const { item_id, quantity = 1 } = itemData;
+      
+      // Проверка существования предмета
+      const item = await db('items').where('id', item_id).first();
+      if (!item) {
+        results.push({ item_id, error: 'Предмет не найден' });
+        continue;
+      }
+      
+      // Проверяем, есть ли уже такой предмет у игрока
+      const existingItem = await db('player_items')
+        .where({ player_id: playerId, item_id })
+        .first();
+      
+      if (existingItem) {
+        // Обновляем количество
+        const newQuantity = existingItem.quantity + quantity;
+        const [updatedItem] = await db('player_items')
+          .where('id', existingItem.id)
+          .update({ quantity: newQuantity })
+          .returning('*');
+        
+        results.push({ item_id, success: true, message: 'Количество обновлено', data: updatedItem });
+        
+        if (io) {
+          io.emit('player_item:updated', updatedItem);
+        }
+      } else {
+        // Создаем новую запись
+        const [newItem] = await db('player_items')
+          .insert({
+            player_id: playerId,
+            item_id,
+            quantity,
+            is_equipped: false,
+            obtained_at: db.fn.now()
+          })
+          .returning('*');
+        
+        results.push({ item_id, success: true, message: 'Предмет добавлен', data: newItem });
+        
+        if (io) {
+          io.emit('player_item:created', newItem);
+        }
+      }
+    }
+    
+    // Обновляем данные игрока через сокет
+    if (io) {
+      const fullPlayer = await getFullPlayerData(playerId);
+      io.emit('player:updated', fullPlayer);
+    }
+    
+    res.json({
+      success: true,
+      message: 'Операция завершена',
+      results
+    });
+    
+  } catch (error) {
+    console.error('Ошибка массового добавления предметов:', error);
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+// POST /api/players/:playerId/abilities/batch - массовое добавление способностей
+app.post('/api/players/:playerId/abilities/batch', async (req, res) => {
+  const { playerId } = req.params;
+  const { ability_ids } = req.body; // ability_ids = [number]
+  
+  if (!playerId) {
+    return res.status(400).json({ error: 'Неверный ID игрока' });
+  }
+  
+  if (!Array.isArray(ability_ids)) {
+    return res.status(400).json({ error: 'ability_ids должен быть массивом' });
+  }
+  
+  try {
+    const player = await db('players').where('id', playerId).first();
+    if (!player) {
+      return res.status(404).json({ error: 'Игрок не найден' });
+    }
+    
+    const results = [];
+    
+    for (const ability_id of ability_ids) {
+      // Проверка существования способности
+      const ability = await db('abilities').where('id', ability_id).first();
+      if (!ability) {
+        results.push({ ability_id, error: 'Способность не найдена' });
+        continue;
+      }
+      
+      // Проверяем, есть ли уже такая способность у игрока
+      const existingAbility = await db('player_abilities')
+        .where({ player_id: playerId, ability_id })
+        .first();
+      
+      if (existingAbility) {
+        results.push({ ability_id, success: true, message: 'Способность уже есть у игрока' });
+        continue;
+      }
+      
+      // Создаем новую запись
+      const [newAbility] = await db('player_abilities')
+        .insert({
+          player_id: playerId,
+          ability_id,
+          is_active: 1,
+          obtained_at: db.fn.now()
+        })
+        .returning('*');
+      
+      results.push({ ability_id, success: true, message: 'Способность добавлена', data: newAbility });
+      
+      if (io) {
+        io.emit('player_ability:created', newAbility);
+      }
+    }
+    
+    // Обновляем данные игрока через сокет
+    if (io) {
+      const fullPlayer = await getFullPlayerData(playerId);
+      io.emit('player:updated', fullPlayer);
+    }
+    
+    res.json({
+      success: true,
+      message: 'Операция завершена',
+      results
+    });
+    
+  } catch (error) {
+    console.error('Ошибка массового добавления способностей:', error);
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+// POST /api/players/:playerId/effects/batch - массовое добавление эффектов
+app.post('/api/players/:playerId/effects/batch', async (req, res) => {
+  const { playerId } = req.params;
+  const { effect_ids } = req.body; // effect_ids = [number]
+  
+  if (!playerId) {
+    return res.status(400).json({ error: 'Неверный ID игрока' });
+  }
+  
+  if (!Array.isArray(effect_ids)) {
+    return res.status(400).json({ error: 'effect_ids должен быть массивом' });
+  }
+  
+  try {
+    const player = await db('players').where('id', playerId).first();
+    if (!player) {
+      return res.status(404).json({ error: 'Игрок не найден' });
+    }
+    
+    const results = [];
+    
+    for (const effect_id of effect_ids) {
+      // Проверка существования эффекта
+      const effect = await db('effects').where('id', effect_id).first();
+      if (!effect) {
+        results.push({ effect_id, error: 'Эффект не найден' });
+        continue;
+      }
+      
+      // Проверяем, есть ли уже такой эффект у игрока
+      const existingEffect = await db('player_active_effects')
+        .where({ player_id: playerId, effect_id })
+        .first();
+      
+      if (existingEffect) {
+        results.push({ effect_id, success: true, message: 'Эффект уже есть у игрока' });
+        continue;
+      }
+      
+      // Определяем длительность
+      const remaining_turns = effect.duration_turns;
+      const remaining_days = effect.duration_days;
+      
+      // Создаем новую запись
+      const [newEffect] = await db('player_active_effects')
+        .insert({
+          player_id: playerId,
+          effect_id,
+          source_type: 'admin',
+          source_id: null,
+          remaining_turns,
+          remaining_days,
+          applied_at: db.fn.now()
+        })
+        .returning('*');
+      
+      results.push({ effect_id, success: true, message: 'Эффект добавлен', data: newEffect });
+      
+      if (io) {
+        io.emit('player_effect:created', newEffect);
+      }
+    }
+    
+    // Обновляем данные игрока через сокет
+    if (io) {
+      const fullPlayer = await getFullPlayerData(playerId);
+      io.emit('player:updated', fullPlayer);
+    }
+    
+    res.json({
+      success: true,
+      message: 'Операция завершена',
+      results
+    });
+    
+  } catch (error) {
+    console.error('Ошибка массового добавления эффектов:', error);
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+// DELETE /api/players/:playerId/items/:itemId - удаление предмета у игрока
+app.delete('/api/players/:playerId/items/:itemId', async (req, res) => {
+  const { playerId, itemId } = req.params;
+  
+  if (!playerId || !itemId) {
+    return res.status(400).json({ error: 'Неверные параметры' });
+  }
+  
+  try {
+    const player = await db('players').where('id', playerId).first();
+    if (!player) {
+      return res.status(404).json({ error: 'Игрок не найден' });
+    }
+    
+    const item = await db('items').where('id', itemId).first();
+    if (!item) {
+      return res.status(404).json({ error: 'Предмет не найден' });
+    }
+    
+    // Проверяем, есть ли предмет у игрока
+    const playerItem = await db('player_items')
+      .where({ player_id: playerId, item_id: itemId })
+      .first();
+    
+    if (!playerItem) {
+      return res.status(404).json({ error: 'У игрока нет этого предмета' });
+    }
+    
+    // Удаляем предмет
+    await db('player_items')
+      .where({ player_id: playerId, item_id: itemId })
+      .delete();
+    
+    console.log(`Предмет ${itemId} удален у игрока ${playerId}`);
+    
+    // Отправляем уведомление через Socket.IO
+    if (io) {
+      io.emit('player_item:deleted', { player_id: playerId, item_id: itemId });
+      
+      // Обновляем данные игрока
+      const fullPlayer = await getFullPlayerData(playerId);
+      io.emit('player:updated', fullPlayer);
+    }
+    
+    res.json({
+      success: true,
+      message: 'Предмет успешно удален'
+    });
+    
+  } catch (error) {
+    console.error('Ошибка удаления предмета:', error);
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+// DELETE /api/players/:playerId/abilities/:abilityId - удаление способности у игрока
+app.delete('/api/players/:playerId/abilities/:abilityId', async (req, res) => {
+  const { playerId, abilityId } = req.params;
+  
+  if (!playerId || !abilityId) {
+    return res.status(400).json({ error: 'Неверные параметры' });
+  }
+  
+  try {
+    const player = await db('players').where('id', playerId).first();
+    if (!player) {
+      return res.status(404).json({ error: 'Игрок не найден' });
+    }
+    
+    const ability = await db('abilities').where('id', abilityId).first();
+    if (!ability) {
+      return res.status(404).json({ error: 'Способность не найдена' });
+    }
+    
+    // Проверяем, есть ли способность у игрока
+    const playerAbility = await db('player_abilities')
+      .where({ player_id: playerId, ability_id: abilityId })
+      .first();
+    
+    if (!playerAbility) {
+      return res.status(404).json({ error: 'У игрока нет этой способности' });
+    }
+    
+    // Удаляем способность
+    await db('player_abilities')
+      .where({ player_id: playerId, ability_id: abilityId })
+      .delete();
+    
+    console.log(`Способность ${abilityId} удалена у игрока ${playerId}`);
+    
+    // Отправляем уведомление через Socket.IO
+    if (io) {
+      io.emit('player_ability:deleted', { player_id: playerId, ability_id: abilityId });
+      
+      // Обновляем данные игрока
+      const fullPlayer = await getFullPlayerData(playerId);
+      io.emit('player:updated', fullPlayer);
+    }
+    
+    res.json({
+      success: true,
+      message: 'Способность успешно удалена'
+    });
+    
+  } catch (error) {
+    console.error('Ошибка удаления способности:', error);
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+// DELETE /api/players/:playerId/effects/:effectId - удаление эффекта у игрока
+app.delete('/api/players/:playerId/effects/:effectId', async (req, res) => {
+  const { playerId, effectId } = req.params;
+  
+  if (!playerId || !effectId) {
+    return res.status(400).json({ error: 'Неверные параметры' });
+  }
+  
+  try {
+    const player = await db('players').where('id', playerId).first();
+    if (!player) {
+      return res.status(404).json({ error: 'Игрок не найден' });
+    }
+    
+    const effect = await db('effects').where('id', effectId).first();
+    if (!effect) {
+      return res.status(404).json({ error: 'Эффект не найден' });
+    }
+    
+    // Удаляем эффект (только с source_type='admin')
+    const deletedCount = await db('player_active_effects')
+      .where({ 
+        player_id: playerId, 
+        effect_id: effectId,
+        source_type: 'admin'
+      })
+      .delete();
+    
+    if (deletedCount === 0) {
+      return res.status(404).json({ error: 'Эффект не найден у игрока или не может быть удален' });
+    }
+    
+    console.log(`Эффект ${effectId} удален у игрока ${playerId}`);
+    
+    // Отправляем уведомление через Socket.IO
+    if (io) {
+      io.emit('player_effect:deleted', { player_id: playerId, effect_id: effectId });
+      
+      // Обновляем данные игрока
+      const fullPlayer = await getFullPlayerData(playerId);
+      io.emit('player:updated', fullPlayer);
+    }
+    
+    res.json({
+      success: true,
+      message: 'Эффект успешно удален'
+    });
+    
+  } catch (error) {
+    console.error('Ошибка удаления эффекта:', error);
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+// PUT /api/players/:playerId/items/:itemId/equip - переключение статуса экипировки предмета
+app.put('/api/players/:playerId/items/:itemId/equip', async (req, res) => {
+  const { playerId, itemId } = req.params;
+  const { is_equipped } = req.body;
+  
+  if (!playerId || !itemId) {
+    return res.status(400).json({ error: 'Неверные параметры' });
+  }
+  
+  if (typeof is_equipped !== 'boolean') {
+    return res.status(400).json({ error: 'is_equipped должен быть булевым значением' });
+  }
+  
+  try {
+    const player = await db('players').where('id', playerId).first();
+    if (!player) {
+      return res.status(404).json({ error: 'Игрок не найден' });
+    }
+    
+    // Проверяем, есть ли предмет у игрока
+    const playerItem = await db('player_items')
+      .where({ player_id: playerId, item_id: itemId })
+      .first();
+    
+    if (!playerItem) {
+      return res.status(404).json({ error: 'У игрока нет этого предмета' });
+    }
+    
+    // Обновляем статус экипировки
+    const [updatedItem] = await db('player_items')
+      .where({ player_id: playerId, item_id: itemId })
+      .update({ is_equipped })
+      .returning('*');
+    
+    console.log(`Статус экипировки предмета ${itemId} у игрока ${playerId} изменен на ${is_equipped}`);
+    
+    // Отправляем уведомление через Socket.IO
+    if (io) {
+      io.emit('player_item:updated', updatedItem);
+      
+      // Обновляем данные игрока
+      const fullPlayer = await getFullPlayerData(playerId);
+      io.emit('player:updated', fullPlayer);
+    }
+    
+    res.json({
+      success: true,
+      message: 'Статус экипировки обновлен',
+      player_item: updatedItem
+    });
+    
+  } catch (error) {
+    console.error('Ошибка обновления экипировки:', error);
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+// PUT /api/players/:playerId/abilities/:abilityId/toggle - переключение активности способности
+app.put('/api/players/:playerId/abilities/:abilityId/toggle', async (req, res) => {
+  const { playerId, abilityId } = req.params;
+  const { is_active } = req.body;
+  
+  if (!playerId || !abilityId) {
+    return res.status(400).json({ error: 'Неверные параметры' });
+  }
+  
+  if (typeof is_active !== 'boolean' && typeof is_active !== 'number') {
+    return res.status(400).json({ error: 'is_active должен быть булевым значением или числом (0/1)' });
+  }
+  
+  // Нормализуем значение
+  const isActiveValue = typeof is_active === 'boolean' ? (is_active ? 1 : 0) : is_active;
+  
+  try {
+    const player = await db('players').where('id', playerId).first();
+    if (!player) {
+      return res.status(404).json({ error: 'Игрок не найден' });
+    }
+    
+    // Проверяем, есть ли способность у игрока
+    const playerAbility = await db('player_abilities')
+      .where({ player_id: playerId, ability_id: abilityId })
+      .first();
+    
+    if (!playerAbility) {
+      return res.status(404).json({ error: 'У игрока нет этой способности' });
+    }
+    
+    // Обновляем активность
+    const [updatedAbility] = await db('player_abilities')
+      .where({ player_id: playerId, ability_id: abilityId })
+      .update({ is_active: isActiveValue })
+      .returning('*');
+    
+    console.log(`Активность способности ${abilityId} у игрока ${playerId} изменена на ${isActiveValue}`);
+    
+    // Отправляем уведомление через Socket.IO
+    if (io) {
+      io.emit('player_ability:updated', updatedAbility);
+      
+      // Обновляем данные игрока
+      const fullPlayer = await getFullPlayerData(playerId);
+      io.emit('player:updated', fullPlayer);
+    }
+    
+    res.json({
+      success: true,
+      message: 'Активность способности обновлена',
+      player_ability: updatedAbility
+    });
+    
+  } catch (error) {
+    console.error('Ошибка обновления активности способности:', error);
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
 // ... остальные эндпоинты и Socket.IO обработка
+
+// Функция для получения полных данных игрока
+async function getFullPlayerData(playerId: string) {
+  try {    
+    const playerData = await db('players')
+      .where('players.id', playerId)
+      .first();
+    
+    if (!playerData) return null;
+    
+    // Используем Promise.all для параллельного выполнения запросов
+    const [abilities, items, effects] = await Promise.all([
+      // Способности
+      db('player_abilities')
+        .where('player_id', playerData.id)
+        .join('abilities', 'ability_id', 'abilities.id')
+        .select('abilities.*', 'player_abilities.is_active'),
+      
+      // Предметы с эффектами
+      db('player_items')
+        .where('player_id', playerData.id)
+        .join('items', 'item_id', 'items.id')
+        .leftJoin('effects as ae', 'items.active_effect_id', 'ae.id')
+        .leftJoin('effects as pe', 'items.passive_effect_id', 'pe.id')
+        .select(
+          'items.*',
+          'player_items.quantity',
+          'player_items.is_equipped',
+          'ae.name as active_effect_name',
+          'pe.name as passive_effect_name'
+        ),
+      
+      // Активные эффекты
+      db('player_active_effects')
+        .where('player_id', playerData.id)
+        .join('effects', 'effect_id', 'effects.id')
+        .select('effects.*', 'player_active_effects.remaining_turns')
+    ]);
+    
+    return {
+      ...playerData,
+      abilities,
+      items,
+      active_effects: effects
+    };
+  } catch (error) {
+    console.error('Ошибка:', error);
+    throw error; // Пробрасываем ошибку дальше
+  }
+}
 
 // Инициализация БД перед запуском сервера
 initializeDatabase().then(() => {

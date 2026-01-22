@@ -3,12 +3,17 @@ import type { PlayerType, StatType } from '../../types';
 
 interface PlayerCardProps {
   player: PlayerType;
-  onClick?: () => void;
+  onClick: () => void;
+  disabled?: boolean;
 }
 
 // Минималистичная карточка с возможностью клика
-export const PlayerCard = ({ player, onClick }: PlayerCardProps) => {
+export const PlayerCard = ({ player, onClick, disabled = false }: PlayerCardProps) => {
   return (
+    <div 
+      onClick={disabled ? undefined : onClick}
+      className={` ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:border-blue-300'}`}
+    >
     <div 
       onClick={onClick}
       className="group bg-gradient-to-br from-gray-50 to-white rounded-2xl p-6 cursor-pointer transition-all duration-300 border border-gray-200 hover:border-gray-300 hover:shadow-lg hover:shadow-gray-200/50 hover:scale-[1.02]"
@@ -90,6 +95,7 @@ export const PlayerCard = ({ player, onClick }: PlayerCardProps) => {
           );
         })}
       </div>
+    </div>
     </div>
   );
 };

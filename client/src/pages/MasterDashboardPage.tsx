@@ -12,9 +12,9 @@ export const MasterDashboardPage = () => {
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerType | null>(null);
   const [players, setPlayers] = useState<PlayerType[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingFullPlayer, setLoadingFullPlayer] = useState(false);
   const { initializeSocket, socket, updatePlayer, deletePlayer } = usePlayerStore();
 
-  
   // Инициализация сокетов при монтировании
   useEffect(() => {
     initializeSocket();
@@ -37,7 +37,6 @@ export const MasterDashboardPage = () => {
     
     fetchData();
     
-    // Подписка на события сокетов (Zustand уже обрабатывает это через стор)
     return () => {
       if (socket) {
         socket.off('playerCreated');
@@ -53,10 +52,24 @@ export const MasterDashboardPage = () => {
     setPlayers(zustandPlayers);
   }, [zustandPlayers]);
 
-  // Обработчик клика по карточке игрока
-  const handlePlayerClick = (player: PlayerType) => {
-    setSelectedPlayer(player);
-    setIsEditModalOpen(true);
+  // Обработчик клика по карточке игрока - теперь загружаем полные данные
+  const handlePlayerClick = async (player: PlayerType) => {
+    setLoadingFullPlayer(true);
+    try {
+      // Загружаем полные данные игрока
+      const response = await fetch(`http://localhost:5000/api/players/${player.id}/full`);
+      if (!response.ok) throw new Error('Ошибка загрузки полных данных игрока');
+      const fullPlayer = await response.json();
+      setSelectedPlayer(fullPlayer);
+      setIsEditModalOpen(true);
+    } catch (error) {
+      console.error('Ошибка загрузки полных данных:', error);
+      // Если не удалось загрузить полные данные, открываем с базовыми
+      setSelectedPlayer(player);
+      setIsEditModalOpen(true);
+    } finally {
+      setLoadingFullPlayer(false);
+    }
   };
   
   // Обработчик обновления игрока
@@ -128,9 +141,22 @@ export const MasterDashboardPage = () => {
             <PlayerCard 
               key={player.id} 
               player={player} 
-              onClick={() => handlePlayerClick(player)} 
+              onClick={() => handlePlayerClick(player)}
+              disabled={loadingFullPlayer}
             />
           ))}
+        </div>
+      )}
+      
+      {/* Индикатор загрузки полных данных */}
+      {loadingFullPlayer && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-xl">
+            <div className="text-center">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mb-4"></div>
+              <p className="text-gray-700">Загрузка данных игрока...</p>
+            </div>
+          </div>
         </div>
       )}
       

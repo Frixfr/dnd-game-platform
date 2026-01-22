@@ -19,6 +19,9 @@ export interface PlayerType {
   is_online: boolean;
   is_card_shown: boolean;
   created_at?: string;
+  abilities: AbilityType[];
+  items: ItemType[];
+  active_effects: EffectType[];
 }
 
 export interface AbilityType {
@@ -31,6 +34,7 @@ export interface AbilityType {
   effect_id: number | null;
   created_at: string;
   updated_at: string;
+  is_active?: number;
 }
 
 export interface EffectType {
@@ -42,6 +46,7 @@ export interface EffectType {
   duration_turns: number | null;
   duration_days: number | null;
   is_permanent: boolean;
+  remaining_turns: number | null;
 }
 
 // Добавляем тип для редкости предметов
@@ -58,6 +63,10 @@ export interface ItemType {
   passive_effect_id: number | null;
   created_at?: string;
   updated_at?: string;
+  quantity?: number; 
+  is_equipped?: number; 
+  active_effect_name?: string | null;
+  passive_effect_name?: string | null;
 }
 
 // Расширенный тип предмета с загруженными эффектами
