@@ -9,9 +9,10 @@ interface EffectState {
   addEffect: (effect: EffectType) => void;
   setEffects: (effects: EffectType[]) => void;
   initializeSocket: () => void;
+  fetchEffects: () => Promise<void>;
 }
 
-export const useEffectStore = create<EffectState>((set) => ({
+export const useEffectStore = create<EffectState>((set, get) => ({
   effects: [],
   socket: null,
   
@@ -27,18 +28,38 @@ export const useEffectStore = create<EffectState>((set) => ({
   initializeSocket: () => {
     if (typeof window === 'undefined') return;
     
-    const newSocket = io('http://localhost:5000', {
+    const socket = io('http://localhost:5000', {
+      withCredentials: true,
+      transports: ['websocket', 'polling'], // Явно указываем транспорты
       autoConnect: true,
       reconnection: true,
       reconnectionAttempts: 5
     });
     
-    newSocket.on('effectCreated', (effect: EffectType) => {
+    socket.on('effectCreated', (effect: EffectType) => {
       set(state => ({
         effects: [...state.effects, effect]
       }));
     });
+
+    // Инициализация: загружаем начальный список игроков
+    socket.on('connect', async () => {
+      const { fetchEffects } = get();
+      await fetchEffects();
+    });
     
-    set({ socket: newSocket });
+    set({ socket: socket });
+  },
+
+  fetchEffects: async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/effects');
+      if (response.ok) {
+        const effects = await response.json();
+        set({ effects });
+      }
+    } catch (error) {
+      console.error('Ошибка загрузки игроков:', error);
+    }
   }
 }));

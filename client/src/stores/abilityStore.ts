@@ -9,9 +9,10 @@ interface AbilityState {
   addAbility: (ability: AbilityType) => void;
   setAbilities: (abilities: AbilityType[]) => void;
   initializeSocket: () => void;
+  fetchAbilities: () => Promise<void>;
 }
 
-export const useAbilityStore = create<AbilityState>((set) => ({
+export const useAbilityStore = create<AbilityState>((set, get) => ({
   abilities: [],
   socket: null,
   
@@ -27,18 +28,38 @@ export const useAbilityStore = create<AbilityState>((set) => ({
   initializeSocket: () => {
     if (typeof window === 'undefined') return;
     
-    const newSocket = io('http://localhost:5000', {
+    const socket = io('http://localhost:5000', {
+      withCredentials: true,
+      transports: ['websocket', 'polling'], // Явно указываем транспорты
       autoConnect: true,
       reconnection: true,
       reconnectionAttempts: 5
     });
     
-    newSocket.on('abilityCreated', (ability: AbilityType) => {
+    socket.on('abilityCreated', (ability: AbilityType) => {
       set(state => ({
         abilities: [...state.abilities, ability]
       }));
     });
-    
-    set({ socket: newSocket });
+
+    // Инициализация: загружаем начальный список игроков
+    socket.on('connect', async () => {
+      const { fetchAbilities } = get();
+      await fetchAbilities();
+    });
+
+    set({ socket: socket });
+  },
+
+  fetchAbilities: async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/abilities');
+      if (response.ok) {
+        const abilities = await response.json();
+        set({ abilities });
+      }
+    } catch (error) {
+      console.error('Ошибка загрузки игроков:', error);
+    }
   }
 }));

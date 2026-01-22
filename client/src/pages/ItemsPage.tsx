@@ -6,41 +6,42 @@ import { ItemCard } from '../components/ui/ItemCard';
 
 export const ItemsPage = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [items, setItems] = useState<ItemType[]>([]);
     const [effects, setEffects] = useState<EffectType[]>([]);
     const [loading, setLoading] = useState(true);
-    const { initializeSocket, socket } = useItemStore();
+    const { items, initializeSocket, socket } = useItemStore();
 
     // Инициализация сокетов при монтировании
-  useEffect(() => {
-    initializeSocket();
-  }, []);
+    useEffect(() => {
+      initializeSocket();
+    }, [initializeSocket]);
   
   // Загрузка начальных данных
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await fetch('http://localhost:5000/api/items');
-        const responseEffects = await fetch('http://localhost:5000/api/effects');
-        if (!response.ok || !responseEffects.ok) throw new Error('Ошибка загрузки');
-        const data = await response.json();
-        const effects = await responseEffects.json();
-        setEffects(effects);
-        setItems(data);
-      } catch (error) {
-        console.error('Ошибка:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchData();
-    
-    // Подписка на события сокетов (Zustand уже обрабатывает это через стор)
-    return () => {
-      if (socket) socket.off('playerCreated');
-    };
-  }, [socket]);
+    useEffect(() => {
+        const fetchEffects = async () => {
+            try {
+                const response = await fetch('http://localhost:5000/api/effects');
+                if (!response.ok) throw new Error('Ошибка загрузки эффектов');
+                const effectsData = await response.json();
+                setEffects(effectsData);
+            } catch (error) {
+                console.error('Ошибка загрузки эффектов:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        
+        fetchEffects();
+        
+        // Отписка от сокетов при размонтировании (опционально)
+        return () => {
+            if (socket) {
+                socket.off('itemCreated');
+                socket.off('connect');
+            }
+        };
+    }, [socket]);
+
+    const isLoading = loading || items.length === 0;
 
     return (
         <div className="p-6 max-w-6xl mx-auto">
@@ -55,7 +56,7 @@ export const ItemsPage = () => {
           </div> 
 
         {loading ? (
-            <div className="text-center py-12">Загрузка...</div>
+            <div className="text-center py-12">Загрузка предметов...</div>
         ) : items.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
             Нет созданных игроков. Нажмите кнопку выше для создания первого.
@@ -67,13 +68,13 @@ export const ItemsPage = () => {
                 key={item.id} 
                 item={item} 
                 effects={effects}
-                onClick={() => alert(`Редактирование игрока ${item.name} (ID: ${item.id})`)} 
+                onClick={() => alert(`Редактирование предмета ${item.name} (ID: ${item.id})`)} 
                 />
             ))}
             </div>
         )}
 
-          {isModalOpen && <CreateItemModal onClose={() => setIsModalOpen(false)} />}        
+          {isModalOpen && <CreateItemModal onClose={() => setIsModalOpen(false)} effects={effects} />}      
         </div>
       );
 };
