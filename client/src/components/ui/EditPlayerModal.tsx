@@ -82,7 +82,7 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
       if (!response.ok) throw new Error('Ошибка загрузки предметов');
       const data = await response.json();
       
-      const itemsWithStatus = data.items.map((item: ItemType) => ({
+      const itemsWithStatus = data.map((item: ItemType) => ({
         ...item,
         inInventory: (formData.items || []).some(playerItem => playerItem.id === item.id)
       }));
@@ -103,7 +103,7 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
       if (!response.ok) throw new Error('Ошибка загрузки способностей');
       const data = await response.json();
       
-      const abilitiesWithStatus = data.abilities.map((ability: AbilityType) => ({
+      const abilitiesWithStatus = data.map((ability: AbilityType) => ({
         ...ability,
         inAbilities: (formData.abilities || []).some(playerAbility => playerAbility.id === ability.id)
       }));
@@ -124,7 +124,7 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
       if (!response.ok) throw new Error('Ошибка загрузки эффектов');
       const data = await response.json();
       
-      const effectsWithStatus = data.effects.map((effect: EffectType) => ({
+      const effectsWithStatus = data.map((effect: EffectType) => ({
         ...effect,
         inEffects: (formData.active_effects || []).some(playerEffect => playerEffect.id === effect.id)
       }));

@@ -1008,6 +1008,28 @@ app.get('/api/abilities', async (req, res) => {
   }
 });
 
+// GET /api/abilities/:id - получение конкретной способности
+app.get('/api/abilities/:id', async (req, res) => {
+  const { id } = req.params;
+  
+  try {
+    const ability = await db('abilities')
+      .where('id', id)
+      .first();
+    
+    if (!ability) {
+      return res.status(404).json({ 
+        error: `Способность с ID ${id} не найдена` 
+      });
+    }
+    
+    res.json(ability);
+  } catch (error) {
+    console.error('Ошибка получения способности:', error);
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
 // POST /api/abilities - создание новой способности
 app.post('/api/abilities', async (req, res) => {
   const {
@@ -1126,6 +1148,189 @@ app.post('/api/abilities', async (req, res) => {
     // Общая ошибка сервера
     res.status(500).json({ 
       error: 'Внутренняя ошибка сервера при создании способности' 
+    });
+  }
+});
+
+// PUT /api/abilities/:id - обновление способности
+app.put('/api/abilities/:id', async (req, res) => {
+  const { id } = req.params;
+  const {
+    name,
+    description = '',
+    ability_type = 'active',
+    cooldown_turns = 0,
+    cooldown_days = 0,
+    effect_id = null
+  } = req.body;
+  
+  try {
+    // Проверка существования способности
+    const existingAbility = await db('abilities').where('id', id).first();
+    if (!existingAbility) {
+      return res.status(404).json({ 
+        error: `Способность с ID ${id} не найдена` 
+      });
+    }
+    
+    // Валидация обязательных полей
+    if (name !== undefined) {
+      if (typeof name !== 'string' || name.trim().length === 0) {
+        return res.status(400).json({ 
+          error: 'Название обязательно и не может быть пустым' 
+        });
+      }
+      
+      if (name.length > 100) {
+        return res.status(400).json({ 
+          error: 'Название не должно превышать 100 символов' 
+        });
+      }
+    }
+    
+    // Валидация типа способности
+    if (ability_type !== undefined) {
+      if (ability_type !== 'active' && ability_type !== 'passive') {
+        return res.status(400).json({ 
+          error: 'Тип способности должен быть "active" или "passive"' 
+        });
+      }
+    }
+    
+    // Валидация числовых значений
+    const numericFields: { cooldown_turns?: number; cooldown_days?: number } = {};
+    if (cooldown_turns !== undefined) numericFields.cooldown_turns = cooldown_turns;
+    if (cooldown_days !== undefined) numericFields.cooldown_days = cooldown_days;
+    
+    for (const [field, value] of Object.entries(numericFields)) {
+      if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
+        return res.status(400).json({ 
+          error: `Поле "${field}" должно быть неотрицательным целым числом` 
+        });
+      }
+    }
+    
+    // Проверка существования эффекта (если указан)
+    if (effect_id !== undefined && effect_id !== null) {
+      try {
+        const effectExists = await db('effects').where('id', effect_id).first();
+        if (!effectExists) {
+          return res.status(404).json({ 
+            error: `Эффект с ID ${effect_id} не найден` 
+          });
+        }
+      } catch (error) {
+        console.error('Ошибка проверки эффекта:', error);
+        return res.status(500).json({ 
+          error: 'Ошибка сервера при проверке эффекта' 
+        });
+      }
+    }
+    
+    // Валидация описания
+    if (description !== undefined && typeof description !== 'string') {
+      return res.status(400).json({ 
+        error: 'Описание должно быть строкой' 
+      });
+    }
+    
+    // Подготовка данных для обновления
+    const updateData: {
+      updated_at: any;
+      name?: string;
+      description?: string | null;
+      ability_type?: 'active' | 'passive';
+      cooldown_turns?: number;
+      cooldown_days?: number;
+      effect_id?: number | null;
+    } = {
+      updated_at: db.fn.now()
+    };
+    
+    if (name !== undefined) updateData.name = name.trim();
+    if (description !== undefined) updateData.description = description || null;
+    if (ability_type !== undefined) updateData.ability_type = ability_type;
+    if (cooldown_turns !== undefined) updateData.cooldown_turns = cooldown_turns;
+    if (cooldown_days !== undefined) updateData.cooldown_days = cooldown_days;
+    if (effect_id !== undefined) updateData.effect_id = effect_id;
+    
+    // Обновление способности
+    const [updatedAbility] = await db('abilities')
+      .where('id', id)
+      .update(updateData)
+      .returning('*');
+    
+    console.log(`Способность "${updatedAbility.name}" (ID: ${id}) обновлена`);
+    
+    // Отправляем уведомление через Socket.IO
+    if (io) {
+      io.emit('ability:updated', updatedAbility);
+    }
+    
+    // Возвращаем обновленную способность
+    res.json({
+      success: true,
+      message: 'Способность успешно обновлена',
+      ability: updatedAbility
+    });
+    
+  } catch (error) {
+    console.error('Ошибка обновления способности:', error);  
+    
+    // Общая ошибка сервера
+    res.status(500).json({ 
+      error: 'Внутренняя ошибка сервера при обновлении способности' 
+    });
+  }
+});
+
+// DELETE /api/abilities/:id - удаление способности
+app.delete('/api/abilities/:id', async (req, res) => {
+  const { id } = req.params;
+  
+  try {
+    // Проверка существования способности
+    const existingAbility = await db('abilities').where('id', id).first();
+    if (!existingAbility) {
+      return res.status(404).json({ 
+        error: `Способность с ID ${id} не найдена` 
+      });
+    }
+    
+    // Проверка, используется ли способность игроками
+    const playersWithAbility = await db('player_abilities')
+      .where('ability_id', id)
+      .count('* as count')
+      .first();
+    
+    if (playersWithAbility) {
+      return res.status(409).json({ 
+        error: `Невозможно удалить способность, так как она назначена игрокам "@${playersWithAbility.player_id}". Сначала удалите её у всех игроков.` 
+      });
+    }
+    
+    // Удаление способности
+    await db('abilities').where('id', id).delete();
+    
+    console.log(`Способность "${existingAbility.name}" (ID: ${id}) удалена`);
+    
+    // Отправляем уведомление через Socket.IO
+    if (io) {
+      io.emit('ability:deleted', { id });
+    }
+    
+    // Возвращаем успешный ответ
+    res.json({
+      success: true,
+      message: 'Способность успешно удалена'
+    });
+    
+  } catch (error) {
+    console.error('Ошибка удаления способности:', error);
+    
+    // Общая ошибка сервера
+    res.status(500).json({ 
+      error: 'Внутренняя ошибка сервера при удалении способности' 
     });
   }
 });

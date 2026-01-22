@@ -3,7 +3,15 @@ import { useState, useEffect } from 'react';
 import type { AbilityType, EffectType } from '../../types';
 import { useAbilityStore } from '../../stores/abilityStore';
 
-export const CreateAbilityModal = ({ onClose }: { onClose: () => void }) => {
+interface CreateAbilityModalProps {
+  onClose: () => void;
+  effects?: EffectType[];
+}
+
+export const CreateAbilityModal = ({ 
+  onClose, 
+  effects = [] 
+}: CreateAbilityModalProps) => {
   const [formData, setFormData] = useState<Omit<AbilityType, 'id' | 'created_at' | 'updated_at'>>({
     name: '',
     description: '',
@@ -12,30 +20,11 @@ export const CreateAbilityModal = ({ onClose }: { onClose: () => void }) => {
     cooldown_days: 0,
     effect_id: null
   });
-  
-  const [effects, setEffects] = useState<EffectType[]>([]);
+    
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const { fetchAbilities } = useAbilityStore();
-  
-  // Загружаем список эффектов для выпадающего списка
-  useEffect(() => {
-    const loadEffects = async () => {
-        try {
-        console.log('Загрузка эффектов...');
-        const response = await fetch('http://localhost:5000/api/effects');
-        const data = await response.json();
-        console.log('Получены эффекты:', data);
-        setEffects(data);
-
-        } catch (error) {
-        console.error('Ошибка загрузки эффектов:', error);
-        }
-    };
-
-    loadEffects();
-    }, []);
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

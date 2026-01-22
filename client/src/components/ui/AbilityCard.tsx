@@ -1,13 +1,15 @@
-// client/src/components/ui/AbilityCard.tsx
-import type { AbilityType, AbilityWithEffect, EffectType } from '../../types';
+// client/src/components/ui/AbilityCard.tsx (обновленный)
+import type { AbilityType, EffectType } from '../../types';
 
 interface AbilityCardProps {
-  ability: AbilityWithEffect;
+  ability: AbilityType;
+  effect?: EffectType;
   onClick?: () => void;
+  disabled?: boolean;
 }
 
 // Минималистичная карточка способности с возможностью клика
-export const AbilityCard = ({ ability, onClick }: AbilityCardProps) => {
+export const AbilityCard = ({ ability, effect, onClick }: AbilityCardProps) => {
   // Форматирование времени отката
   const formatCooldown = () => {
     const { cooldown_turns, cooldown_days } = ability;
@@ -66,7 +68,7 @@ export const AbilityCard = ({ ability, onClick }: AbilityCardProps) => {
   return (
     <div 
       onClick={onClick}
-      className={`group bg-gradient-to-br ${colors.bgFrom} ${colors.bgTo} rounded-2xl p-6 cursor-pointer transition-all duration-300 border ${colors.border} ${colors.hoverBorder} hover:shadow-lg ${colors.hoverShadow} hover:scale-[1.02]`}
+      className={`group bg-gradient-to-br ${colors.bgFrom} ${colors.bgTo} rounded-2xl p-6 cursor-pointer transition-all duration-300 border ${colors.border} ${colors.hoverBorder} hover:shadow-lg ${colors.hoverShadow} hover:scale-[1.02] active:scale-[0.99]`}
     >
       {/* Заголовок карточки */}
       <div className="mb-4 flex justify-between items-start">
@@ -112,7 +114,7 @@ export const AbilityCard = ({ ability, onClick }: AbilityCardProps) => {
         )}
 
         {/* Эффект способности */}
-        {ability.effect && (
+        {effect && (
           <div className="p-3 rounded-lg border border-purple-200 bg-purple-50/50">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-3">
@@ -122,45 +124,45 @@ export const AbilityCard = ({ ability, onClick }: AbilityCardProps) => {
                 <div>
                   <div className="text-xs text-gray-600">Применяемый эффект</div>
                   <div className="text-sm font-medium text-gray-900">
-                    {ability.effect.name}
+                    {effect.name}
                   </div>
                 </div>
               </div>
-              <div className={`text-sm font-bold ${getModifierColor(ability.effect.modifier)}`}>
-                {ability.effect.modifier > 0 ? '+' : ''}{ability.effect.modifier}
+              <div className={`text-sm font-bold ${getModifierColor(effect.modifier)}`}>
+                {effect.modifier > 0 ? '+' : ''}{effect.modifier}
               </div>
             </div>
             
             {/* Детали эффекта */}
             <div className="pl-11">
-              {ability.effect.attribute && (
+              {effect.attribute && (
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-xs text-gray-500">Атрибут:</span>
                   <span className="text-xs font-medium text-gray-800 capitalize">
-                    {ability.effect.attribute.replace('_', ' ')}
+                    {effect.attribute.replace('_', ' ')}
                   </span>
                 </div>
               )}
               
               {/* Длительность эффекта */}
               <div className="flex items-center gap-4 text-xs">
-                {ability.effect.is_permanent ? (
+                {effect.is_permanent ? (
                   <span className="text-gray-600">Постоянный эффект</span>
                 ) : (
                   <>
-                    {ability.effect.duration_turns && (
+                    {effect.duration_turns && (
                       <div className="flex items-center gap-1">
                         <span className="text-gray-500">Ходы:</span>
                         <span className="font-medium text-gray-800">
-                          {ability.effect.duration_turns}
+                          {effect.duration_turns}
                         </span>
                       </div>
                     )}
-                    {ability.effect.duration_days && (
+                    {effect.duration_days && (
                       <div className="flex items-center gap-1">
                         <span className="text-gray-500">Дни:</span>
                         <span className="font-medium text-gray-800">
-                          {ability.effect.duration_days}
+                          {effect.duration_days}
                         </span>
                       </div>
                     )}
@@ -170,6 +172,16 @@ export const AbilityCard = ({ ability, onClick }: AbilityCardProps) => {
             </div>
           </div>
         )}
+      </div>
+
+      {/* ID способности внизу */}
+      <div className="mt-4 pt-3 border-t border-gray-200/50">
+        <div className="text-xs text-gray-500 flex justify-between items-center">
+          <span>ID: {ability.id}</span>
+          <span className="text-gray-400 group-hover:text-blue-500 transition-colors">
+            Нажмите для редактирования →
+          </span>
+        </div>
       </div>
     </div>
   );
