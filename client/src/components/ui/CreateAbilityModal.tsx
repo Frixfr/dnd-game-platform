@@ -267,7 +267,13 @@ export const CreateAbilityModal = ({ onClose }: { onClose: () => void }) => {
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
               >
                 <option value="">— Без эффекта —</option>
-                {effects.map((effect) => (
+                {effects
+                .filter(effect => 
+                  formData.ability_type === 'passive' 
+                    ? effect.is_permanent 
+                    : !effect.is_permanent
+                )
+                .map((effect) => (
                   <option key={effect.id} value={effect.id}>
                     {effect.name} ({effect.attribute || 'специальный'}: {effect.modifier > 0 ? '+' : ''}{effect.modifier})
                   </option>

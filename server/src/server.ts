@@ -798,7 +798,7 @@ app.get('/api/effects', async (req, res) => {
       .select('*')
       .orderBy('name', 'asc');
     
-    res.json({ effects });
+    res.json(effects);
   } catch (error) {
     console.error('Ошибка получения эффектов:', error);
     res.status(500).json({ error: 'Внутренняя ошибка сервера' });
@@ -1001,7 +1001,7 @@ app.get('/api/abilities', async (req, res) => {
       .select('*')
       .orderBy('name', 'asc');
     
-    res.json({ abilities });
+    res.json(abilities);
   } catch (error) {
     console.error('Ошибка получения способностей:', error);
     res.status(500).json({ error: 'Внутренняя ошибка сервера' });
@@ -1179,7 +1179,10 @@ app.post('/api/player-abilities', async (req, res) => {
     player_id,
     ability_id,
     is_active = true
-  } = req.body;
+  } = req.body; 
+  
+  let is_passive: Boolean;
+  let effect_id: string;
   
   // Валидация обязательных полей
   if (!player_id || typeof player_id !== 'number' || player_id <= 0) {
@@ -1200,7 +1203,7 @@ app.post('/api/player-abilities', async (req, res) => {
     if (!playerExists) {
       return res.status(404).json({ 
         error: `Игрок с ID ${player_id} не найден` 
-      });
+      });      
     }
   } catch (error) {
     console.error('Ошибка проверки игрока:', error);
@@ -1216,6 +1219,16 @@ app.post('/api/player-abilities', async (req, res) => {
       return res.status(404).json({ 
         error: `Способность с ID ${ability_id} не найден` 
       });
+    } else {
+      // Проверка существования пассивного эффекта у способности
+      const effectExists = await db('effects').where('id', abilityExists.effect_id).first();
+      if (!effectExists) {
+        return res.status(404).json({ 
+          error: `Эффект с ID ${ability_id} не найден` 
+        });
+      }
+      effect_id = abilityExists.effect_id;
+      is_passive = abilityExists.ability_type == "passive" ? true : false;
     }
   } catch (error) {
     console.error('Ошибка проверки способности:', error);
@@ -1240,7 +1253,7 @@ app.post('/api/player-abilities', async (req, res) => {
         })
         .returning('*');
       
-      console.log(`Связь игрока ${player_id} и способности ${ability_id} обновлена`);
+      console.log(`Связь игрока ${player_id} и способности ${ability_id} обновлена`);      
       
       if (io) {
         io.emit('player_ability:updated', updatedLink);
@@ -1280,6 +1293,27 @@ app.post('/api/player-abilities', async (req, res) => {
     if (io) {
       io.emit('player_ability:created', playerAbility);
     }
+
+    if (is_passive) {
+      const [playerEffect] = await db('player_effects')
+        .insert({
+          player_id,
+          effect_id,
+          source_type: "ability",
+          source_id: ability_id,
+          remaining_turns: null,
+          remaining_daye: null,
+          obtained_at: db.fn.now()
+        })
+        .returning('*');
+          
+        console.log(`Пассивный эффект ${effect_id} привязан к игроку ${player_id}`);
+
+        // Отправляем уведомление через Socket.IO
+        if (io) {
+          io.emit('player_effect:created', playerEffect);
+        }
+      }
     
     // Возвращаем созданную связь
     res.status(201).json({
@@ -1322,7 +1356,7 @@ app.get('/api/items', async (req, res) => {
       .select('*')
       .orderBy('name', 'asc');
     
-    res.json({ items });
+    res.json(items);
   } catch (error) {
     console.error('Ошибка получения предметов:', error);
     res.status(500).json({ error: 'Внутренняя ошибка сервера' });
@@ -1908,72 +1942,203 @@ app.post('/api/players/:playerId/abilities/batch', async (req, res) => {
   const { playerId } = req.params;
   const { ability_ids } = req.body; // ability_ids = [number]
   
-  if (!playerId) {
-    return res.status(400).json({ error: 'Неверный ID игрока' });
+  // Валидация ID игрока
+  const player_id = parseInt(playerId);
+  if (!playerId || !player_id || player_id <= 0) {
+    return res.status(400).json({ 
+      error: 'playerId должен быть положительным числом' 
+    });
   }
   
+  // Валидация массива способностей
   if (!Array.isArray(ability_ids)) {
-    return res.status(400).json({ error: 'ability_ids должен быть массивом' });
+    return res.status(400).json({ 
+      error: 'ability_ids должен быть массивом чисел' 
+    });
+  }
+  
+  if (ability_ids.length === 0) {
+    return res.status(400).json({ 
+      error: 'Массив ability_ids не должен быть пустым' 
+    });
+  }
+  
+  // Проверка валидности каждого ID в массиве
+  for (const ability_id of ability_ids) {
+    if (typeof ability_id !== 'number' || ability_id <= 0) {
+      return res.status(400).json({ 
+        error: `ability_id ${ability_id} должен быть положительным числом` 
+      });
+    }
   }
   
   try {
-    const player = await db('players').where('id', playerId).first();
-    if (!player) {
-      return res.status(404).json({ error: 'Игрок не найден' });
+    // Проверка существования игрока
+    const playerExists = await db('players').where('id', player_id).first();
+    if (!playerExists) {
+      return res.status(404).json({ 
+        error: `Игрок с ID ${player_id} не найден` 
+      });
     }
     
     const results = [];
     
+    // Обработка каждой способности в массиве
     for (const ability_id of ability_ids) {
-      // Проверка существования способности
-      const ability = await db('abilities').where('id', ability_id).first();
-      if (!ability) {
-        results.push({ ability_id, error: 'Способность не найдена' });
-        continue;
-      }
-      
-      // Проверяем, есть ли уже такая способность у игрока
-      const existingAbility = await db('player_abilities')
-        .where({ player_id: playerId, ability_id })
-        .first();
-      
-      if (existingAbility) {
-        results.push({ ability_id, success: true, message: 'Способность уже есть у игрока' });
-        continue;
-      }
-      
-      // Создаем новую запись
-      const [newAbility] = await db('player_abilities')
-        .insert({
-          player_id: playerId,
-          ability_id,
-          is_active: 1,
-          obtained_at: db.fn.now()
-        })
-        .returning('*');
-      
-      results.push({ ability_id, success: true, message: 'Способность добавлена', data: newAbility });
-      
-      if (io) {
-        io.emit('player_ability:created', newAbility);
+      try {
+        // Проверка существования способности и её эффекта
+        const ability = await db('abilities')
+          .where('id', ability_id)
+          .first();
+        
+        if (!ability) {
+          results.push({ 
+            ability_id, 
+            success: false, 
+            error: `Способность с ID ${ability_id} не найдена` 
+          });
+          continue;
+        }
+        
+        // Проверка существования эффекта для способности
+        const effectExists = await db('effects')
+          .where('id', ability.effect_id)
+          .first();
+        
+        if (!effectExists) {
+          results.push({ 
+            ability_id, 
+            success: false, 
+            error: `Эффект с ID ${ability.effect_id} для способности ${ability_id} не найден` 
+          });
+          continue;
+        }
+        
+        const is_passive = ability.ability_type === "passive";
+        
+        // Проверка, не привязана ли уже эта способность к игроку
+        const existingLink = await db('player_abilities')
+          .where({ player_id, ability_id })
+          .first();
+        
+        if (existingLink) {
+          // Обновляем существующую запись
+          const [updatedLink] = await db('player_abilities')
+            .where({ player_id, ability_id })
+            .update({ 
+              is_active: true,
+              obtained_at: db.fn.now()
+            })
+            .returning('*');
+          
+          console.log(`Связь игрока ${player_id} и способности ${ability_id} обновлена`);
+          
+          // Отправка события обновления
+          if (io) {
+            io.emit('player_ability:updated', updatedLink);
+          }
+          
+          results.push({ 
+            ability_id, 
+            success: true, 
+            message: 'Связь игрока и способности обновлена',
+            action: 'updated',
+            player_ability: updatedLink 
+          });
+          continue;
+        }
+        
+        // Создание новой связи в базе данных
+        const [playerAbility] = await db('player_abilities')
+          .insert({
+            player_id,
+            ability_id,
+            is_active: true,
+            obtained_at: db.fn.now()
+          })
+          .returning('*');
+        
+        console.log(`Способность ${ability_id} привязана к игроку ${player_id}`);
+        
+        // Отправляем уведомление через Socket.IO
+        if (io) {
+          io.emit('player_ability:created', playerAbility);
+        }
+        
+        // Если способность пассивная, создаем соответствующий эффект
+        if (is_passive) {
+          const [playerEffect] = await db('player_active_effects')
+            .insert({
+              player_id,
+              effect_id: ability.effect_id,
+              source_type: "ability",
+              source_id: ability_id,
+              remaining_turns: null,
+              remaining_days: null,
+              applied_at: db.fn.now()
+            })
+            .returning('*');
+          
+          console.log(`Пассивный эффект ${ability.effect_id} привязан к игроку ${player_id}`);
+          
+          // Отправляем уведомление через Socket.IO
+          if (io) {
+            io.emit('player_effect:created', playerEffect);
+          }
+        }
+        
+        results.push({ 
+          ability_id, 
+          success: true, 
+          message: 'Способность успешно привязана к игроку',
+          action: 'created',
+          player_ability: playerAbility 
+        });
+        
+      } catch (error) {
+        console.error(`Ошибка обработки способности ${ability_id}:`, error);
+        
+        let errorMessage = 'Внутренняя ошибка сервера';      
+        
+        results.push({ 
+          ability_id, 
+          success: false, 
+          error: errorMessage 
+        });
       }
     }
     
     // Обновляем данные игрока через сокет
     if (io) {
-      const fullPlayer = await getFullPlayerData(playerId);
-      io.emit('player:updated', fullPlayer);
+      try {
+        const fullPlayer = await getFullPlayerData(player_id.toString());
+        io.emit('player:updated', fullPlayer);
+      } catch (error) {
+        console.error('Ошибка получения полных данных игрока:', error);
+      }
     }
+    
+    // Статистика обработки
+    const successful = results.filter(r => r.success).length;
+    const failed = results.filter(r => !r.success).length;
     
     res.json({
       success: true,
-      message: 'Операция завершена',
-      results
+      message: `Обработка завершена. Успешно: ${successful}, с ошибками: ${failed}`,
+      results,
+      summary: {
+        total: results.length,
+        successful,
+        failed
+      }
     });
     
   } catch (error) {
-    console.error('Ошибка массового добавления способностей:', error);
-    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+    console.error('Общая ошибка массового добавления способностей:', error);
+        
+    res.status(500).json({ 
+      error: 'Внутренняя ошибка сервера при массовом добавлении способностей' 
+    });
   }
 });
 

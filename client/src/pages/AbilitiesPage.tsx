@@ -1,62 +1,47 @@
 import { useState, useEffect } from 'react';
 import { CreateAbilityModal } from '../components/ui/CreateAbilityModal';
 import { AbilityCard } from '../components/ui/AbilityCard';
-import type { AbilityType } from '../types';
+import type { AbilityType, EffectType } from '../types';
 import { useAbilityStore } from '../stores/abilityStore';
 
 export const AbilitiesPage = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [abilities, setAbilities] = useState<AbilityType[]>([]);
+    const [effects, setEffects] = useState<EffectType[]>([]);
     const [loading, setLoading] = useState(true);
-    const { initializeSocket, socket } = useAbilityStore();
+    
+    // Используем хранилище Zustand
+    const { abilities, initializeSocket, socket } = useAbilityStore();
 
-    // Инициализация сокетов при монтировании
+    // Инициализация сокетов
     useEffect(() => {
         initializeSocket();
-    }, []);
-
-    // Загрузка начальных данных
+    }, [initializeSocket]);
+    
+    // Загрузка эффектов для модального окна
     useEffect(() => {
-        const fetchData = async () => {
-        try {
-            const [abilitiesRes, effectsRes] = await Promise.all([
-                fetch('http://localhost:5000/api/abilities'),
-                fetch('http://localhost:5000/api/effects')
-            ]);
-            
-            if (!abilitiesRes.ok || !effectsRes.ok) {
-                throw new Error('Ошибка загрузки данных');
+        const fetchEffects = async () => {
+            try {
+                const response = await fetch('http://localhost:5000/api/effects');
+                if (!response.ok) throw new Error('Ошибка загрузки эффектов');
+                const effectsData = await response.json();
+                setEffects(effectsData);
+            } catch (error) {
+                console.error('Ошибка загрузки эффектов:', error);
+            } finally {
+                setLoading(false);
             }
-            
-            const abilitiesData = await abilitiesRes.json();
-            const effectsData = await effectsRes.json();
-            
-            // Создаем карту effects для быстрого поиска
-            const effectsMap = new Map(effectsData.map(effect => [effect.id, effect]));
-            
-            const abilitiesWithEffects = abilitiesData.map(ability => {
-                const { effect_id, ...rest } = ability;
-                return {
-                    ...rest,
-                    effect: effect_id ? effectsMap.get(effect_id) || null : null
-                };
-            });
-            
-            setAbilities(abilitiesWithEffects);
-        } catch (error) {
-            console.error('Ошибка:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
+        };
         
-        fetchData();
+        fetchEffects();
         
-        // Подписка на события сокетов (Zustand уже обрабатывает это через стор)
         return () => {
-        if (socket) socket.off('abilityCreated');
+            if (socket) {
+                socket.off('abilityCreated');
+            }
         };
     }, [socket]);
+
+    const isLoading = loading || abilities.length === 0;
 
     return (
         <div className="p-6 max-w-6xl mx-auto">
@@ -71,7 +56,7 @@ export const AbilitiesPage = () => {
           </div> 
 
           {loading ? (
-                  <div className="text-center py-12">Загрузка...</div>
+                  <div className="text-center py-12">Загрузка способностей...</div>
                 ) : abilities.length === 0 ? (
                   <div className="text-center py-12 text-gray-500">
                     Нет созданных способностей. Нажмите кнопку выше для создания первой.
