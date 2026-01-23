@@ -175,14 +175,9 @@ export const AbilityCard = ({ ability, effect, onClick }: AbilityCardProps) => {
       </div>
 
       {/* ID способности внизу */}
-      <div className="mt-4 pt-3 border-t border-gray-200/50">
-        <div className="text-xs text-gray-500 flex justify-between items-center">
-          <span>ID: {ability.id}</span>
-          <span className="text-gray-400 group-hover:text-blue-500 transition-colors">
-            Нажмите для редактирования →
-          </span>
-        </div>
-      </div>
+      <div className="h-2 absolute bottom-4 right-4 text-xs text-gray-500 flex justify-between items-center">
+        <span>ID: {ability.id}</span>
+      </div> 
     </div>
   );
 };

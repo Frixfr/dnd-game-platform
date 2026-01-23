@@ -18,8 +18,7 @@ export const ItemCard = ({
   showActions = false,
   onEdit,
   onDelete 
-}: ItemCardProps) => {
-  const [showEffectDetails, setShowEffectDetails] = useState(false);
+}: ItemCardProps) => {  
   
   // Цвета для редкости
   const rarityConfig = {
@@ -154,35 +153,20 @@ export const ItemCard = ({
         
         {/* Эффекты */}
         {(activeEffect || passiveEffect) && (
-          <div className="bg-white/50 rounded-xl border border-white/70 p-4">
-            <div 
-              className="flex justify-between items-center mb-2 cursor-pointer"
-              onClick={() => setShowEffectDetails(!showEffectDetails)}
-            >
-              <h4 className="text-sm font-semibold text-gray-700">Эффекты</h4>
-              <span className="text-xs text-gray-500">
-                {showEffectDetails ? 'Скрыть' : 'Показать'}
-              </span>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="bg-white/50 rounded-xl border border-white/70 p-4">          
+            <div className="flex flex-col gap-3">
               {/* Активный эффект */}
               {activeEffect && (
-                <div className={`rounded-lg p-3 transition-all duration-200 ${showEffectDetails ? 'bg-blue-50/70 border border-blue-100' : 'bg-white/70'}`}>
-                  <div className="flex items-center gap-2 mb-1">
+                <div className={`rounded-lg p-3 transition-all duration-200 bg-blue-50/70 border border-blue-100`}>
+                  <div className="flex items-center gap-2 mb-2">
                     <span className="text-lg">🎯</span>
                     <div className="text-xs font-medium text-blue-700">Активный</div>
                   </div>
-                  
-                  {showEffectDetails ? (
-                    <div className="space-y-1">
+                    <div className="space-y-2">
                       <div className="text-sm font-semibold text-gray-800">
                         {activeEffect.name}
                       </div>
-                      <div className="text-xs text-gray-600 line-clamp-2">
-                        {activeEffect.description || 'Без описания'}
-                      </div>
-                      <div className="flex items-center gap-2 mt-2">
+                      <div className="flex flex-wrap items-center gap-2 pt-1">
                         {activeEffect.attribute && (
                           <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-800 rounded">
                             {activeEffect.attribute}
@@ -203,31 +187,22 @@ export const ItemCard = ({
                         )}
                       </div>
                     </div>
-                  ) : (
-                    <div className="text-sm font-medium text-gray-700 truncate">
-                      {activeEffect.name}
-                    </div>
-                  )}
+                  
                 </div>
               )}
               
               {/* Пассивный эффект */}
               {passiveEffect && (
-                <div className={`rounded-lg p-3 transition-all duration-200 ${showEffectDetails ? 'bg-green-50/70 border border-green-100' : 'bg-white/70'}`}>
-                  <div className="flex items-center gap-2 mb-1">
+                <div className={`rounded-lg p-3 transition-all duration-200 bg-green-50/70 border border-green-100`}>
+                  <div className="flex items-center gap-2 mb-2">
                     <span className="text-lg">✨</span>
                     <div className="text-xs font-medium text-green-700">Пассивный</div>
                   </div>
-                  
-                  {showEffectDetails ? (
-                    <div className="space-y-1">
+                    <div className="space-y-2">
                       <div className="text-sm font-semibold text-gray-800">
                         {passiveEffect.name}
                       </div>
-                      <div className="text-xs text-gray-600 line-clamp-2">
-                        {passiveEffect.description || 'Без описания'}
-                      </div>
-                      <div className="flex items-center gap-2 mt-2">
+                      <div className="flex flex-wrap items-center gap-2 pt-1">
                         {passiveEffect.attribute && (
                           <span className="text-xs px-2 py-0.5 bg-green-100 text-green-800 rounded">
                             {passiveEffect.attribute}
@@ -241,11 +216,6 @@ export const ItemCard = ({
                         )}
                       </div>
                     </div>
-                  ) : (
-                    <div className="text-sm font-medium text-gray-700 truncate">
-                      {passiveEffect.name}
-                    </div>
-                  )}
                 </div>
               )}
             </div>
@@ -301,6 +271,9 @@ export const ItemCard = ({
           Эффекты не назначены
         </div>
       )}
+      <div className="h-2 absolute bottom-4 right-4 text-xs text-gray-500 flex justify-between items-center">
+        <span>ID: {item.id}</span>
+      </div> 
     </div>
   );
 };

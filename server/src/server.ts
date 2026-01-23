@@ -795,8 +795,7 @@ app.delete('/api/players/:id', async (req, res) => {
 app.get('/api/effects', async (req, res) => {
   try {
     const effects = await db('effects')
-      .select('*')
-      .orderBy('name', 'asc');
+      .select('*');
     
     res.json(effects);
   } catch (error) {
@@ -998,8 +997,7 @@ app.post('/api/effects', async (req, res) => {
 app.get('/api/abilities', async (req, res) => {
   try {
     const abilities = await db('abilities')
-      .select('*')
-      .orderBy('name', 'asc');
+      .select('*');
     
     res.json(abilities);
   } catch (error) {
@@ -1299,13 +1297,12 @@ app.delete('/api/abilities/:id', async (req, res) => {
     
     // Проверка, используется ли способность игроками
     const playersWithAbility = await db('player_abilities')
-      .where('ability_id', id)
-      .count('* as count')
+      .where('ability_id', id)      
       .first();
     
     if (playersWithAbility) {
       return res.status(409).json({ 
-        error: `Невозможно удалить способность, так как она назначена игрокам "@${playersWithAbility.player_id}". Сначала удалите её у всех игроков.` 
+        error: `Невозможно удалить способность, так как она назначена игрокам "${playersWithAbility.player_id}". Сначала удалите её у всех игроков.` 
       });
     }
     
@@ -1558,8 +1555,7 @@ app.post('/api/player-abilities', async (req, res) => {
 app.get('/api/items', async (req, res) => {
   try {
     const items = await db('items')
-      .select('*')
-      .orderBy('name', 'asc');
+      .select('*');
     
     res.json(items);
   } catch (error) {

@@ -175,12 +175,12 @@ export const EffectCard = ({ effect, onClick, showDescription = true, compact = 
       className={`group relative bg-gradient-to-br ${colors.bgFrom} ${colors.bgTo} rounded-2xl p-6 border ${colors.border} ${onClick ? `cursor-pointer ${colors.hoverBorder} hover:shadow-lg ${colors.hoverShadow} hover:scale-[1.02]` : ''} transition-all duration-300`}
     >
       {/* Бейдж типа эффекта */}
-      <div className="absolute top-4 right-4">
+      <div className="absolute top-2 left-1/2 transform -translate-x-1/2">
         <span className={`px-3 py-1 text-xs font-medium rounded-full ${colors.modifierBg} ${colors.modifierText}`}>
           {effect.is_permanent ? 'Постоянный' : 'Временный'}
         </span>
       </div>
-
+      <div className='h-2'></div>
       {/* Заголовок и модификатор */}
       <div className="mb-4">
         <div className="flex items-start justify-between gap-4">
@@ -276,17 +276,9 @@ export const EffectCard = ({ effect, onClick, showDescription = true, compact = 
           </div>
         </div>
       </div>
-
-      {/* Индикатор кликабельности */}
-      {onClick && (
-        <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-          <div className="w-8 h-8 flex items-center justify-center bg-white/90 backdrop-blur-sm rounded-full shadow-sm">
-            <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </div>
-        </div>
-      )}
+      <div className="h-2 absolute bottom-4 right-4 text-xs text-gray-500 flex justify-between items-center">
+        <span>ID: {effect.id}</span>
+      </div> 
     </div>
   );
 };
@@ -424,7 +416,7 @@ export const EffectRow = ({ effect, onClick }: { effect: EffectType; onClick?: (
             </svg>
           </button>
         )}
-      </td>
+      </td>     
     </tr>
   );
 };

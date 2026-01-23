@@ -95,6 +95,10 @@ export const PlayerCard = ({ player, onClick, disabled = false }: PlayerCardProp
           );
         })}
       </div>
+
+      <div className="h-2 absolute bottom-4 right-4 text-xs text-gray-500 flex justify-between items-center">
+        <span>ID: {player.id}</span>
+      </div> 
     </div>
     </div>
   );

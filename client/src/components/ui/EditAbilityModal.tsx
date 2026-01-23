@@ -89,7 +89,8 @@ export const EditAbilityModal = ({
     } else {
       setFormData({
         ...formData,
-        [name]: value
+        [name]: value,
+        effect_id: null
       });
     }
   };
@@ -193,7 +194,7 @@ export const EditAbilityModal = ({
   };
   
   const modalTitle = mode === 'edit' 
-    ? `Редактирование способности ${ability?.name || ''}` 
+    ? `Редактирование способности` 
     : 'Создание новой способности';
   
   return (
