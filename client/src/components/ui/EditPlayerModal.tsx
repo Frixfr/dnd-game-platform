@@ -44,6 +44,7 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
   
   // Статусы экипировки/активности
   const [equipStatus, setEquipStatus] = useState<{ [key: number]: boolean }>({});
+  const [deleting, setDeleting] = useState(false);
   
   // Обновляем форму при изменении игрока
   useEffect(() => {
@@ -422,6 +423,34 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
       console.error('Ошибка обновления:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeletePlayer = async () => {
+    if (!confirm('Вы уверены, что хотите удалить этого игрока? Это действие необратимо.')) {
+      return;
+    }
+
+    setDeleting(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`http://localhost:5000/api/players/${player.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Ошибка удаления игрока');
+      }
+
+      await fetchPlayers();
+      onClose();
+    } catch (err: any) {
+      setError(err.message || 'Произошла ошибка при удалении игрока');
+      console.error('Ошибка удаления:', err);
+    } finally {
+      setDeleting(false);
     }
   };
   
@@ -1178,23 +1207,34 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
       </div>
       
       {/* Кнопки действий */}
-      <div className="flex justify-end space-x-3 pt-6 border-t">
+      <div className="flex justify-between items-center pt-6 border-t">
         <button
           type="button"
-          onClick={onClose}
-          className="px-4 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500"
-          disabled={loading}
+          onClick={handleDeletePlayer}
+          className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={loading || deleting}
         >
-          Отмена
+          {deleting ? 'Удаление...' : 'Удалить игрока'}
         </button>
         
-        <button
-          type="submit"
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-          disabled={loading}
-        >
-          {loading ? 'Сохранение...' : 'Сохранить изменения'}
-        </button>
+        <div className="flex space-x-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500"
+            disabled={loading || deleting}
+          >
+            Отмена
+          </button>
+          
+          <button
+            type="submit"
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={loading || deleting}
+          >
+            {loading ? 'Сохранение...' : 'Сохранить изменения'}
+          </button>
+        </div>
       </div>
     </form>
   );
@@ -1204,7 +1244,7 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
       <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold">Редактирование игрока id_{formData.id}</h2>
+            <h2 className="text-2xl font-bold">Редактирование игрока</h2>
             <button
               onClick={onClose}
               className="text-gray-500 hover:text-gray-700 text-2xl"
