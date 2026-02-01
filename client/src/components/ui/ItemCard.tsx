@@ -235,40 +235,10 @@ export const ItemCard = ({
         )}
       </div>
 
-      {/* Кнопки действий */}
-      {showActions && (onEdit || onDelete) && (
-        <div className="absolute bottom-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-          {onEdit && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit();
-              }}
-              className="p-2 bg-white/80 backdrop-blur-sm rounded-lg shadow-sm hover:shadow-md transition-shadow"
-              title="Редактировать"
-            >
-              <span className="text-gray-600">✏️</span>
-            </button>
-          )}
-          {onDelete && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete();
-              }}
-              className="p-2 bg-white/80 backdrop-blur-sm rounded-lg shadow-sm hover:shadow-md transition-shadow"
-              title="Удалить"
-            >
-              <span className="text-red-500">🗑️</span>
-            </button>
-          )}
-        </div>
-      )}
-
       {/* Индикатор отсутствия эффектов */}
       {!activeEffect && !passiveEffect && (
         <div className="text-center py-3 text-sm text-gray-500 italic">
-          Эффекты не назначены
+          Без эффектов
         </div>
       )}
       <div className="h-2 absolute bottom-4 right-4 text-xs text-gray-500 flex justify-between items-center">

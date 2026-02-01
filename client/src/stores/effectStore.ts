@@ -35,10 +35,27 @@ export const useEffectStore = create<EffectState>((set, get) => ({
       reconnection: true,
       reconnectionAttempts: 5
     });
-    
-    socket.on('effectCreated', (effect: EffectType) => {
+
+    // Обработчик нового эффекта
+    socket.on('effect:created', (effect: EffectType) => {
       set(state => ({
         effects: [...state.effects, effect]
+      }));
+    });
+    
+    // Обработчик обновления эффекта
+    socket.on('effect:updated', (updatedEffect: EffectType) => {
+      set(state => ({
+        effects: state.effects.map(e => 
+          e.id === updatedEffect.id ? updatedEffect : e
+        )
+      }));
+    });
+    
+    // Обработчик удаления эффекта
+    socket.on('effect:deleted', (effectId: number) => {
+      set(state => ({
+        effects: state.effects.filter(e => e.id !== effectId)
       }));
     });
 

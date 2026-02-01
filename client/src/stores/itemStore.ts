@@ -10,19 +10,13 @@ interface ItemState {
   setItems: (items: ItemType[]) => void;
   initializeSocket: () => void;
   fetchItems: () => Promise<void>;
+  updateItem: (item: ItemType) => void;
+  removeItem: (id: number) => void;
 }
 
 export const useItemStore = create<ItemState>((set, get) => ({
   items: [],
   socket: null,
-  
-  // Добавление игрока в локальное состояние (используется при получении через сокет)
-  addItem: (item) => set(state => ({
-    items: [...state.items, item]
-  })),
-  
-  // Обновление всего списка (при первоначальной загрузке)
-  setItems: (items) => set({ items }),
   
   // Инициализация сокет-соединения с обработкой события
   initializeSocket: () => {
@@ -51,6 +45,26 @@ export const useItemStore = create<ItemState>((set, get) => ({
     set({ socket: socket });
   },
 
+  // Добавление игрока в локальное состояние (используется при получении через сокет)
+  addItem: (item) => set(state => ({
+    items: [...state.items, item]
+  })),
+  
+  // Обновление всего списка (при первоначальной загрузке)
+  setItems: (items) => set({ items }),
+
+  updateItem: (item) => {
+    set((state) => ({
+      items: state.items.map(i => i.id === item.id ? item : i)
+    }));
+  },
+  
+  removeItem: (id) => {
+    set((state) => ({
+      items: state.items.filter(i => i.id !== id)
+    }));
+  },
+
   fetchItems: async () => {
     try {
       const response = await fetch('http://localhost:5000/api/items');
@@ -61,5 +75,5 @@ export const useItemStore = create<ItemState>((set, get) => ({
     } catch (error) {
       console.error('Ошибка загрузки игроков:', error);
     }
-  }
+  },
 }));

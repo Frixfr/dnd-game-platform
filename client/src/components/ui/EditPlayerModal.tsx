@@ -473,13 +473,21 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
                     <span className="text-sm">
                       <span className="font-medium">Редкость:</span>{' '}
                       <span className={`px-2 py-1 rounded text-xs ${
-                        item.rarity === 'common' ? 'bg-gray-200' :
+                        item.rarity === 'common' ? 'bg-gray-100 text-gray-800' :
                         item.rarity === 'uncommon' ? 'bg-green-100 text-green-800' :
                         item.rarity === 'rare' ? 'bg-blue-100 text-blue-800' :
                         item.rarity === 'epic' ? 'bg-purple-100 text-purple-800' :
-                        'bg-yellow-100 text-yellow-800'
+                        item.rarity === 'legendary' ? 'bg-yellow-100 text-yellow-800' :
+                        item.rarity === 'mythical' ? 'bg-red-100 text-red-800' :
+                        'bg-orange-100 text-orange-800'
                       }`}>
-                        {item.rarity}
+                        {item.rarity === 'common' ? 'Обычный' :
+                        item.rarity === 'uncommon' ? 'Необычный' :
+                        item.rarity === 'rare' ? 'Редкий' :
+                        item.rarity === 'epic' ? 'Эпический' :
+                        item.rarity === 'legendary' ? 'Легендарный' :
+                        item.rarity === 'mythical' ? 'Мифический' :
+                        'Сюжетный'}
                       </span>
                     </span>
                     <span className="text-sm">

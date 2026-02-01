@@ -993,6 +993,462 @@ app.post('/api/effects', async (req, res) => {
   }
 });
 
+// PUT /api/effects/:id - обновление эффекта
+app.put('/api/effects/:id', async (req, res) => {
+  const { id } = req.params;
+  const { 
+    name, 
+    description = '',
+    attribute = null,
+    modifier = 0,
+    duration_turns = null,
+    duration_days = null,
+    is_permanent = false
+  } = req.body;
+  
+  // Валидация ID
+  if (!id || isNaN(Number(id))) {
+    return res.status(400).json({ 
+      error: 'Некорректный идентификатор эффекта' 
+    });
+  }
+  
+  try {
+    // Проверяем существование эффекта
+    const existingEffect = await db('effects').where('id', id).first();
+    if (!existingEffect) {
+      return res.status(404).json({ 
+        error: 'Эффект не найден' 
+      });
+    }
+    
+    // Валидация данных
+    if (name !== undefined) {
+      if (!name || typeof name !== 'string' || name.trim().length === 0) {
+        return res.status(400).json({ 
+          error: 'Название обязательно для обновления эффекта' 
+        });
+      }
+      
+      if (name.length > 100) {
+        return res.status(400).json({ 
+          error: 'Название не должно превышать 100 символов' 
+        });
+      }
+    }
+    
+    // Валидация атрибута (если указан)
+    const allowedAttributes = [
+      'health', 'max_health', 'armor', 'strength', 
+      'agility', 'intelligence', 'physique', 
+      'wisdom', 'charisma'
+    ];
+    
+    if (attribute !== undefined && attribute !== null && !allowedAttributes.includes(attribute)) {
+      return res.status(400).json({ 
+        error: `Недопустимый атрибут. Допустимые значения: ${allowedAttributes.join(', ')}` 
+      });
+    }
+    
+    // Валидация числовых значений
+    const numericFields = {
+      modifier,
+      duration_turns,
+      duration_days
+    };
+    
+    for (const [field, value] of Object.entries(numericFields)) {
+      if (value !== null && (typeof value !== 'number' || !Number.isInteger(value))) {
+        return res.status(400).json({ 
+          error: `Поле "${field}" должно быть целым числом или null` 
+        });
+      }
+    }
+    
+    // Валидация модификатора
+    if (modifier !== undefined && (modifier < -100 || modifier > 100)) {
+      return res.status(400).json({ 
+        error: 'Модификатор должен быть в диапазоне от -100 до 100' 
+      });
+    }
+    
+    // Валидация длительности для непостоянных эффектов
+    if (is_permanent !== undefined && !is_permanent) {
+      if (duration_turns === null && duration_days === null) {
+        return res.status(400).json({ 
+          error: 'Для непостоянных эффектов укажите длительность в ходах (duration_turns) или днях (duration_days)' 
+        });
+      }
+      
+      if (duration_turns !== null && duration_turns <= 0) {
+        return res.status(400).json({ 
+          error: 'Длительность в ходах должна быть положительным числом' 
+        });
+      }
+      
+      if (duration_days !== null && duration_days <= 0) {
+        return res.status(400).json({ 
+          error: 'Длительность в днях должна быть положительным числом' 
+        });
+      }
+    } else if (is_permanent !== undefined && is_permanent) {
+      // Для постоянных эффектов длительность должна быть null
+      if (duration_turns !== null || duration_days !== null) {
+        return res.status(400).json({ 
+          error: 'Постоянные эффекты не могут иметь длительность' 
+        });
+      }
+    }
+    
+    // Валидация флага is_permanent
+    if (is_permanent !== undefined && typeof is_permanent !== 'boolean') {
+      return res.status(400).json({ 
+        error: 'Поле is_permanent должно быть булевым значением' 
+      });
+    }
+    
+    // Валидация описания
+    if (description !== undefined && typeof description !== 'string') {
+      return res.status(400).json({ 
+        error: 'Описание должно быть строкой' 
+      });
+    }
+    
+    // Подготовка данных для обновления
+    const updateData: any = {};
+    if (name !== undefined) updateData.name = name.trim();
+    if (description !== undefined) updateData.description = description || null;
+    if (attribute !== undefined) updateData.attribute = attribute || null;
+    if (modifier !== undefined) updateData.modifier = modifier;
+    if (duration_turns !== undefined) updateData.duration_turns = is_permanent ? null : duration_turns;
+    if (duration_days !== undefined) updateData.duration_days = is_permanent ? null : duration_days;
+    if (is_permanent !== undefined) updateData.is_permanent = is_permanent;
+    
+    // Обновляем эффект в базе данных
+    const [updatedEffect] = await db('effects')
+      .where('id', id)
+      .update(updateData)
+      .returning('*');
+    
+    console.log(`Эффект "${updatedEffect.name}" (ID: ${updatedEffect.id}) обновлен`);
+    
+    // Отправляем уведомление через Socket.IO
+    io.emit('effect:updated', updatedEffect);
+    
+    res.json({
+      success: true,
+      message: 'Эффект успешно обновлен',
+      effect: updatedEffect
+    });
+    
+  } catch (error: any) {
+    console.error('Ошибка обновления эффекта:', error);
+    
+    // Обработка уникального ограничения имени
+    if (error.message && error.message.includes('UNIQUE constraint failed') || 
+        error.code === 'SQLITE_CONSTRAINT' || 
+        error.message && error.message.includes('duplicate key value violates unique constraint')) {
+      return res.status(409).json({ 
+        error: 'Эффект с таким названием уже существует' 
+      });
+    }
+    
+    // Обработка проверочных ограничений (CHECK constraints)
+    if (error.message && error.message.includes('CHECK constraint failed') ||
+        error.message && error.message.includes('check constraint')) {
+      
+      if (error.message.includes('attribute')) {
+        return res.status(400).json({ 
+          error: 'Недопустимый атрибут эффекта' 
+        });
+      }
+      
+      return res.status(400).json({ 
+        error: 'Некорректные значения параметров эффекта' 
+      });
+    }
+    
+    // Общая ошибка сервера
+    res.status(500).json({ 
+      error: 'Внутренняя ошибка сервера при обновлении эффекта' 
+    });
+  }
+});
+
+// PATCH /api/effects/:id - частичное обновление эффекта
+app.patch('/api/effects/:id', async (req, res) => {
+  const { id } = req.params;
+  const updateData = req.body;
+  
+  // Валидация ID
+  if (!id || isNaN(Number(id))) {
+    return res.status(400).json({ 
+      error: 'Некорректный идентификатор эффекта' 
+    });
+  }
+  
+  try {
+    // Проверяем существование эффекта
+    const existingEffect = await db('effects').where('id', id).first();
+    if (!existingEffect) {
+      return res.status(404).json({ 
+        error: 'Эффект не найден' 
+      });
+    }
+    
+    // Удаляем запрещенные для изменения поля
+    delete updateData.id;
+    
+    // Проверяем, есть ли данные для обновления
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Нет данных для обновления'
+      });
+    }
+    
+    // Валидация отдельных полей при их наличии
+    if (updateData.name !== undefined) {
+      if (!updateData.name || typeof updateData.name !== 'string' || updateData.name.trim().length === 0) {
+        return res.status(400).json({ 
+          error: 'Название обязательно и не может быть пустым' 
+        });
+      }
+      
+      if (updateData.name.length > 100) {
+        return res.status(400).json({ 
+          error: 'Название не должно превышать 100 символов' 
+        });
+      }
+      updateData.name = updateData.name.trim();
+    }
+    
+    // Валидация атрибута
+    const allowedAttributes = [
+      'health', 'max_health', 'armor', 'strength', 
+      'agility', 'intelligence', 'physique', 
+      'wisdom', 'charisma'
+    ];
+    
+    if (updateData.attribute !== undefined) {
+      if (updateData.attribute !== null && !allowedAttributes.includes(updateData.attribute)) {
+        return res.status(400).json({ 
+          error: `Недопустимый атрибут. Допустимые значения: ${allowedAttributes.join(', ')}` 
+        });
+      }
+    }
+    
+    // Валидация модификатора
+    if (updateData.modifier !== undefined) {
+      if (typeof updateData.modifier !== 'number' || updateData.modifier < -100 || updateData.modifier > 100) {
+        return res.status(400).json({ 
+          error: 'Модификатор должен быть числом в диапазоне от -100 до 100' 
+        });
+      }
+    }
+    
+    // Валидация длительности
+    if (updateData.duration_turns !== undefined && updateData.duration_turns !== null) {
+      if (typeof updateData.duration_turns !== 'number' || updateData.duration_turns <= 0) {
+        return res.status(400).json({ 
+          error: 'Длительность в ходах должна быть положительным числом' 
+        });
+      }
+    }
+    
+    if (updateData.duration_days !== undefined && updateData.duration_days !== null) {
+      if (typeof updateData.duration_days !== 'number' || updateData.duration_days <= 0) {
+        return res.status(400).json({ 
+          error: 'Длительность в днях должна быть положительным числом' 
+        });
+      }
+    }
+    
+    // Валидация is_permanent
+    if (updateData.is_permanent !== undefined && typeof updateData.is_permanent !== 'boolean') {
+      return res.status(400).json({ 
+        error: 'Поле is_permanent должно быть булевым значением' 
+      });
+    }
+    
+    // Проверка согласованности данных
+    if (updateData.is_permanent !== undefined && updateData.is_permanent) {
+      // Для постоянных эффектов длительность должна быть null
+      if (updateData.duration_turns !== undefined && updateData.duration_turns !== null) {
+        return res.status(400).json({ 
+          error: 'Постоянные эффекты не могут иметь длительность' 
+        });
+      }
+      if (updateData.duration_days !== undefined && updateData.duration_days !== null) {
+        return res.status(400).json({ 
+          error: 'Постоянные эффекты не могут иметь длительность' 
+        });
+      }
+      
+      // Устанавливаем длительность в null, если эффект становится постоянным
+      if (updateData.is_permanent && !updateData.duration_turns && !updateData.duration_days) {
+        updateData.duration_turns = null;
+        updateData.duration_days = null;
+      }
+    } else if (updateData.is_permanent !== undefined && !updateData.is_permanent) {
+      // Для непостоянных эффектов должна быть указана хотя бы одна длительность
+      if ((updateData.duration_turns === undefined || updateData.duration_turns === null) && 
+          (updateData.duration_days === undefined || updateData.duration_days === null)) {
+        // Проверяем текущие значения
+        if (!existingEffect.duration_turns && !existingEffect.duration_days) {
+          return res.status(400).json({ 
+            error: 'Для непостоянных эффектов укажите длительность' 
+          });
+        }
+      }
+    }
+    
+    // Валидация описания
+    if (updateData.description !== undefined && typeof updateData.description !== 'string') {
+      return res.status(400).json({ 
+        error: 'Описание должно быть строкой' 
+      });
+    }
+    
+    // Обновляем эффект
+    const updatedCount = await db('effects')
+      .where('id', id)
+      .update(updateData);
+    
+    if (updatedCount === 0) {
+      return res.status(500).json({
+        success: false,
+        error: 'Не удалось обновить эффект'
+      });
+    }
+    
+    // Получаем обновленный эффект
+    const updatedEffect = await db('effects')
+      .where('id', id)
+      .first();
+    
+    // Отправляем уведомление через Socket.IO
+    io.emit('effect:updated', updatedEffect);
+    
+    res.json({
+      success: true,
+      message: 'Эффект успешно обновлен',
+      effect: updatedEffect
+    });
+    
+  } catch (error: any) {
+    console.error('Ошибка частичного обновления эффекта:', error);
+    
+    // Обработка уникального ограничения имени
+    if (error.message && error.message.includes('UNIQUE constraint failed') || 
+        error.code === 'SQLITE_CONSTRAINT' || 
+        error.message && error.message.includes('duplicate key value violates unique constraint')) {
+      return res.status(409).json({ 
+        error: 'Эффект с таким названием уже существует' 
+      });
+    }
+    
+    // Обработка проверочных ограничений
+    if (error.message && error.message.includes('CHECK constraint failed') ||
+        error.message && error.message.includes('check constraint')) {
+      return res.status(400).json({ 
+        error: 'Некорректные значения параметров эффекта' 
+      });
+    }
+    
+    res.status(500).json({ 
+      success: false,
+      error: 'Внутренняя ошибка сервера' 
+    });
+  }
+});
+
+// DELETE /api/effects/:id - удаление эффекта
+app.delete('/api/effects/:id', async (req, res) => {
+  const { id } = req.params;
+  
+  // Валидация ID
+  if (!id || isNaN(Number(id))) {
+    return res.status(400).json({ 
+      error: 'Некорректный идентификатор эффекта' 
+    });
+  }
+  
+  try {
+    // Проверяем существование эффекта
+    const existingEffect = await db('effects').where('id', id).first();
+    if (!existingEffect) {
+      return res.status(404).json({ 
+        error: 'Эффект не найден' 
+      });
+    }
+    
+    // Проверяем, используется ли эффект в способностях
+    const abilitiesUsingEffect = await db('abilities')
+      .where('effect_id', id)
+      .first();
+    
+    if (abilitiesUsingEffect) {
+      return res.status(409).json({ 
+        error: `Невозможно удалить эффект, так как он используется в способности "${abilitiesUsingEffect.name}". Сначала удалите или измените связанные способности.` 
+      });
+    }
+    
+    // Проверяем, используется ли эффект в предметах (активный эффект)
+    const itemsUsingActiveEffect = await db('items')
+      .where('active_effect_id', id)
+      .first();
+    
+    if (itemsUsingActiveEffect) {
+      return res.status(409).json({ 
+        error: `Невозможно удалить эффект, так как он используется в предмете "${itemsUsingActiveEffect.name}" как активный эффект. Сначала удалите или измените связанные предметы.` 
+      });
+    }
+    
+    // Проверяем, используется ли эффект в предметах (пассивный эффект)
+    const itemsUsingPassiveEffect = await db('items')
+      .where('passive_effect_id', id)
+      .first();
+    
+    if (itemsUsingPassiveEffect) {
+      return res.status(409).json({ 
+        error: `Невозможно удалить эффект, так как он используется в предмете "${itemsUsingPassiveEffect.name}" как пассивный эффект. Сначала удалите или измените связанные предметы.` 
+      });
+    }
+    
+    // Проверяем, используется ли эффект в активных эффектах игроков
+    const playerEffects = await db('player_active_effects')
+      .where('effect_id', id)
+      .first();
+    
+    if (playerEffects) {
+      return res.status(409).json({ 
+        error: `Невозможно удалить эффект, так как он активен у игроков. Сначала удалите эффект у всех игроков.` 
+      });
+    }
+    
+    // Удаляем эффект
+    await db('effects').where('id', id).delete();
+    
+    console.log(`Эффект "${existingEffect.name}" (ID: ${id}) удален`);
+    
+    // Отправляем уведомление через Socket.IO
+    io.emit('effect:deleted', Number(id));
+    
+    res.json({
+      success: true,
+      message: 'Эффект успешно удален',
+      deleted_id: id
+    });
+    
+  } catch (error) {
+    console.error('Ошибка удаления эффекта:', error);
+    res.status(500).json({ 
+      error: 'Внутренняя ошибка сервера при удалении эффекта' 
+    });
+  }
+});
+
 // API эндпоинты для способностей
 app.get('/api/abilities', async (req, res) => {
   try {
@@ -1671,6 +2127,420 @@ app.post('/api/items', async (req, res) => {
     // Общая ошибка сервера
     res.status(500).json({ 
       error: 'Внутренняя ошибка сервера при создании предмета' 
+    });
+  }
+});
+
+// GET /api/items/:id - получение конкретного предмета
+app.get('/api/items/:id', async (req, res) => {
+  const { id } = req.params;
+  
+  try {
+    const item = await db('items')
+      .where('id', id)
+      .first();
+    
+    if (!item) {
+      return res.status(404).json({ 
+        error: `Предмет с ID ${id} не найден` 
+      });
+    }
+    
+    res.json(item);
+  } catch (error) {
+    console.error('Ошибка получения предмета:', error);
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+// PUT /api/items/:id - обновление предмета
+app.put('/api/items/:id', async (req, res) => {
+  const { id } = req.params;
+  const {
+    name,
+    description = '',
+    rarity = 'common',
+    base_quantity = 1,
+    active_effect_id = null,
+    passive_effect_id = null
+  } = req.body;
+  
+  try {
+    // Проверка существования предмета
+    const existingItem = await db('items').where('id', id).first();
+    if (!existingItem) {
+      return res.status(404).json({ 
+        error: `Предмет с ID ${id} не найден` 
+      });
+    }
+    
+    // Валидация обязательных полей
+    if (name !== undefined) {
+      if (typeof name !== 'string' || name.trim().length === 0) {
+        return res.status(400).json({ 
+          error: 'Название обязательно и не может быть пустым' 
+        });
+      }
+      
+      if (name.length > 100) {
+        return res.status(400).json({ 
+          error: 'Название не должно превышать 100 символов' 
+        });
+      }
+    }
+    
+    // Валидация редкости
+    const allowedRarities = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythical', 'story'];
+    if (rarity !== undefined && !allowedRarities.includes(rarity)) {
+      return res.status(400).json({ 
+        error: `Недопустимая редкость. Допустимые значения: ${allowedRarities.join(', ')}` 
+      });
+    }
+    
+    // Валидация числовых значений
+    if (base_quantity !== undefined) {
+      if (typeof base_quantity !== 'number' || !Number.isInteger(base_quantity) || base_quantity < 1) {
+        return res.status(400).json({ 
+          error: 'Базовое количество должно быть положительным целым числом' 
+        });
+      }
+      
+      if (base_quantity > 999) {
+        return res.status(400).json({ 
+          error: 'Базовое количество не должно превышать 999' 
+        });
+      }
+    }
+    
+    // Проверка существования эффектов (если указаны)
+    const checkEffect = async (effectId: number | null, fieldName: string) => {
+      if (effectId !== null && effectId !== undefined) {
+        try {
+          const effectExists = await db('effects').where('id', effectId).first();
+          if (!effectExists) {
+            return `Эффект с ID ${effectId} не найден`;
+          }
+        } catch (error) {
+          console.error(`Ошибка проверки эффекта (${fieldName}):`, error);
+          return 'Ошибка сервера при проверке эффекта';
+        }
+      }
+      return null;
+    };
+    
+    if (active_effect_id !== undefined) {
+      const activeEffectError = await checkEffect(active_effect_id, 'active_effect_id');
+      if (activeEffectError) {
+        return res.status(404).json({ error: activeEffectError });
+      }
+    }
+    
+    if (passive_effect_id !== undefined) {
+      const passiveEffectError = await checkEffect(passive_effect_id, 'passive_effect_id');
+      if (passiveEffectError) {
+        return res.status(404).json({ error: passiveEffectError });
+      }
+    }
+    
+    // Проверка уникальности эффектов
+    if (active_effect_id !== undefined && passive_effect_id !== undefined && 
+        active_effect_id !== null && passive_effect_id !== null &&
+        active_effect_id === passive_effect_id) {
+      return res.status(400).json({ 
+        error: 'Активный и пассивный эффекты не могут быть одинаковыми' 
+      });
+    }
+    
+    // Валидация описания
+    if (description !== undefined && typeof description !== 'string') {
+      return res.status(400).json({ 
+        error: 'Описание должно быть строкой' 
+      });
+    }
+    
+    // Подготовка данных для обновления
+    const updateData: {
+      updated_at: any;
+      name?: string;
+      description?: string | null;
+      rarity?: string;
+      base_quantity?: number;
+      active_effect_id?: number | null;
+      passive_effect_id?: number | null;
+    } = {
+      updated_at: db.fn.now()
+    };
+    
+    if (name !== undefined) updateData.name = name.trim();
+    if (description !== undefined) updateData.description = description || null;
+    if (rarity !== undefined) updateData.rarity = rarity;
+    if (base_quantity !== undefined) updateData.base_quantity = base_quantity;
+    if (active_effect_id !== undefined) updateData.active_effect_id = active_effect_id;
+    if (passive_effect_id !== undefined) updateData.passive_effect_id = passive_effect_id;
+    
+    // Обновление предмета
+    const [updatedItem] = await db('items')
+      .where('id', id)
+      .update(updateData)
+      .returning('*');
+    
+    console.log(`Предмет "${updatedItem.name}" (ID: ${id}) обновлен`);
+    
+    // Отправляем уведомление через Socket.IO
+    if (io) {
+      io.emit('item:updated', updatedItem);
+    }
+    
+    // Возвращаем обновленный предмет
+    res.json({
+      success: true,
+      message: 'Предмет успешно обновлен',
+      item: updatedItem
+    });
+    
+  } catch (error: any) {
+    console.error('Ошибка обновления предмета:', error);
+    
+    // Обработка уникального ограничения имени
+    if (error.message && error.message.includes('UNIQUE constraint failed') || 
+        error.code === 'SQLITE_CONSTRAINT' || 
+        error.message && error.message.includes('duplicate key value violates unique constraint')) {
+      return res.status(409).json({ 
+        error: 'Предмет с таким названием уже существует' 
+      });
+    }
+    
+    // Обработка внешнего ключа
+    if (error.message && error.message.includes('FOREIGN KEY constraint failed') ||
+        error.message && error.message.includes('foreign key constraint')) {
+      return res.status(404).json({ 
+        error: 'Связанный эффект не найден' 
+      });
+    }
+    
+    // Общая ошибка сервера
+    res.status(500).json({ 
+      error: 'Внутренняя ошибка сервера при обновлении предмета' 
+    });
+  }
+});
+
+// DELETE /api/items/:id - удаление предмета
+app.delete('/api/items/:id', async (req, res) => {
+  const { id } = req.params;
+  
+  try {
+    // Проверка существования предмета
+    const existingItem = await db('items').where('id', id).first();
+    if (!existingItem) {
+      return res.status(404).json({ 
+        error: `Предмет с ID ${id} не найден` 
+      });
+    }
+    
+    // Проверка, используется ли предмет игроками
+    const playersWithItem = await db('player_items')
+      .where('item_id', id)
+      .first();
+    
+    if (playersWithItem) {
+      return res.status(409).json({ 
+        error: `Невозможно удалить предмет, так как он назначен игрокам. Сначала удалите его у всех игроков.` 
+      });
+    }
+    
+    // Удаление предмета
+    await db('items').where('id', id).delete();
+    
+    console.log(`Предмет "${existingItem.name}" (ID: ${id}) удален`);
+    
+    // Отправляем уведомление через Socket.IO
+    if (io) {
+      io.emit('item:deleted', { id: Number(id) });
+    }
+    
+    // Возвращаем успешный ответ
+    res.json({
+      success: true,
+      message: 'Предмет успешно удален'
+    });
+    
+  } catch (error) {
+    console.error('Ошибка удаления предмета:', error);
+    
+    // Общая ошибка сервера
+    res.status(500).json({ 
+      error: 'Внутренняя ошибка сервера при удалении предмета' 
+    });
+  }
+});
+
+// PATCH /api/items/:id - частичное обновление предмета
+app.patch('/api/items/:id', async (req, res) => {
+  const { id } = req.params;
+  const updateData = req.body;
+  
+  try {
+    // Проверка существования предмета
+    const existingItem = await db('items').where('id', id).first();
+    if (!existingItem) {
+      return res.status(404).json({ 
+        error: `Предмет с ID ${id} не найден` 
+      });
+    }
+    
+    // Удаляем запрещенные для изменения поля
+    delete updateData.id;
+    delete updateData.created_at;
+    
+    // Проверяем, есть ли данные для обновления
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Нет данных для обновления'
+      });
+    }
+    
+    // Валидация отдельных полей при их наличии
+    if (updateData.name !== undefined) {
+      if (typeof updateData.name !== 'string' || updateData.name.trim().length === 0) {
+        return res.status(400).json({ 
+          error: 'Название обязательно и не может быть пустым' 
+        });
+      }
+      
+      if (updateData.name.length > 100) {
+        return res.status(400).json({ 
+          error: 'Название не должно превышать 100 символов' 
+        });
+      }
+      updateData.name = updateData.name.trim();
+    }
+    
+    if (updateData.rarity !== undefined) {
+      const allowedRarities = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythical', 'story'];
+      if (!allowedRarities.includes(updateData.rarity)) {
+        return res.status(400).json({ 
+          error: `Недопустимая редкость. Допустимые значения: ${allowedRarities.join(', ')}` 
+        });
+      }
+    }
+    
+    if (updateData.base_quantity !== undefined) {
+      if (typeof updateData.base_quantity !== 'number' || !Number.isInteger(updateData.base_quantity) || updateData.base_quantity < 1) {
+        return res.status(400).json({ 
+          error: 'Базовое количество должно быть положительным целым числом' 
+        });
+      }
+      
+      if (updateData.base_quantity > 999) {
+        return res.status(400).json({ 
+          error: 'Базовое количество не должно превышать 999' 
+        });
+      }
+    }
+    
+    if (updateData.description !== undefined && typeof updateData.description !== 'string') {
+      return res.status(400).json({ 
+        error: 'Описание должно быть строкой' 
+      });
+    }
+    
+    // Проверка существования эффектов
+    if (updateData.active_effect_id !== undefined || updateData.passive_effect_id !== undefined) {
+      const checkEffect = async (effectId: number | null, fieldName: string) => {
+        if (effectId !== null && effectId !== undefined) {
+          try {
+            const effectExists = await db('effects').where('id', effectId).first();
+            if (!effectExists) {
+              return `Эффект с ID ${effectId} не найден`;
+            }
+          } catch (error) {
+            console.error(`Ошибка проверки эффекта (${fieldName}):`, error);
+            return 'Ошибка сервера при проверке эффекта';
+          }
+        }
+        return null;
+      };
+      
+      if (updateData.active_effect_id !== undefined) {
+        const activeEffectError = await checkEffect(updateData.active_effect_id, 'active_effect_id');
+        if (activeEffectError) {
+          return res.status(404).json({ error: activeEffectError });
+        }
+      }
+      
+      if (updateData.passive_effect_id !== undefined) {
+        const passiveEffectError = await checkEffect(updateData.passive_effect_id, 'passive_effect_id');
+        if (passiveEffectError) {
+          return res.status(404).json({ error: passiveEffectError });
+        }
+      }
+      
+      // Проверка уникальности эффектов
+      if (updateData.active_effect_id !== undefined && updateData.passive_effect_id !== undefined && 
+          updateData.active_effect_id !== null && updateData.passive_effect_id !== null &&
+          updateData.active_effect_id === updateData.passive_effect_id) {
+        return res.status(400).json({ 
+          error: 'Активный и пассивный эффекты не могут быть одинаковыми' 
+        });
+      }
+    }
+    
+    // Добавляем timestamp обновления
+    updateData.updated_at = db.fn.now();
+    
+    // Обновляем предмет
+    const updatedCount = await db('items')
+      .where('id', id)
+      .update(updateData);
+    
+    if (updatedCount === 0) {
+      return res.status(500).json({
+        success: false,
+        error: 'Не удалось обновить предмет'
+      });
+    }
+    
+    // Получаем обновленный предмет
+    const updatedItem = await db('items')
+      .where('id', id)
+      .first();
+    
+    // Отправляем уведомление через Socket.IO
+    if (io) {
+      io.emit('item:updated', updatedItem);
+    }
+    
+    res.json({
+      success: true,
+      message: 'Предмет успешно обновлен',
+      item: updatedItem
+    });
+    
+  } catch (error: any) {
+    console.error('Ошибка частичного обновления предмета:', error);
+    
+    // Обработка уникального ограничения имени
+    if (error.message && error.message.includes('UNIQUE constraint failed') || 
+        error.code === 'SQLITE_CONSTRAINT' || 
+        error.message && error.message.includes('duplicate key value violates unique constraint')) {
+      return res.status(409).json({ 
+        error: 'Предмет с таким названием уже существует' 
+      });
+    }
+    
+    // Обработка внешнего ключа
+    if (error.message && error.message.includes('FOREIGN KEY constraint failed') ||
+        error.message && error.message.includes('foreign key constraint')) {
+      return res.status(404).json({ 
+        error: 'Связанный эффект не найден' 
+      });
+    }
+    
+    res.status(500).json({ 
+      success: false,
+      error: 'Внутренняя ошибка сервера' 
     });
   }
 });
