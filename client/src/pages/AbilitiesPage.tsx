@@ -5,7 +5,6 @@ import type { AbilityType, EffectType } from '../types';
 import { useAbilityStore } from '../stores/abilityStore';
 import { EditAbilityModal } from '../components/ui/EditAbilityModal';
 
-
 export const AbilitiesPage = () => {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -14,13 +13,13 @@ export const AbilitiesPage = () => {
     const [loading, setLoading] = useState(true);
     const [loadingFullAbility, setLoadingFullAbility] = useState(false);
     
-    // Используем хранилище Zustand
-    const { abilities, initializeSocket, socket } = useAbilityStore();
+    const { abilities, initializeSocket, fetchAbilities, socket } = useAbilityStore();
 
-    // Инициализация сокетов
+    // Инициализация сокета и загрузка списка способностей
     useEffect(() => {
         initializeSocket();
-    }, [initializeSocket]);
+        fetchAbilities(); // <-- ВАЖНО: загружаем способности при монтировании
+    }, [initializeSocket, fetchAbilities]);
     
     // Загрузка эффектов для модального окна
     useEffect(() => {
@@ -49,7 +48,6 @@ export const AbilitiesPage = () => {
     const handleAbilityClick = async (ability: AbilityType) => {
       setLoadingFullAbility(true);
       try {
-        // Загружаем полные данные способности
         const response = await fetch(`http://localhost:5000/api/abilities/${ability.id}`);
         if (!response.ok) throw new Error('Ошибка загрузки данных способности');
         const fullAbility = await response.json();
@@ -57,7 +55,6 @@ export const AbilitiesPage = () => {
         setIsEditModalOpen(true);
       } catch (error) {
         console.error('Ошибка загрузки данных способности:', error);
-        // Если не удалось загрузить, открываем с базовыми данными
         setSelectedAbility(ability);
         setIsEditModalOpen(true);
       } finally {
@@ -65,44 +62,10 @@ export const AbilitiesPage = () => {
       }
     };
 
-    const handleAbilityUpdated = (updatedAbility: AbilityType) => {
-      // Обновление происходит через сокеты
+    const handleAbilityUpdated = () => {
       setIsEditModalOpen(false);
       setSelectedAbility(null);
     };
-
-    const handleDeleteAbility = async () => {
-      if (!selectedAbility || !confirm(`Вы уверены, что хотите удалить способность "${selectedAbility.name}"?`)) {
-        return;
-      }
-      
-      try {
-        const response = await fetch(`http://localhost:5000/api/abilities/${selectedAbility.id}`, {
-          method: 'DELETE',
-        });
-        
-        if (!response.ok) {
-          throw new Error('Ошибка удаления способности');
-        }
-        
-        const result = await response.json();
-        
-        if (result.success) {
-          setIsEditModalOpen(false);
-          setSelectedAbility(null);
-          alert(`Способность "${selectedAbility.name}" удалена`);
-        }
-      } catch (error: any) {
-        console.error('Ошибка удаления:', error);
-        if (error.message.includes('назначена игрокам')) {
-          alert(`Невозможно удалить способность "${selectedAbility.name}", так как она назначена игрокам. Сначала удалите её у всех игроков.`);
-        } else {
-          alert('Не удалось удалить способность');
-        }
-      }
-    };
-
-    const isLoading = loading || abilities.length === 0;
 
     return (
       <div className="p-6 max-w-6xl mx-auto">
@@ -139,13 +102,12 @@ export const AbilitiesPage = () => {
                 ability={ability} 
                 onClick={() => handleAbilityClick(ability)}
                 disabled={loadingFullAbility}
-                effect={effects.find(effect => effect.id === ability.effect_id )}
+                effect={effects.find(effect => effect.id === ability.effect_id)}
               />
             ))}
           </div>
         )}
         
-        {/* Индикатор загрузки полных данных */}
         {loadingFullAbility && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white p-6 rounded-lg shadow-xl">
@@ -157,7 +119,6 @@ export const AbilitiesPage = () => {
           </div>
         )}
         
-        {/* Измените это */}
         {isCreateModalOpen && (
           <CreateAbilityModal 
             onClose={() => setIsCreateModalOpen(false)} 
@@ -165,7 +126,6 @@ export const AbilitiesPage = () => {
           />
         )}
         
-        {/* Добавьте это */}
         {isEditModalOpen && selectedAbility && (
           <EditAbilityModal
             ability={selectedAbility}
@@ -174,7 +134,6 @@ export const AbilitiesPage = () => {
               setSelectedAbility(null);
             }}
             onAbilityUpdated={handleAbilityUpdated}
-            onAbilityDeleted={handleDeleteAbility}
             mode="edit"
             effects={effects}
           />

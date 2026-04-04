@@ -14,7 +14,7 @@ export const MasterDashboardPage = () => {
   const [loadingFullPlayer, setLoadingFullPlayer] = useState(false);
 
   // Берём всё из стора
-  const { players, setPlayers, updatePlayer, deletePlayer, socket, initializeSocket } = usePlayerStore();
+  const { players, setPlayers, updatePlayer, socket, initializeSocket } = usePlayerStore();
 
   // Инициализация сокетов при монтировании
   useEffect(() => {
@@ -71,32 +71,6 @@ export const MasterDashboardPage = () => {
     updatePlayer(updatedPlayer);
     setIsEditModalOpen(false);
     setSelectedPlayer(null);
-  };
-
-  // Обработчик удаления игрока (если нужно удалить прямо из дашборда)
-  const handleDeletePlayer = async () => {
-    if (!selectedPlayer || !confirm(`Вы уверены, что хотите удалить игрока "${selectedPlayer.name}"?`)) {
-      return;
-    }
-
-    try {
-      const response = await fetch(`http://localhost:5000/api/players/${selectedPlayer.id}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) throw new Error('Ошибка удаления игрока');
-
-      const result = await response.json();
-      if (result.success) {
-        deletePlayer(selectedPlayer.id);
-        setIsEditModalOpen(false);
-        setSelectedPlayer(null);
-        alert(`Игрок "${selectedPlayer.name}" удалён`);
-      }
-    } catch (error) {
-      console.error('Ошибка удаления:', error);
-      alert('Не удалось удалить игрока');
-    }
   };
 
   return (

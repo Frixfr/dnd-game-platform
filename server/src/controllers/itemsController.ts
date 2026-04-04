@@ -54,11 +54,9 @@ export const itemsController = {
         .json({ error: "Название не должно превышать 100 символов" });
     }
     if (!allowedRarities.includes(rarity)) {
-      return res
-        .status(400)
-        .json({
-          error: `Недопустимая редкость. Допустимые: ${allowedRarities.join(", ")}`,
-        });
+      return res.status(400).json({
+        error: `Недопустимая редкость. Допустимые: ${allowedRarities.join(", ")}`,
+      });
     }
     if (typeof base_quantity !== "number" || base_quantity < 1) {
       return res
@@ -69,31 +67,25 @@ export const itemsController = {
     if (active_effect_id) {
       const exists = await itemsService.checkEffectExists(active_effect_id);
       if (!exists)
-        return res
-          .status(404)
-          .json({
-            error: `Активный эффект с ID ${active_effect_id} не найден`,
-          });
+        return res.status(404).json({
+          error: `Активный эффект с ID ${active_effect_id} не найден`,
+        });
     }
     if (passive_effect_id) {
       const exists = await itemsService.checkEffectExists(passive_effect_id);
       if (!exists)
-        return res
-          .status(404)
-          .json({
-            error: `Пассивный эффект с ID ${passive_effect_id} не найден`,
-          });
+        return res.status(404).json({
+          error: `Пассивный эффект с ID ${passive_effect_id} не найден`,
+        });
     }
     if (
       active_effect_id &&
       passive_effect_id &&
       active_effect_id === passive_effect_id
     ) {
-      return res
-        .status(400)
-        .json({
-          error: "Активный и пассивный эффекты не могут быть одинаковыми",
-        });
+      return res.status(400).json({
+        error: "Активный и пассивный эффекты не могут быть одинаковыми",
+      });
     }
 
     try {
@@ -127,6 +119,49 @@ export const itemsController = {
 
     if (Object.keys(updateData).length === 0) {
       return res.status(400).json({ error: "Нет данных для обновления" });
+    }
+
+    // Проверка активного эффекта
+    if (updateData.active_effect_id !== undefined) {
+      if (updateData.active_effect_id !== null) {
+        const exists = await itemsService.checkEffectExists(
+          updateData.active_effect_id,
+        );
+        if (!exists) {
+          return res
+            .status(404)
+            .json({
+              error: `Активный эффект с ID ${updateData.active_effect_id} не найден`,
+            });
+        }
+      }
+    }
+    // Проверка пассивного эффекта
+    if (updateData.passive_effect_id !== undefined) {
+      if (updateData.passive_effect_id !== null) {
+        const exists = await itemsService.checkEffectExists(
+          updateData.passive_effect_id,
+        );
+        if (!exists) {
+          return res
+            .status(404)
+            .json({
+              error: `Пассивный эффект с ID ${updateData.passive_effect_id} не найден`,
+            });
+        }
+      }
+    }
+    // Нельзя одинаковые эффекты
+    if (
+      updateData.active_effect_id &&
+      updateData.passive_effect_id &&
+      updateData.active_effect_id === updateData.passive_effect_id
+    ) {
+      return res
+        .status(400)
+        .json({
+          error: "Активный и пассивный эффекты не могут быть одинаковыми",
+        });
     }
 
     try {

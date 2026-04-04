@@ -1,7 +1,6 @@
 // client/src/components/ui/CreateItemModal.tsx
 import { useState, useEffect } from 'react';
-import type { ItemType, EffectType } from '../../types';
-import { useItemStore } from '../../stores/itemStore';
+import type { ItemType, EffectType, RarityType } from '../../types';
 
 interface CreateItemModalProps {
   onClose: () => void;
@@ -11,18 +10,24 @@ interface CreateItemModalProps {
 
 // Форма создания предмета с валидацией
 export const CreateItemModal = ({ onClose, effects = [], onItemCreated }: CreateItemModalProps) => {
-  const [formData, setFormData] = useState<Omit<ItemType, 'id' | 'created_at' | 'updated_at'>>({
+  const [formData, setFormData] = useState<{
+    name: string;
+    description: string;          // ← строка, не null
+    rarity: RarityType;
+    base_quantity: number;
+    active_effect_id: number | null;
+    passive_effect_id: number | null;
+  }>({
     name: '',
-    description: '',
+    description: '',              // ← пустая строка
     rarity: 'common',
     base_quantity: 1,
     active_effect_id: null,
-    passive_effect_id: null
+    passive_effect_id: null,
   });
   
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { fetchItems } = useItemStore();
   const [localEffects, setLocalEffects] = useState<EffectType[]>(effects);
   const [effectsLoading, setEffectsLoading] = useState(false);
   
@@ -80,7 +85,7 @@ export const CreateItemModal = ({ onClose, effects = [], onItemCreated }: Create
         // Преобразуем пустые строки в null для числовых полей
         active_effect_id: formData.active_effect_id || null,
         passive_effect_id: formData.passive_effect_id || null,
-        description: formData.description || ''
+        description: formData.description === '' ? null : formData.description,
       };
       
       const response = await fetch('http://localhost:5000/api/items', {
@@ -94,8 +99,6 @@ export const CreateItemModal = ({ onClose, effects = [], onItemCreated }: Create
       if (!response.ok) {
         throw new Error(responseData.error || 'Ошибка сервера');
       }
-      
-      await fetchItems();
 
       if (onItemCreated && responseData.item) {
         onItemCreated(responseData.item);
@@ -109,18 +112,32 @@ export const CreateItemModal = ({ onClose, effects = [], onItemCreated }: Create
     }
   };
   
-  const handleInputChange = (field: keyof typeof formData, value: any) => {
+  // Универсальная функция для строковых полей
+  const handleInputChange = (field: keyof typeof formData, value: string) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
   };
-  
+
+  // Для числовых полей (base_quantity и т.п.)
   const handleNumberChange = (field: keyof typeof formData, value: string) => {
-    const numValue = value === '' ? '' : Number(value);
-    handleInputChange(field, numValue);
+    const numValue = value === '' ? 0 : Number(value);
+    setFormData(prev => ({
+      ...prev,
+      [field]: numValue
+    }));
   };
   
+  // Для полей effect_id (могут быть number | null)
+  const handleEffectChange = (field: 'active_effect_id' | 'passive_effect_id', value: string) => {
+    const numValue = value === '' ? null : Number(value);
+    setFormData(prev => ({
+      ...prev,
+      [field]: numValue
+    }));
+  };
+
   const rarityOptions = [
     { value: 'common', label: 'Обычный', color: 'bg-gray-100' },
     { value: 'uncommon', label: 'Необычный', color: 'bg-green-100' },
@@ -226,7 +243,7 @@ export const CreateItemModal = ({ onClose, effects = [], onItemCreated }: Create
                     max="999"
                     value={formData.base_quantity}
                     onChange={(e) => handleNumberChange('base_quantity', e.target.value)}
-                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full p-2 border rounded..."
                     required
                   />
                   <div className="absolute right-3 top-2 text-gray-500">
@@ -238,10 +255,10 @@ export const CreateItemModal = ({ onClose, effects = [], onItemCreated }: Create
               <div>
                 <label className="block text-sm font-medium mb-1">Активный эффект</label>
                 <select
-                  value={formData.active_effect_id || ''}
+                  value={formData.active_effect_id ?? ''}
                   onChange={(e) => {
                     const value = e.target.value;
-                    handleInputChange('active_effect_id', value === '' ? null : Number(value));
+                    handleEffectChange('active_effect_id', value);
                   }}
                   className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   disabled={effectsLoading}
@@ -262,10 +279,10 @@ export const CreateItemModal = ({ onClose, effects = [], onItemCreated }: Create
               <div>
                 <label className="block text-sm font-medium mb-1">Пассивный эффект</label>
                 <select
-                  value={formData.passive_effect_id || ''}
+                  value={formData.passive_effect_id ?? ''}
                   onChange={(e) => {
                     const value = e.target.value;
-                    handleInputChange('passive_effect_id', value === '' ? null : Number(value));
+                    handleEffectChange('passive_effect_id', value);
                   }}
                   className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   disabled={effectsLoading}

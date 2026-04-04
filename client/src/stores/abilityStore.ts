@@ -1,7 +1,6 @@
-// client/src/stores/abilityStore.ts
-import { create } from 'zustand';
-import { io, Socket } from 'socket.io-client';
-import type { AbilityType } from '../types';
+import { create } from "zustand";
+import { io, Socket } from "socket.io-client";
+import type { AbilityType } from "../types";
 
 interface AbilityStore {
   abilities: AbilityType[];
@@ -14,100 +13,74 @@ interface AbilityStore {
   fetchAbilities: () => Promise<void>;
 }
 
-interface AbilityState {
-  abilities: AbilityType[];
-  socket: Socket | null;
-  addAbility: (ability: AbilityType) => void;
-  setAbilities: (abilities: AbilityType[]) => void;
-  updateAbility: (updatedAbility: AbilityType) => void; // Добавьте это
-  removeAbility: (id: number) => void; // Добавьте это
-  initializeSocket: () => void;
-  fetchAbilities: () => Promise<void>;
-}
-
 export const useAbilityStore = create<AbilityStore>((set, get) => ({
   abilities: [],
   socket: null,
-  
-  // Добавление способности
-  addAbility: (ability) => set(state => ({
-    abilities: [...state.abilities, ability]
-  })),
-  
-  // Обновление всего списка
+
+  addAbility: (ability) =>
+    set((state) => {
+      // Проверка на дублирование
+      if (state.abilities.some((a) => a.id === ability.id)) {
+        return state;
+      }
+      return { abilities: [ability, ...state.abilities] };
+    }),
+
   setAbilities: (abilities) => set({ abilities }),
-  
-  // Обновление конкретной способности
-  updateAbility: (updatedAbility) => set(state => ({
-    abilities: state.abilities.map(a => 
-      a.id === updatedAbility.id ? updatedAbility : a
-    )
-  })),
-  
-  // Удаление способности
-  removeAbility: (abilityId) => set(state => ({
-    abilities: state.abilities.filter(a => a.id !== abilityId)
-  })),
-  
-  // Инициализация сокет-соединения
+
+  updateAbility: (updatedAbility) =>
+    set((state) => ({
+      abilities: state.abilities.map((a) =>
+        a.id === updatedAbility.id ? updatedAbility : a,
+      ),
+    })),
+
+  removeAbility: (abilityId) =>
+    set((state) => ({
+      abilities: state.abilities.filter((a) => a.id !== abilityId),
+    })),
+
   initializeSocket: () => {
-    if (typeof window === 'undefined') return;
-    
-    const socket = io('http://localhost:5000', {
+    if (typeof window === "undefined") return;
+    if (get().socket) return; // предотвращаем повторную инициализацию
+
+    const socket = io("http://localhost:5000", {
       withCredentials: true,
-      transports: ['websocket', 'polling'],
+      transports: ["websocket", "polling"],
       autoConnect: true,
       reconnection: true,
-      reconnectionAttempts: 5
-    });
-    
-    // Обработчик новой способности
-    socket.on('ability:created', (ability: AbilityType) => {
-      console.log('Новая способность создана через сокет:', ability);
-      set(state => ({
-        abilities: [ability, ...state.abilities]
-      }));
-    });
-    
-    // Обработчик обновления способности
-    socket.on('ability:updated', (ability: AbilityType) => {
-      console.log('Способность обновлена через сокет:', ability);
-      set(state => ({
-        abilities: state.abilities.map(a => 
-          a.id === ability.id ? ability : a
-        )
-      }));
-    });
-    
-    // Обработчик удаления способности
-    socket.on('ability:deleted', ({ id }: { id: number }) => {
-      console.log('Способность удалена через сокет:', id);
-      set(state => ({
-        abilities: state.abilities.filter(a => a.id !== id)
-      }));
+      reconnectionAttempts: 5,
     });
 
-    // Инициализация: загружаем начальный список способностей
-    socket.on('connect', async () => {
-      console.log('Сокет подключен к способностям');
-      const { fetchAbilities } = get();
-      await fetchAbilities();
+    socket.on("ability:created", (ability: AbilityType) => {
+      console.log("Новая способность создана через сокет:", ability);
+      get().addAbility(ability);
     });
 
-    set({ socket: socket });
-  },  
+    socket.on("ability:updated", (ability: AbilityType) => {
+      console.log("Способность обновлена через сокет:", ability);
+      get().updateAbility(ability);
+    });
 
-  // Загрузка способностей с сервера
+    socket.on("ability:deleted", ({ id }: { id: number }) => {
+      console.log("Способность удалена через сокет:", id);
+      get().removeAbility(id);
+    });
+
+    // Убираем fetchAbilities из connect — загрузка происходит только при монтировании страницы
+    set({ socket });
+  },
+
   fetchAbilities: async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/abilities');
+      const response = await fetch("http://localhost:5000/api/abilities");
       if (response.ok) {
         const abilities = await response.json();
         set({ abilities });
-        console.log('Способности загружены:', abilities.length);
+        console.log("Способности загружены:", abilities.length);
       }
     } catch (error) {
-      console.error('Ошибка загрузки способностей:', error);
+      console.error("Ошибка загрузки способностей:", error);
     }
-  }
+  },
 }));

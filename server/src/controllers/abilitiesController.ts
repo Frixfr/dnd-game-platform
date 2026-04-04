@@ -101,6 +101,19 @@ export const abilitiesController = {
       return res.status(400).json({ error: "Нет данных для обновления" });
     }
 
+    if (updateData.effect_id !== undefined) {
+      if (updateData.effect_id !== null) {
+        const effectExists = await abilitiesService.checkEffectExists(
+          updateData.effect_id,
+        );
+        if (!effectExists) {
+          return res
+            .status(404)
+            .json({ error: `Эффект с ID ${updateData.effect_id} не найден` });
+        }
+      }
+    }
+
     try {
       const updated = await abilitiesService.update(id, updateData);
       if (!updated)

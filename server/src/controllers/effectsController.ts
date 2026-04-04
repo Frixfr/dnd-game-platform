@@ -56,11 +56,9 @@ export const effectsController = {
       "charisma",
     ];
     if (attribute && !allowedAttributes.includes(attribute)) {
-      return res
-        .status(400)
-        .json({
-          error: `Недопустимый атрибут. Допустимые: ${allowedAttributes.join(", ")}`,
-        });
+      return res.status(400).json({
+        error: `Недопустимый атрибут. Допустимые: ${allowedAttributes.join(", ")}`,
+      });
     }
     if (modifier !== undefined && (modifier < -100 || modifier > 100)) {
       return res
@@ -109,6 +107,73 @@ export const effectsController = {
     const updateData = req.body;
     delete updateData.id;
 
+    // ---- НАЧАЛО ВАЛИДАЦИИ ----
+    const allowedAttributes = [
+      "health",
+      "max_health",
+      "armor",
+      "strength",
+      "agility",
+      "intelligence",
+      "physique",
+      "wisdom",
+      "charisma",
+    ];
+    if (
+      updateData.attribute !== undefined &&
+      updateData.attribute !== null &&
+      !allowedAttributes.includes(updateData.attribute)
+    ) {
+      return res.status(400).json({
+        error: `Недопустимый атрибут. Допустимые: ${allowedAttributes.join(", ")}`,
+      });
+    }
+    if (
+      updateData.modifier !== undefined &&
+      (updateData.modifier < -100 || updateData.modifier > 100)
+    ) {
+      return res
+        .status(400)
+        .json({ error: "Модификатор должен быть в диапазоне -100..100" });
+    }
+    if (updateData.is_permanent !== undefined) {
+      if (updateData.is_permanent === true) {
+        if (
+          updateData.duration_turns !== undefined &&
+          updateData.duration_turns !== null
+        ) {
+          return res.status(400).json({
+            error: "Постоянные эффекты не могут иметь duration_turns",
+          });
+        }
+        if (
+          updateData.duration_days !== undefined &&
+          updateData.duration_days !== null
+        ) {
+          return res
+            .status(400)
+            .json({ error: "Постоянные эффекты не могут иметь duration_days" });
+        }
+      } else {
+        // если меняем на временный, нужно проверить, что хотя бы одна длительность будет задана (но тут может быть частичное обновление, поэтому только если оба явно установлены в null)
+        // для простоты: если is_permanent = false и в updateData пришли оба duration_* = null, то ошибка
+        const turns =
+          updateData.duration_turns !== undefined
+            ? updateData.duration_turns
+            : null;
+        const days =
+          updateData.duration_days !== undefined
+            ? updateData.duration_days
+            : null;
+        if (turns === null && days === null) {
+          return res
+            .status(400)
+            .json({ error: "Для непостоянных эффектов укажите длительность" });
+        }
+      }
+    }
+    // ---- КОНЕЦ ВАЛИДАЦИИ ----
+
     if (Object.keys(updateData).length === 0) {
       return res.status(400).json({ error: "Нет данных для обновления" });
     }
@@ -133,6 +198,77 @@ export const effectsController = {
     const id = String(req.params.id);
     const updateData = req.body;
     delete updateData.id;
+
+    // ---- НАЧАЛО ВАЛИДАЦИИ ----
+    const allowedAttributes = [
+      "health",
+      "max_health",
+      "armor",
+      "strength",
+      "agility",
+      "intelligence",
+      "physique",
+      "wisdom",
+      "charisma",
+    ];
+    if (
+      updateData.attribute !== undefined &&
+      updateData.attribute !== null &&
+      !allowedAttributes.includes(updateData.attribute)
+    ) {
+      return res
+        .status(400)
+        .json({
+          error: `Недопустимый атрибут. Допустимые: ${allowedAttributes.join(", ")}`,
+        });
+    }
+    if (
+      updateData.modifier !== undefined &&
+      (updateData.modifier < -100 || updateData.modifier > 100)
+    ) {
+      return res
+        .status(400)
+        .json({ error: "Модификатор должен быть в диапазоне -100..100" });
+    }
+    if (updateData.is_permanent !== undefined) {
+      if (updateData.is_permanent === true) {
+        if (
+          updateData.duration_turns !== undefined &&
+          updateData.duration_turns !== null
+        ) {
+          return res
+            .status(400)
+            .json({
+              error: "Постоянные эффекты не могут иметь duration_turns",
+            });
+        }
+        if (
+          updateData.duration_days !== undefined &&
+          updateData.duration_days !== null
+        ) {
+          return res
+            .status(400)
+            .json({ error: "Постоянные эффекты не могут иметь duration_days" });
+        }
+      } else {
+        // если меняем на временный, нужно проверить, что хотя бы одна длительность будет задана (но тут может быть частичное обновление, поэтому только если оба явно установлены в null)
+        // для простоты: если is_permanent = false и в updateData пришли оба duration_* = null, то ошибка
+        const turns =
+          updateData.duration_turns !== undefined
+            ? updateData.duration_turns
+            : null;
+        const days =
+          updateData.duration_days !== undefined
+            ? updateData.duration_days
+            : null;
+        if (turns === null && days === null) {
+          return res
+            .status(400)
+            .json({ error: "Для непостоянных эффектов укажите длительность" });
+        }
+      }
+    }
+    // ---- КОНЕЦ ВАЛИДАЦИИ ----
 
     if (Object.keys(updateData).length === 0) {
       return res.status(400).json({ error: "Нет данных для обновления" });
@@ -159,7 +295,7 @@ export const effectsController = {
     try {
       const deleted = await effectsService.delete(id);
       if (!deleted) return res.status(404).json({ error: "Эффект не найден" });
-      getIO().emit("effect:deleted", Number(id));
+      getIO().emit("effect:deleted", { id: Number(id) });
       res.json({ success: true, message: "Эффект удалён" });
     } catch (error: any) {
       if (error.message === "Effect is in use") {

@@ -8,6 +8,7 @@ interface EditAbilityModalProps {
   onAbilityUpdated: (updatedAbility: AbilityType) => void;
   onAbilityCreated?: (newAbility: AbilityType) => void;
   mode: 'edit' | 'create';
+  effects?: EffectType[]; // добавим для единообразия
 }
 
 export const EditAbilityModal = ({ 
@@ -15,7 +16,8 @@ export const EditAbilityModal = ({
   onClose, 
   onAbilityUpdated,
   onAbilityCreated,
-  mode = 'edit' 
+  mode = 'edit',
+  effects: externalEffects = []
 }: EditAbilityModalProps) => {
   const [formData, setFormData] = useState({
     name: '',
@@ -28,29 +30,30 @@ export const EditAbilityModal = ({
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [allEffects, setAllEffects] = useState<EffectType[]>([]);
+  const [allEffects, setAllEffects] = useState<EffectType[]>(externalEffects);
   const [effectsLoading, setEffectsLoading] = useState(false);
   
-  // Загрузка всех эффектов для выпадающего списка
   useEffect(() => {
-    const loadEffects = async () => {
-      setEffectsLoading(true);
-      try {
-        const response = await fetch('http://localhost:5000/api/effects');
-        if (!response.ok) throw new Error('Ошибка загрузки эффектов');
-        const data = await response.json();
-        setAllEffects(data || []);
-      } catch (err) {
-        console.error('Ошибка загрузки эффектов:', err);
-      } finally {
-        setEffectsLoading(false);
-      }
-    };
-    
-    loadEffects();
-  }, []);
+    if (externalEffects.length === 0) {
+      const loadEffects = async () => {
+        setEffectsLoading(true);
+        try {
+          const response = await fetch('http://localhost:5000/api/effects');
+          if (!response.ok) throw new Error('Ошибка загрузки эффектов');
+          const data = await response.json();
+          setAllEffects(data || []);
+        } catch (err) {
+          console.error('Ошибка загрузки эффектов:', err);
+        } finally {
+          setEffectsLoading(false);
+        }
+      };
+      loadEffects();
+    } else {
+      setAllEffects(externalEffects);
+    }
+  }, [externalEffects]);
   
-  // Инициализация формы при открытии модального окна
   useEffect(() => {
     if (mode === 'edit' && ability) {
       setFormData({
@@ -90,7 +93,6 @@ export const EditAbilityModal = ({
       setFormData({
         ...formData,
         [name]: value,
-        effect_id: null
       });
     }
   };
@@ -100,7 +102,6 @@ export const EditAbilityModal = ({
     setLoading(true);
     setError(null);
     
-    // Валидация
     if (!formData.name.trim()) {
       setError('Название способности обязательно');
       setLoading(false);
@@ -156,8 +157,9 @@ export const EditAbilityModal = ({
       }
       
       onClose();
-    } catch (err: any) {
-      setError(err.message || 'Произошла ошибка при сохранении способности');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Произошла ошибка при сохранении способности';
+      setError(message);
       console.error('Ошибка сохранения:', err);
     } finally {
       setLoading(false);
@@ -183,10 +185,11 @@ export const EditAbilityModal = ({
         const errorData = await response.json();
         throw new Error(errorData.error || 'Ошибка удаления способности');
       }
-      
+      // Успешное удаление — просто закрываем модалку
       onClose();
-    } catch (err: any) {
-      setError(err.message || 'Произошла ошибка при удалении способности');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Произошла ошибка при удалении способности';
+      setError(message);
       console.error('Ошибка удаления:', err);
     } finally {
       setLoading(false);
@@ -254,7 +257,6 @@ export const EditAbilityModal = ({
             </div>
             
             <div className="grid grid-cols-2 gap-4">
-              {/* Тип способности */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Тип способности *
@@ -271,7 +273,6 @@ export const EditAbilityModal = ({
                 </select>
               </div>
               
-              {/* Эффект */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Связанный эффект
@@ -304,7 +305,6 @@ export const EditAbilityModal = ({
             </div>
             
             <div className="grid grid-cols-2 gap-4">
-              {/* Перезарядка в ходах */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Перезарядка (ходов)
@@ -321,7 +321,6 @@ export const EditAbilityModal = ({
                 <p className="text-xs text-gray-500 mt-1">0 = нет перезарядки</p>
               </div>
               
-              {/* Перезарядка в днях */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Перезарядка (дней)
@@ -339,7 +338,6 @@ export const EditAbilityModal = ({
               </div>
             </div>
             
-            {/* Информация о связанном эффекте */}
             {formData.effect_id && allEffects.length > 0 && (
               <div className="p-3 bg-blue-50 rounded border border-blue-200">
                 <h4 className="font-medium text-blue-800 mb-2">Информация о эффекте:</h4>
@@ -362,7 +360,6 @@ export const EditAbilityModal = ({
               </div>
             )}
             
-            {/* Кнопки действий */}
             <div className="flex justify-between pt-6 border-t">
               <div>
                 {mode === 'edit' && ability && (

@@ -12,12 +12,15 @@ export const ItemsPage = () => {
     const [effects, setEffects] = useState<EffectType[]>([]);
     const [loading, setLoading] = useState(true);
     const [loadingFullItem, setLoadingFullItem] = useState(false);
-    const { items, initializeSocket, socket } = useItemStore();
+    const { items, initializeSocket, disconnectSocket } = useItemStore();
 
     // Инициализация сокетов при монтировании
     useEffect(() => {
         initializeSocket();
-    }, [initializeSocket]);
+        return () => {
+        disconnectSocket();
+        };
+    }, [initializeSocket, disconnectSocket]);
   
     // Загрузка начальных данных
     useEffect(() => {
@@ -34,18 +37,8 @@ export const ItemsPage = () => {
             }
         };
         
-        fetchEffects();
-        
-        // Отписка от сокетов при размонтировании
-        return () => {
-            if (socket) {
-                socket.off('itemCreated');
-                socket.off('itemUpdated');
-                socket.off('itemDeleted');
-                socket.off('connect');
-            }
-        };
-    }, [socket]);
+        fetchEffects();        
+    }, []);
 
     const handleItemClick = async (item: ItemType) => {
         setLoadingFullItem(true);
@@ -72,46 +65,15 @@ export const ItemsPage = () => {
         }
     };
 
-    const handleItemUpdated = (updatedItem: ItemType) => {
+    const handleItemUpdated = () => {
         // Обновление происходит через сокеты через itemStore
         setIsEditModalOpen(false);
         setSelectedItem(null);
     };
 
-    const handleItemCreated = (newItem: ItemType) => {
+    const handleItemCreated = () => {
         // Обновление происходит через сокеты
         setIsCreateModalOpen(false);
-    };
-
-    const handleDeleteItem = async () => {
-        if (!selectedItem || !confirm(`Вы уверены, что хотите удалить предмет "${selectedItem.name}"?`)) {
-            return;
-        }
-        
-        try {
-            const response = await fetch(`http://localhost:5000/api/items/${selectedItem.id}`, {
-                method: 'DELETE',
-            });
-            
-            if (!response.ok) {
-                throw new Error('Ошибка удаления предмета');
-            }
-            
-            const result = await response.json();
-            
-            if (result.success) {
-                setIsEditModalOpen(false);
-                setSelectedItem(null);
-                alert(`Предмет "${selectedItem.name}" удален`);
-            }
-        } catch (error: any) {
-            console.error('Ошибка удаления:', error);
-            if (error.message.includes('назначена игрокам')) {
-                alert(`Невозможно удалить предмет "${selectedItem.name}", так как он назначен игрокам. Сначала удалите его у всех игроков.`);
-            } else {
-                alert('Не удалось удалить предмет');
-            }
-        }
     };
 
     const handleEditItem = (item: ItemType) => {
@@ -134,17 +96,16 @@ export const ItemsPage = () => {
             }
             
             alert(`Предмет "${item.name}" удален`);
-        } catch (error: any) {
+        } catch (error: unknown) { // ← вместо any используем unknown
             console.error('Ошибка удаления:', error);
-            if (error.message.includes('назначена игрокам')) {
-                alert(`Невозможно удалить предмет "${item.name}", так как он назначен игрокам. Сначала удалите его у всех игроков.`);
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            if (errorMessage.includes('назначена игрокам')) {
+            alert(`Невозможно удалить предмет "${item.name}", так как он назначен игрокам. Сначала удалите его у всех игроков.`);
             } else {
                 alert('Не удалось удалить предмет');
             }
         }
     };
-
-    const isLoading = loading || items.length === 0;
 
     return (
         <div className="p-6 max-w-6xl mx-auto">

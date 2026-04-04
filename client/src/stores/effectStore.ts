@@ -19,6 +19,12 @@ export const useEffectStore = create<EffectState>((set, get) => ({
   socket: null,
 
   initializeSocket: () => {
+    // Защита от повторной инициализации
+    if (get().socket?.connected) {
+      console.log("Socket already initialized");
+      return;
+    }
+
     if (typeof window === "undefined") return;
 
     const socket = io("http://localhost:5000", {
@@ -29,15 +35,18 @@ export const useEffectStore = create<EffectState>((set, get) => ({
       reconnectionAttempts: 5,
     });
 
-    // Исправлено: событие "effect:created"
     socket.on("effect:created", (effect: EffectType) => {
       console.log("Эффект создан (сокет):", effect);
-      set((state) => ({
-        effects: [...state.effects, effect],
-      }));
+      set((state) => {
+        // Проверяем, нет ли уже такого эффекта
+        if (state.effects.some((e) => e.id === effect.id)) {
+          console.warn("Effect already exists, skipping add");
+          return state;
+        }
+        return { effects: [...state.effects, effect] };
+      });
     });
 
-    // Добавлено: обработка обновления эффекта
     socket.on("effect:updated", (updatedEffect: EffectType) => {
       console.log("Эффект обновлён (сокет):", updatedEffect);
       set((state) => ({
@@ -47,7 +56,6 @@ export const useEffectStore = create<EffectState>((set, get) => ({
       }));
     });
 
-    // Добавлено: обработка удаления эффекта
     socket.on("effect:deleted", ({ id }: { id: number }) => {
       console.log("Эффект удалён (сокет):", id);
       set((state) => ({
@@ -64,9 +72,10 @@ export const useEffectStore = create<EffectState>((set, get) => ({
   },
 
   addEffect: (effect) =>
-    set((state) => ({
-      effects: [...state.effects, effect],
-    })),
+    set((state) => {
+      if (state.effects.some((e) => e.id === effect.id)) return state;
+      return { effects: [...state.effects, effect] };
+    }),
 
   setEffects: (effects) => set({ effects }),
 

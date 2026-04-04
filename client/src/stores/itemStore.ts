@@ -9,6 +9,7 @@ interface ItemState {
   addItem: (item: ItemType) => void;
   setItems: (items: ItemType[]) => void;
   initializeSocket: () => void;
+  disconnectSocket: () => void;
   fetchItems: () => Promise<void>;
   updateItem: (item: ItemType) => void;
   removeItem: (id: number) => void;
@@ -20,6 +21,8 @@ export const useItemStore = create<ItemState>((set, get) => ({
 
   initializeSocket: () => {
     if (typeof window === "undefined") return;
+    // Предотвращаем повторную инициализацию
+    if (get().socket) return;
 
     const socket = io("http://localhost:5000", {
       withCredentials: true,
@@ -29,27 +32,19 @@ export const useItemStore = create<ItemState>((set, get) => ({
       reconnectionAttempts: 5,
     });
 
-    // Исправлено: событие "item:created"
     socket.on("item:created", (item: ItemType) => {
       console.log("Предмет создан (сокет):", item);
-      set((state) => ({
-        items: [...state.items, item],
-      }));
+      get().addItem(item);
     });
 
-    // Добавлены обработчики для обновления и удаления (если сервер их шлёт)
     socket.on("item:updated", (item: ItemType) => {
       console.log("Предмет обновлён (сокет):", item);
-      set((state) => ({
-        items: state.items.map((i) => (i.id === item.id ? item : i)),
-      }));
+      get().updateItem(item);
     });
 
     socket.on("item:deleted", ({ id }: { id: number }) => {
       console.log("Предмет удалён (сокет):", id);
-      set((state) => ({
-        items: state.items.filter((i) => i.id !== id),
-      }));
+      get().removeItem(id);
     });
 
     socket.on("connect", async () => {
@@ -60,10 +55,22 @@ export const useItemStore = create<ItemState>((set, get) => ({
     set({ socket });
   },
 
+  disconnectSocket: () => {
+    const { socket } = get();
+    if (socket) {
+      socket.disconnect();
+      set({ socket: null });
+    }
+  },
+
   addItem: (item) =>
-    set((state) => ({
-      items: [...state.items, item],
-    })),
+    set((state) => {
+      // Защита от дублирования
+      if (state.items.some((i) => i.id === item.id)) {
+        return state;
+      }
+      return { items: [...state.items, item] };
+    }),
 
   setItems: (items) => set({ items }),
 
