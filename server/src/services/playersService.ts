@@ -2,6 +2,7 @@
 
 import { db } from "../db/index.js";
 import { getFullPlayerData } from "../utils/helpers.js";
+import { playerAbilitiesService } from "./playerAbilitiesService.js";
 import type { Player, FullPlayerData } from "../types/index.js";
 
 export const playersService = {
@@ -9,12 +10,12 @@ export const playersService = {
     return db("players").select("*");
   },
 
-  async getById(id: string): Promise<Player | null> {
+  async getById(id: number): Promise<Player | null> {
     return db("players").where({ id }).first();
   },
 
-  async getFullDetails(id: string): Promise<FullPlayerData | null> {
-    return getFullPlayerData(id);
+  async getFullDetails(id: number): Promise<FullPlayerData | null> {
+    return getFullPlayerData(id.toString());
   },
 
   async create(data: Omit<Player, "id" | "created_at">): Promise<Player> {
@@ -22,7 +23,7 @@ export const playersService = {
     return player;
   },
 
-  async update(id: string, data: Partial<Player>): Promise<Player | null> {
+  async update(id: number, data: Partial<Player>): Promise<Player | null> {
     const [updated] = await db("players")
       .where({ id })
       .update(data)
@@ -30,14 +31,14 @@ export const playersService = {
     return updated || null;
   },
 
-  async delete(id: string): Promise<boolean> {
+  async delete(id: number): Promise<boolean> {
     const deleted = await db("players").where({ id }).delete();
     return deleted > 0;
   },
 
   // Batch операции
   async addItemsBatch(
-    playerId: string,
+    playerId: number,
     items: { item_id: number; quantity: number }[],
   ) {
     const player = await db("players").where("id", playerId).first();
@@ -86,74 +87,32 @@ export const playersService = {
     return { success: true, message: "Операция завершена", results };
   },
 
-  async addAbilitiesBatch(playerId: string, abilityIds: number[]) {
+  async addAbilitiesBatch(playerId: number, abilityIds: number[]) {
     const player = await db("players").where("id", playerId).first();
     if (!player) throw new Error("Игрок не найден");
 
     const results = [];
     for (const ability_id of abilityIds) {
-      const ability = await db("abilities").where("id", ability_id).first();
-      if (!ability) {
-        results.push({
+      try {
+        // Используем единый сервис для добавления способности игроку
+        // По умолчанию is_active = true
+        const playerAbility = await playerAbilitiesService.create(
+          playerId,
           ability_id,
-          success: false,
-          error: "Способность не найдена",
-        });
-        continue;
-      }
-      const effect = await db("effects").where("id", ability.effect_id).first();
-      if (!effect) {
-        results.push({
-          ability_id,
-          success: false,
-          error: "Эффект способности не найден",
-        });
-        continue;
-      }
-      const existing = await db("player_abilities")
-        .where({ player_id: playerId, ability_id })
-        .first();
-      if (existing) {
-        const [updated] = await db("player_abilities")
-          .where({ player_id: playerId, ability_id })
-          .update({ is_active: true, obtained_at: db.fn.now() })
-          .returning("*");
+          true,
+        );
         results.push({
           ability_id,
           success: true,
-          action: "updated",
-          player_ability: updated,
+          action: playerAbility.obtained_at ? "created" : "updated",
+          player_ability: playerAbility,
         });
-      } else {
-        const [newLink] = await db("player_abilities")
-          .insert({
-            player_id: playerId,
-            ability_id,
-            is_active: true,
-            obtained_at: db.fn.now(),
-          })
-          .returning("*");
+      } catch (error: any) {
         results.push({
           ability_id,
-          success: true,
-          action: "created",
-          player_ability: newLink,
+          success: false,
+          error: error.message,
         });
-      }
-      // Если пассивная способность, добавить эффект
-      if (ability.ability_type === "passive") {
-        await db("player_active_effects")
-          .insert({
-            player_id: playerId,
-            effect_id: ability.effect_id,
-            source_type: "ability",
-            source_id: ability_id,
-            remaining_turns: null,
-            remaining_days: null,
-            applied_at: db.fn.now(),
-          })
-          .onConflict(["player_id", "effect_id"]) // если уникальный ключ, то игнорировать
-          .ignore();
       }
     }
     const successful = results.filter((r) => r.success).length;
@@ -165,7 +124,7 @@ export const playersService = {
     };
   },
 
-  async addEffectsBatch(playerId: string, effectIds: number[]) {
+  async addEffectsBatch(playerId: number, effectIds: number[]) {
     const player = await db("players").where("id", playerId).first();
     if (!player) throw new Error("Игрок не найден");
 
@@ -208,7 +167,7 @@ export const playersService = {
     return { success: true, message: "Операция завершена", results };
   },
 
-  async removeItem(playerId: string, itemId: string) {
+  async removeItem(playerId: number, itemId: number) {
     const deleted = await db("player_items")
       .where({ player_id: playerId, item_id: itemId })
       .delete();
@@ -216,15 +175,13 @@ export const playersService = {
     return true;
   },
 
-  async removeAbility(playerId: string, abilityId: string) {
-    const deleted = await db("player_abilities")
-      .where({ player_id: playerId, ability_id: abilityId })
-      .delete();
-    if (deleted === 0) throw new Error("Способность не найдена у игрока");
+  async removeAbility(playerId: number, abilityId: number) {
+    // Используем сервис для удаления связи (он сам удалит эффект, если способность пассивная)
+    await playerAbilitiesService.delete(playerId, abilityId);
     return true;
   },
 
-  async removeEffect(playerId: string, effectId: string) {
+  async removeEffect(playerId: number, effectId: number) {
     const deleted = await db("player_active_effects")
       .where({ player_id: playerId, effect_id: effectId, source_type: "admin" })
       .delete();
@@ -233,7 +190,7 @@ export const playersService = {
     return true;
   },
 
-  async toggleEquip(playerId: string, itemId: string, is_equipped: boolean) {
+  async toggleEquip(playerId: number, itemId: number, is_equipped: boolean) {
     const [updated] = await db("player_items")
       .where({ player_id: playerId, item_id: itemId })
       .update({ is_equipped })
@@ -242,12 +199,18 @@ export const playersService = {
     return updated;
   },
 
-  async toggleAbility(playerId: string, abilityId: string, is_active: boolean) {
+  async toggleAbility(playerId: number, abilityId: number, is_active: boolean) {
+    // Используем сервис для обновления активности (он сам обновит эффект)
     const [updated] = await db("player_abilities")
       .where({ player_id: playerId, ability_id: abilityId })
       .update({ is_active })
       .returning("*");
     if (!updated) throw new Error("Способность не найдена");
+
+    // Дополнительно: если способность пассивная, нужно обновить активный эффект
+    // Вызовем playerAbilitiesService.create с новым is_active, чтобы он создал/удалил эффект
+    await playerAbilitiesService.create(playerId, abilityId, is_active);
+
     return updated;
   },
 };

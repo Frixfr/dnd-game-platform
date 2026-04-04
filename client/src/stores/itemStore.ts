@@ -1,7 +1,7 @@
-// client/src/store/playerStore.ts
-import { create } from 'zustand';
-import { io, Socket } from 'socket.io-client';
-import type { ItemType } from '../types';
+// client/src/stores/itemStore.ts
+import { create } from "zustand";
+import { io, Socket } from "socket.io-client";
+import type { ItemType } from "../types";
 
 interface ItemState {
   items: ItemType[];
@@ -17,63 +17,75 @@ interface ItemState {
 export const useItemStore = create<ItemState>((set, get) => ({
   items: [],
   socket: null,
-  
-  // Инициализация сокет-соединения с обработкой события
+
   initializeSocket: () => {
-    if (typeof window === 'undefined') return;
-    
-    const socket = io('http://localhost:5000', {
+    if (typeof window === "undefined") return;
+
+    const socket = io("http://localhost:5000", {
       withCredentials: true,
-      transports: ['websocket', 'polling'], // Явно указываем транспорты
+      transports: ["websocket", "polling"],
       autoConnect: true,
       reconnection: true,
-      reconnectionAttempts: 5
+      reconnectionAttempts: 5,
     });
-    
-    socket.on('itemCreated', (item: ItemType) => {
-      set(state => ({
-        items: [...state.items, item]
+
+    // Исправлено: событие "item:created"
+    socket.on("item:created", (item: ItemType) => {
+      console.log("Предмет создан (сокет):", item);
+      set((state) => ({
+        items: [...state.items, item],
       }));
     });
 
-    // Инициализация: загружаем начальный список игроков
-    socket.on('connect', async () => {
-      const { fetchItems } = get();
-      await fetchItems();
+    // Добавлены обработчики для обновления и удаления (если сервер их шлёт)
+    socket.on("item:updated", (item: ItemType) => {
+      console.log("Предмет обновлён (сокет):", item);
+      set((state) => ({
+        items: state.items.map((i) => (i.id === item.id ? item : i)),
+      }));
     });
-    
-    set({ socket: socket });
+
+    socket.on("item:deleted", ({ id }: { id: number }) => {
+      console.log("Предмет удалён (сокет):", id);
+      set((state) => ({
+        items: state.items.filter((i) => i.id !== id),
+      }));
+    });
+
+    socket.on("connect", async () => {
+      console.log("Socket connected (items)");
+      await get().fetchItems();
+    });
+
+    set({ socket });
   },
 
-  // Добавление игрока в локальное состояние (используется при получении через сокет)
-  addItem: (item) => set(state => ({
-    items: [...state.items, item]
-  })),
-  
-  // Обновление всего списка (при первоначальной загрузке)
+  addItem: (item) =>
+    set((state) => ({
+      items: [...state.items, item],
+    })),
+
   setItems: (items) => set({ items }),
 
-  updateItem: (item) => {
+  updateItem: (item) =>
     set((state) => ({
-      items: state.items.map(i => i.id === item.id ? item : i)
-    }));
-  },
-  
-  removeItem: (id) => {
+      items: state.items.map((i) => (i.id === item.id ? item : i)),
+    })),
+
+  removeItem: (id) =>
     set((state) => ({
-      items: state.items.filter(i => i.id !== id)
-    }));
-  },
+      items: state.items.filter((i) => i.id !== id),
+    })),
 
   fetchItems: async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/items');
+      const response = await fetch("http://localhost:5000/api/items");
       if (response.ok) {
         const items = await response.json();
         set({ items });
       }
     } catch (error) {
-      console.error('Ошибка загрузки игроков:', error);
+      console.error("Ошибка загрузки предметов:", error);
     }
   },
 }));

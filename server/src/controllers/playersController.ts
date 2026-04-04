@@ -2,6 +2,25 @@ import { Request, Response } from "express";
 import { playersService } from "../services/playersService.js";
 import { getIO } from "../socket/index.js";
 
+// Разрешённые поля для обновления игрока (соответствуют схеме таблицы players)
+const ALLOWED_UPDATE_FIELDS = new Set([
+  "name",
+  "gender",
+  "health",
+  "max_health",
+  "armor",
+  "strength",
+  "agility",
+  "intelligence",
+  "physique",
+  "wisdom",
+  "charisma",
+  "history",
+  "in_battle",
+  "is_online",
+  "is_card_shown",
+]);
+
 export const playersController = {
   async getAll(req: Request, res: Response) {
     try {
@@ -15,7 +34,8 @@ export const playersController = {
 
   async getById(req: Request, res: Response) {
     try {
-      const id = String(req.params.id); // ← приведение к строке
+      const id = Number(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: "Некорректный ID" });
       const player = await playersService.getById(id);
       if (!player) return res.status(404).json({ error: "Игрок не найден" });
       res.json({ success: true, player });
@@ -26,7 +46,8 @@ export const playersController = {
 
   async getFullDetails(req: Request, res: Response) {
     try {
-      const id = String(req.params.id);
+      const id = Number(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: "Некорректный ID" });
       const fullData = await playersService.getFullDetails(id);
       if (!fullData) return res.status(404).json({ error: "Игрок не найден" });
       res.json(fullData);
@@ -112,17 +133,29 @@ export const playersController = {
   },
 
   async update(req: Request, res: Response) {
-    const id = String(req.params.id);
+    const id = Number(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: "Некорректный ID" });
+
     const updateData = req.body;
     delete updateData.id;
     delete updateData.created_at;
 
-    if (Object.keys(updateData).length === 0) {
-      return res.status(400).json({ error: "Нет данных для обновления" });
+    // Фильтруем только разрешённые поля
+    const filteredData: any = {};
+    for (const key of Object.keys(updateData)) {
+      if (ALLOWED_UPDATE_FIELDS.has(key)) {
+        filteredData[key] = updateData[key];
+      }
+    }
+
+    if (Object.keys(filteredData).length === 0) {
+      return res
+        .status(400)
+        .json({ error: "Нет допустимых данных для обновления" });
     }
 
     try {
-      const updatedPlayer = await playersService.update(id, updateData);
+      const updatedPlayer = await playersService.update(id, filteredData);
       if (!updatedPlayer)
         return res.status(404).json({ error: "Игрок не найден" });
       getIO().emit("player:updated", updatedPlayer);
@@ -144,11 +177,12 @@ export const playersController = {
   },
 
   async delete(req: Request, res: Response) {
-    const id = String(req.params.id);
+    const id = Number(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: "Некорректный ID" });
     try {
       const deleted = await playersService.delete(id);
       if (!deleted) return res.status(404).json({ error: "Игрок не найден" });
-      getIO().emit("player:deleted", Number(id));
+      getIO().emit("player:deleted", id);
       res.json({ success: true, message: "Игрок удален", deleted_id: id });
     } catch (error) {
       console.error(error);
@@ -156,8 +190,12 @@ export const playersController = {
     }
   },
 
+  // BATCH операции
   async addItemsBatch(req: Request, res: Response) {
-    const playerId = String(req.params.playerId);
+    const playerId = Number(req.params.playerId);
+    if (isNaN(playerId)) {
+      return res.status(400).json({ error: "Некорректный ID игрока" });
+    }
     const { items } = req.body;
     if (!Array.isArray(items)) {
       return res.status(400).json({ error: "items должен быть массивом" });
@@ -173,7 +211,10 @@ export const playersController = {
   },
 
   async addAbilitiesBatch(req: Request, res: Response) {
-    const playerId = String(req.params.playerId);
+    const playerId = Number(req.params.playerId);
+    if (isNaN(playerId)) {
+      return res.status(400).json({ error: "Некорректный ID игрока" });
+    }
     const { ability_ids } = req.body;
     if (!Array.isArray(ability_ids)) {
       return res
@@ -194,7 +235,10 @@ export const playersController = {
   },
 
   async addEffectsBatch(req: Request, res: Response) {
-    const playerId = String(req.params.playerId);
+    const playerId = Number(req.params.playerId);
+    if (isNaN(playerId)) {
+      return res.status(400).json({ error: "Некорректный ID игрока" });
+    }
     const { effect_ids } = req.body;
     if (!Array.isArray(effect_ids)) {
       return res.status(400).json({ error: "effect_ids должен быть массивом" });
@@ -210,8 +254,11 @@ export const playersController = {
   },
 
   async removeItem(req: Request, res: Response) {
-    const playerId = String(req.params.playerId);
-    const itemId = String(req.params.itemId);
+    const playerId = Number(req.params.playerId);
+    const itemId = Number(req.params.itemId);
+    if (isNaN(playerId) || isNaN(itemId)) {
+      return res.status(400).json({ error: "Некорректные ID" });
+    }
     try {
       await playersService.removeItem(playerId, itemId);
       getIO().emit("player_item:deleted", {
@@ -227,8 +274,11 @@ export const playersController = {
   },
 
   async removeAbility(req: Request, res: Response) {
-    const playerId = String(req.params.playerId);
-    const abilityId = String(req.params.abilityId);
+    const playerId = Number(req.params.playerId);
+    const abilityId = Number(req.params.abilityId);
+    if (isNaN(playerId) || isNaN(abilityId)) {
+      return res.status(400).json({ error: "Некорректные ID" });
+    }
     try {
       await playersService.removeAbility(playerId, abilityId);
       getIO().emit("player_ability:deleted", {
@@ -244,8 +294,11 @@ export const playersController = {
   },
 
   async removeEffect(req: Request, res: Response) {
-    const playerId = String(req.params.playerId);
-    const effectId = String(req.params.effectId);
+    const playerId = Number(req.params.playerId);
+    const effectId = Number(req.params.effectId);
+    if (isNaN(playerId) || isNaN(effectId)) {
+      return res.status(400).json({ error: "Некорректные ID" });
+    }
     try {
       await playersService.removeEffect(playerId, effectId);
       getIO().emit("player_effect:deleted", {
@@ -261,9 +314,12 @@ export const playersController = {
   },
 
   async toggleEquip(req: Request, res: Response) {
-    const playerId = String(req.params.playerId);
-    const itemId = String(req.params.itemId);
+    const playerId = Number(req.params.playerId);
+    const itemId = Number(req.params.itemId);
     const { is_equipped } = req.body;
+    if (isNaN(playerId) || isNaN(itemId)) {
+      return res.status(400).json({ error: "Некорректные ID" });
+    }
     if (typeof is_equipped !== "boolean") {
       return res.status(400).json({ error: "is_equipped должен быть boolean" });
     }
@@ -283,9 +339,12 @@ export const playersController = {
   },
 
   async toggleAbility(req: Request, res: Response) {
-    const playerId = String(req.params.playerId);
-    const abilityId = String(req.params.abilityId);
+    const playerId = Number(req.params.playerId);
+    const abilityId = Number(req.params.abilityId);
     const { is_active } = req.body;
+    if (isNaN(playerId) || isNaN(abilityId)) {
+      return res.status(400).json({ error: "Некорректные ID" });
+    }
     const isActiveValue =
       typeof is_active === "boolean" ? is_active : Boolean(is_active);
     try {

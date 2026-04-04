@@ -34,26 +34,97 @@ export const playerAbilitiesService = {
     const existing = await db("player_abilities")
       .where({ player_id, ability_id })
       .first();
+
+    let result;
     if (existing) {
       // Обновляем существующую запись
       const [updated] = await db("player_abilities")
         .where({ player_id, ability_id })
         .update({ is_active, obtained_at: db.fn.now() })
         .returning("*");
-      return updated;
+      result = updated;
+    } else {
+      const [newLink] = await db("player_abilities")
+        .insert({ player_id, ability_id, is_active, obtained_at: db.fn.now() })
+        .returning("*");
+      result = newLink;
     }
 
-    const [newLink] = await db("player_abilities")
-      .insert({ player_id, ability_id, is_active, obtained_at: db.fn.now() })
-      .returning("*");
-    return newLink;
+    // --- Логика для пассивных способностей: автоматически создать/обновить активный эффект ---
+    if (ability.ability_type === "passive" && ability.effect_id && is_active) {
+      // Получаем эффект способности
+      const effect = await db("effects").where("id", ability.effect_id).first();
+      if (effect) {
+        // Проверяем, есть ли уже активный эффект от этой способности
+        const existingEffect = await db("player_active_effects")
+          .where({
+            player_id,
+            effect_id: ability.effect_id,
+            source_type: "ability",
+            source_id: ability_id,
+          })
+          .first();
+
+        const remaining_turns = effect.duration_turns;
+        const remaining_days = effect.duration_days;
+
+        if (existingEffect) {
+          // Обновляем длительность (если эффект не перманентный)
+          await db("player_active_effects")
+            .where({ id: existingEffect.id })
+            .update({
+              remaining_turns,
+              remaining_days,
+              applied_at: db.fn.now(),
+            });
+        } else {
+          // Создаём новый активный эффект
+          await db("player_active_effects").insert({
+            player_id,
+            effect_id: ability.effect_id,
+            source_type: "ability",
+            source_id: ability_id,
+            remaining_turns,
+            remaining_days,
+            applied_at: db.fn.now(),
+          });
+        }
+      }
+    } else if (ability.ability_type === "passive" && !is_active) {
+      // Если способность пассивная, но is_active=false — удаляем эффект
+      await db("player_active_effects")
+        .where({
+          player_id,
+          source_type: "ability",
+          source_id: ability_id,
+        })
+        .delete();
+    }
+    // --- Конец логики для пассивных способностей ---
+
+    return result;
   },
 
   async delete(player_id: number, ability_id: number) {
+    // Перед удалением связи получаем информацию о способности
+    const ability = await db("abilities").where("id", ability_id).first();
+
     const deleted = await db("player_abilities")
       .where({ player_id, ability_id })
       .delete();
     if (deleted === 0) throw new Error("Not found");
+
+    // Если способность пассивная — удаляем связанный активный эффект
+    if (ability && ability.ability_type === "passive") {
+      await db("player_active_effects")
+        .where({
+          player_id,
+          source_type: "ability",
+          source_id: ability_id,
+        })
+        .delete();
+    }
+
     return true;
   },
 };

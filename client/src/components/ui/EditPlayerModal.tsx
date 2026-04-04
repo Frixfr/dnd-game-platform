@@ -1,5 +1,5 @@
 // client/src/components/ui/EditPlayerModal.tsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { PlayerType, ItemType, AbilityType, EffectType } from '../../types';
 import { usePlayerStore } from '../../stores/playerStore';
 
@@ -9,63 +9,126 @@ interface EditPlayerModalProps {
   onPlayerUpdated: (updatedPlayer: PlayerType) => void;
 }
 
-// Типы для всех доступных сущностей
 type AllItemType = ItemType & { inInventory?: boolean };
 type AllAbilityType = AbilityType & { inAbilities?: boolean };
 type AllEffectType = EffectType & { inEffects?: boolean };
 
 export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayerModalProps) => {
-  // Инициализируем formData с безопасными значениями по умолчанию
   const [formData, setFormData] = useState<PlayerType>(() => ({
     ...player,
-    items: player?.items || [],
-    abilities: player?.abilities || [],
-    active_effects: player?.active_effects || []
+    items: [],
+    abilities: [],
+    active_effects: []
   }));
-  
   const [loading, setLoading] = useState(false);
+  const [loadingDetails, setLoadingDetails] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'stats' | 'currentItems' | 'addItems' | 'currentAbilities' | 'addAbilities' | 'currentEffects' | 'addEffects'>('stats');
   
-  // Состояния для всех доступных сущностей
   const [allItems, setAllItems] = useState<AllItemType[]>([]);
   const [allAbilities, setAllAbilities] = useState<AllAbilityType[]>([]);
   const [allEffects, setAllEffects] = useState<AllEffectType[]>([]);
   
-  // Состояния загрузки
   const [itemsLoading, setItemsLoading] = useState(false);
   const [abilitiesLoading, setAbilitiesLoading] = useState(false);
   const [effectsLoading, setEffectsLoading] = useState(false);
   
-  // Состояния выбранных сущностей
   const [selectedItems, setSelectedItems] = useState<{ [key: number]: number }>({});
   const [selectedAbilities, setSelectedAbilities] = useState<number[]>([]);
   const [selectedEffects, setSelectedEffects] = useState<number[]>([]);
   
-  // Статусы экипировки/активности
   const [equipStatus, setEquipStatus] = useState<{ [key: number]: boolean }>({});
   const [deleting, setDeleting] = useState(false);
   
-  // Обновляем форму при изменении игрока
-  useEffect(() => {
-    setFormData({
-      ...player,
-      items: player?.items || [],
-      abilities: player?.abilities || [],
-      active_effects: player?.active_effects || []
-    });
-    
-    // Инициализируем статус экипировки для текущих предметов
-    const initialEquipStatus: { [key: number]: boolean } = {};
-    (player?.items || []).forEach(item => {
-      initialEquipStatus[item.id] = item.is_equipped === 1;
-    });
-    setEquipStatus(initialEquipStatus);
-  }, [player]);
-
   const { fetchPlayers } = usePlayerStore();
-  
-  // Загрузка всех доступных сущностей при открытии соответствующих вкладок
+
+  // Загрузка полных данных игрока при открытии модалки
+  useEffect(() => {
+    const loadFullPlayer = async () => {
+      setLoadingDetails(true);
+      try {
+        const response = await fetch(`http://localhost:5000/api/players/${player.id}/details`);
+        if (!response.ok) throw new Error('Ошибка загрузки полных данных');
+        const fullPlayer = await response.json();
+        setFormData({
+          ...fullPlayer,
+          items: fullPlayer.items || [],
+          abilities: fullPlayer.abilities || [],
+          active_effects: fullPlayer.active_effects || []
+        });
+        const initialEquipStatus: { [key: number]: boolean } = {};
+        (fullPlayer.items || []).forEach((item: ItemType) => {
+          initialEquipStatus[item.id] = item.is_equipped === 1;
+        });
+        setEquipStatus(initialEquipStatus);
+      } catch (err) {
+        console.error('Ошибка загрузки деталей игрока:', err);
+        setError('Не удалось загрузить данные игрока');
+      } finally {
+        setLoadingDetails(false);
+      }
+    };
+    loadFullPlayer();
+  }, [player.id]);
+
+  const loadAllItems = useCallback(async () => {
+    setItemsLoading(true);
+    try {
+      const response = await fetch('http://localhost:5000/api/items');
+      if (!response.ok) throw new Error('Ошибка загрузки предметов');
+      const data = await response.json();
+      const itemsWithStatus = data.map((item: ItemType) => ({
+        ...item,
+        inInventory: (formData.items || []).some(playerItem => playerItem.id === item.id)
+      }));
+      setAllItems(itemsWithStatus);
+    } catch (err) {
+      console.error('Ошибка загрузки предметов:', err);
+      setError('Не удалось загрузить список предметов');
+    } finally {
+      setItemsLoading(false);
+    }
+  }, [formData.items]); // зависит от formData.items для вычисления inInventory
+
+  const loadAllAbilities = useCallback(async () => {
+    setAbilitiesLoading(true);
+    try {
+      const response = await fetch('http://localhost:5000/api/abilities');
+      if (!response.ok) throw new Error('Ошибка загрузки способностей');
+      const data = await response.json();
+      const abilitiesWithStatus = data.map((ability: AbilityType) => ({
+        ...ability,
+        inAbilities: (formData.abilities || []).some(playerAbility => playerAbility.id === ability.id)
+      }));
+      setAllAbilities(abilitiesWithStatus);
+    } catch (err) {
+      console.error('Ошибка загрузки способностей:', err);
+      setError('Не удалось загрузить список способностей');
+    } finally {
+      setAbilitiesLoading(false);
+    }
+  }, [formData.abilities]);
+
+  const loadAllEffects = useCallback(async () => {
+    setEffectsLoading(true);
+    try {
+      const response = await fetch('http://localhost:5000/api/effects');
+      if (!response.ok) throw new Error('Ошибка загрузки эффектов');
+      const data = await response.json();
+      const effectsWithStatus = data.map((effect: EffectType) => ({
+        ...effect,
+        inEffects: (formData.active_effects || []).some(playerEffect => playerEffect.id === effect.id)
+      }));
+      setAllEffects(effectsWithStatus);
+    } catch (err) {
+      console.error('Ошибка загрузки эффектов:', err);
+      setError('Не удалось загрузить список эффектов');
+    } finally {
+      setEffectsLoading(false);
+    }
+  }, [formData.active_effects]);
+
+  // Затем useEffect для активной вкладки:
   useEffect(() => {
     if (activeTab === 'addItems') {
       loadAllItems();
@@ -74,70 +137,7 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
     } else if (activeTab === 'addEffects') {
       loadAllEffects();
     }
-  }, [activeTab]);
-
-  const loadAllItems = async () => {
-    setItemsLoading(true);
-    try {
-      const response = await fetch('http://localhost:5000/api/items');
-      if (!response.ok) throw new Error('Ошибка загрузки предметов');
-      const data = await response.json();
-      
-      const itemsWithStatus = data.map((item: ItemType) => ({
-        ...item,
-        inInventory: (formData.items || []).some(playerItem => playerItem.id === item.id)
-      }));
-      
-      setAllItems(itemsWithStatus);
-    } catch (err) {
-      console.error('Ошибка загрузки предметов:', err);
-      setError('Не удалось загрузить список предметов');
-    } finally {
-      setItemsLoading(false);
-    }
-  };
-
-  const loadAllAbilities = async () => {
-    setAbilitiesLoading(true);
-    try {
-      const response = await fetch('http://localhost:5000/api/abilities');
-      if (!response.ok) throw new Error('Ошибка загрузки способностей');
-      const data = await response.json();
-      
-      const abilitiesWithStatus = data.map((ability: AbilityType) => ({
-        ...ability,
-        inAbilities: (formData.abilities || []).some(playerAbility => playerAbility.id === ability.id)
-      }));
-      
-      setAllAbilities(abilitiesWithStatus);
-    } catch (err) {
-      console.error('Ошибка загрузки способностей:', err);
-      setError('Не удалось загрузить список способностей');
-    } finally {
-      setAbilitiesLoading(false);
-    }
-  };
-
-  const loadAllEffects = async () => {
-    setEffectsLoading(true);
-    try {
-      const response = await fetch('http://localhost:5000/api/effects');
-      if (!response.ok) throw new Error('Ошибка загрузки эффектов');
-      const data = await response.json();
-      
-      const effectsWithStatus = data.map((effect: EffectType) => ({
-        ...effect,
-        inEffects: (formData.active_effects || []).some(playerEffect => playerEffect.id === effect.id)
-      }));
-      
-      setAllEffects(effectsWithStatus);
-    } catch (err) {
-      console.error('Ошибка загрузки эффектов:', err);
-      setError('Не удалось загрузить список эффектов');
-    } finally {
-      setEffectsLoading(false);
-    }
-  };
+  }, [activeTab, loadAllItems, loadAllAbilities, loadAllEffects]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -191,7 +191,7 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
       await updatePlayerData();
     } catch (err) {
       console.error('Ошибка:', err);
-      setError('Не удалось изменить статус экипировки');
+      setError(err instanceof Error ? err.message : 'Не удалось изменить статус экипировки');
     }
   };
 
@@ -207,13 +207,13 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
       await updatePlayerData();
     } catch (err) {
       console.error('Ошибка:', err);
-      setError('Не удалось удалить предмет');
+      setError(err instanceof Error ? err.message : 'Не удалось удалить предмет');
     }
   };
 
   const handleAddItems = async () => {
     const itemsToAdd = Object.entries(selectedItems)
-      .filter(([_, quantity]) => quantity > 0)
+      .filter(([, quantity]) => quantity > 0)
       .map(([itemId, quantity]) => ({ item_id: parseInt(itemId), quantity }));
     
     if (itemsToAdd.length === 0) {
@@ -234,8 +234,8 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
       setSelectedItems({});
       await updatePlayerData();
       setActiveTab('currentItems');
-    } catch (err: any) {
-      setError(err.message || 'Ошибка добавления предметов');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Ошибка добавления предметов');
     } finally {
       setLoading(false);
     }
@@ -265,7 +265,7 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
       await updatePlayerData();
     } catch (err) {
       console.error('Ошибка:', err);
-      setError('Не удалось изменить статус способности');
+      setError(err instanceof Error ? err.message : 'Не удалось изменить статус способности');
     }
   };
 
@@ -281,7 +281,7 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
       await updatePlayerData();
     } catch (err) {
       console.error('Ошибка:', err);
-      setError('Не удалось удалить способность');
+      setError(err instanceof Error ? err.message : 'Не удалось удалить способность');
     }
   };
 
@@ -304,8 +304,8 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
       setSelectedAbilities([]);
       await updatePlayerData();
       setActiveTab('currentAbilities');
-    } catch (err: any) {
-      setError(err.message || 'Ошибка добавления способностей');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Ошибка добавления способностей');
     } finally {
       setLoading(false);
     }
@@ -332,7 +332,7 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
       await updatePlayerData();
     } catch (err) {
       console.error('Ошибка:', err);
-      setError('Не удалось удалить эффект');
+      setError(err instanceof Error ? err.message : 'Не удалось удалить эффект');
     }
   };
 
@@ -355,8 +355,8 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
       setSelectedEffects([]);
       await updatePlayerData();
       setActiveTab('currentEffects');
-    } catch (err: any) {
-      setError(err.message || 'Ошибка добавления эффектов');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Ошибка добавления эффектов');
     } finally {
       setLoading(false);
     }
@@ -364,10 +364,15 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
 
   const updatePlayerData = async () => {
     try {
-      const response = await fetch(`http://localhost:5000/api/players/${player.id}/full`);
+      const response = await fetch(`http://localhost:5000/api/players/${player.id}/details`);
       if (!response.ok) throw new Error('Ошибка обновления данных');
       const updatedPlayer = await response.json();
-      setFormData(updatedPlayer);
+      setFormData({
+        ...updatedPlayer,
+        items: updatedPlayer.items || [],
+        abilities: updatedPlayer.abilities || [],
+        active_effects: updatedPlayer.active_effects || []
+      });
       await fetchPlayers();
     } catch (err) {
       console.error('Ошибка обновления данных игрока:', err);
@@ -398,7 +403,7 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
     }
     
     try {
-      const response = await fetch(`http://localhost:5000/api/players/${player.id}/full`, {
+      const response = await fetch(`http://localhost:5000/api/players/${player.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -418,8 +423,8 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
         onPlayerUpdated(result.player);
         onClose();
       }
-    } catch (err: any) {
-      setError(err.message || 'Произошла ошибка при обновлении игрока');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Произошла ошибка при обновлении игрока');
       console.error('Ошибка обновления:', err);
     } finally {
       setLoading(false);
@@ -446,8 +451,8 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
 
       await fetchPlayers();
       onClose();
-    } catch (err: any) {
-      setError(err.message || 'Произошла ошибка при удалении игрока');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Произошла ошибка при удалении игрока');
       console.error('Ошибка удаления:', err);
     } finally {
       setDeleting(false);
@@ -846,7 +851,7 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
                         <span className="font-medium">Дни:</span> {effect.duration_days}
                       </span>
                     )}
-                    {effect.is_permanent === 1 && (
+                    {effect.is_permanent && (
                       <span className="text-sm bg-green-100 text-green-800 px-2 py-1 rounded">
                         Постоянный
                       </span>
@@ -898,7 +903,7 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
                           Уже есть
                         </span>
                       )}
-                      {effect.is_permanent === 1 && (
+                      {effect.is_permanent && (
                         <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
                           Постоянный
                         </span>
@@ -978,10 +983,9 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
     </div>
   );
 
-  // Основная форма (статистика) - оставьте без изменений как в предыдущем коде
+  // Основная форма (статистика)
   const renderStatsForm = () => (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {/* Основная информация */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1016,7 +1020,6 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
         </div>
       </div>
       
-      {/* Здоровье */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1050,7 +1053,6 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
         </div>
       </div>
       
-      {/* Основные характеристики */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1151,7 +1153,6 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
         </div>
       </div>
       
-      {/* История и статусы */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
           История персонажа
@@ -1166,7 +1167,6 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
         />
       </div>
       
-      {/* Статусные переключатели */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="flex items-center">
           <input
@@ -1214,7 +1214,6 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
         </div>
       </div>
       
-      {/* Кнопки действий */}
       <div className="flex justify-between items-center pt-6 border-t">
         <button
           type="button"
@@ -1247,6 +1246,16 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
     </form>
   );
   
+  if (loadingDetails) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6">
+          <p className="text-gray-500">Загрузка данных игрока...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -1268,10 +1277,9 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
             </div>
           )}
           
-          {/* Табы для навигации - в две строки */}
+          {/* Табы для навигации */}
           <div className="border-b border-gray-200 mb-6">
-            {/* Первая строка табов */}
-            <nav className="-mb-px flex space-x-4 mb-2">
+            <nav className="-mb-px flex space-x-4">
               <button
                 onClick={() => setActiveTab('stats')}
                 className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap flex-1 text-center ${
@@ -1314,7 +1322,6 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
               </button>
             </nav>
             
-            {/* Вторая строка табов */}
             <nav className="-mb-px flex space-x-4">
               <button
                 onClick={() => setActiveTab('addItems')}
