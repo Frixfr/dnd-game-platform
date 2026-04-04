@@ -249,6 +249,104 @@ const initializeDatabase = async () => {
       console.log("Таблица player_active_effects создана");
     }
 
+    // Таблица NPC
+    if (!(await db.schema.hasTable("npcs"))) {
+      await db.schema.createTable("npcs", (table) => {
+        table.increments("id").primary();
+        table.string("name", 50).notNullable().unique();
+        table.string("gender", 10).checkIn(["male", "female"]);
+
+        table.integer("health").defaultTo(50);
+        table.integer("max_health").defaultTo(50);
+        table.integer("armor").defaultTo(10);
+        table.integer("strength").defaultTo(0);
+        table.integer("agility").defaultTo(0);
+        table.integer("intelligence").defaultTo(0);
+        table.integer("physique").defaultTo(0);
+        table.integer("wisdom").defaultTo(0);
+        table.integer("charisma").defaultTo(0);
+
+        table.text("history");
+
+        table.boolean("in_battle").defaultTo(false);
+        table.boolean("is_online").defaultTo(false);
+        table.boolean("is_card_shown").defaultTo(true);
+        table.integer("aggression").defaultTo(0).checkIn(["0", "1", "2"]); // 0 - спокойный, 1 - напуган, 2 - агрессивный
+
+        table.timestamp("created_at").defaultTo(db.fn.now());
+      });
+      console.log("Таблица npcs создана");
+    }
+
+    // Таблица способностей NPC
+    if (!(await db.schema.hasTable("npc_abilities"))) {
+      await db.schema.createTable("npc_abilities", (table) => {
+        table
+          .integer("npc_id")
+          .references("id")
+          .inTable("npcs")
+          .onDelete("CASCADE");
+        table
+          .integer("ability_id")
+          .references("id")
+          .inTable("abilities")
+          .onDelete("CASCADE");
+        table.timestamp("obtained_at").defaultTo(db.fn.now());
+        table.boolean("is_active").defaultTo(true);
+
+        table.primary(["npc_id", "ability_id"]);
+      });
+      console.log("Таблица npc_abilities создана");
+    }
+
+    // Таблица предметов NPC
+    if (!(await db.schema.hasTable("npc_items"))) {
+      await db.schema.createTable("npc_items", (table) => {
+        table.increments("id").primary();
+        table
+          .integer("npc_id")
+          .references("id")
+          .inTable("npcs")
+          .onDelete("CASCADE");
+        table
+          .integer("item_id")
+          .references("id")
+          .inTable("items")
+          .onDelete("CASCADE");
+        table.integer("quantity").defaultTo(1);
+        table.boolean("is_equipped").defaultTo(false);
+        table.timestamp("obtained_at").defaultTo(db.fn.now());
+
+        table.unique(["npc_id", "item_id"]);
+      });
+      console.log("Таблица npc_items создана");
+    }
+
+    // Таблица активных эффектов на NPC
+    if (!(await db.schema.hasTable("npc_active_effects"))) {
+      await db.schema.createTable("npc_active_effects", (table) => {
+        table.increments("id").primary();
+        table
+          .integer("npc_id")
+          .references("id")
+          .inTable("npcs")
+          .onDelete("CASCADE");
+        table
+          .integer("effect_id")
+          .references("id")
+          .inTable("effects")
+          .onDelete("CASCADE");
+        table.string("source_type", 10).checkIn(["ability", "item", "admin"]);
+        table.integer("source_id").nullable();
+        table.integer("remaining_turns").nullable();
+        table.integer("remaining_days").nullable();
+        table.timestamp("applied_at").defaultTo(db.fn.now());
+
+        table.index(["npc_id", "effect_id"]);
+      });
+      console.log("Таблица npc_active_effects создана");
+    }
+
     // Создание индексов для производительности
     await db
       .raw(
@@ -258,6 +356,11 @@ const initializeDatabase = async () => {
       CREATE INDEX IF NOT EXISTS idx_player_effects ON player_active_effects(player_id);
       CREATE INDEX IF NOT EXISTS idx_abilities_type ON abilities(ability_type);
       CREATE INDEX IF NOT EXISTS idx_items_rarity ON items(rarity);
+      -- Индексы для NPC
+      CREATE INDEX IF NOT EXISTS idx_npc_abilities ON npc_abilities(npc_id);
+      CREATE INDEX IF NOT EXISTS idx_npc_items ON npc_items(npc_id);
+      CREATE INDEX IF NOT EXISTS idx_npc_effects ON npc_active_effects(npc_id);
+      CREATE INDEX IF NOT EXISTS idx_npcs_aggression ON npcs(aggression);
     `,
       )
       .catch((err) => console.log("Ошибка создания индексов:", err));
@@ -284,6 +387,156 @@ const initializeDatabase = async () => {
 
 // Middleware
 app.use(bodyParser.json({ limit: "10mb" })); // Защита от перегрузки большими запросами
+
+// Функция расчета итоговых характеристик NPC
+function calculateNpcFinalStats(
+  baseNpc: any,
+  activeEffects: any[],
+  items: any[],
+) {
+  const finalStats = {
+    health: baseNpc.health,
+    max_health: baseNpc.max_health,
+    armor: baseNpc.armor,
+    strength: baseNpc.strength,
+    agility: baseNpc.agility,
+    intelligence: baseNpc.intelligence,
+    physique: baseNpc.physique,
+    wisdom: baseNpc.wisdom,
+    charisma: baseNpc.charisma,
+  };
+
+  // Применяем активные эффекты
+  activeEffects.forEach((effect) => {
+    if (effect.attribute && effect.modifier) {
+      const currentValue =
+        finalStats[effect.attribute as keyof typeof finalStats];
+      if (currentValue !== undefined) {
+        finalStats[effect.attribute as keyof typeof finalStats] =
+          currentValue + effect.modifier;
+      }
+    }
+  });
+
+  // Применяем пассивные эффекты от экипированных предметов
+  items
+    .filter((item) => item.is_equipped && item.passive_effect)
+    .forEach((item) => {
+      const effect = item.passive_effect;
+      if (effect.attribute && effect.modifier) {
+        const currentValue =
+          finalStats[effect.attribute as keyof typeof finalStats];
+        if (currentValue !== undefined) {
+          finalStats[effect.attribute as keyof typeof finalStats] =
+            currentValue + effect.modifier;
+        }
+      }
+    });
+
+  return finalStats;
+}
+
+// Функция получения полных данных NPC
+async function getFullNpcData(npcId: string) {
+  try {
+    const npc = await db("npcs").where("id", npcId).first();
+    if (!npc) return null;
+
+    const [abilities, items, activeEffects] = await Promise.all([
+      // Способности NPC
+      db("npc_abilities")
+        .where("npc_id", npcId)
+        .where("is_active", true)
+        .join("abilities", "npc_abilities.ability_id", "abilities.id")
+        .leftJoin("effects", "abilities.effect_id", "effects.id")
+        .select(
+          "abilities.*",
+          "npc_abilities.obtained_at",
+          "npc_abilities.is_active",
+          db.raw("effects.* as effect"), // Получаем эффект способности
+        ),
+      // Предметы NPC
+      db("npc_items")
+        .where("npc_id", npcId)
+        .join("items", "npc_items.item_id", "items.id")
+        .leftJoin(
+          "effects as active_effect",
+          "items.active_effect_id",
+          "active_effect.id",
+        )
+        .leftJoin(
+          "effects as passive_effect",
+          "items.passive_effect_id",
+          "passive_effect.id",
+        )
+        .select(
+          "items.*",
+          "npc_items.quantity",
+          "npc_items.is_equipped",
+          "npc_items.obtained_at",
+          "active_effect.name as active_effect_name",
+          "active_effect.modifier as active_effect_modifier",
+          "active_effect.attribute as active_effect_attribute",
+          "passive_effect.name as passive_effect_name",
+          "passive_effect.modifier as passive_effect_modifier",
+          "passive_effect.attribute as passive_effect_attribute",
+        ),
+      // Активные эффекты на NPC
+      db("npc_active_effects")
+        .where("npc_id", npcId)
+        .where(function () {
+          this.where("remaining_turns", ">", 0)
+            .orWhere("remaining_days", ">", 0)
+            .orWhereNull("remaining_turns")
+            .orWhereNull("remaining_days");
+        })
+        .join("effects", "npc_active_effects.effect_id", "effects.id")
+        .select(
+          "effects.*",
+          "npc_active_effects.source_type",
+          "npc_active_effects.source_id",
+          "npc_active_effects.remaining_turns",
+          "npc_active_effects.remaining_days",
+          "npc_active_effects.applied_at",
+        ),
+    ]);
+
+    // Вычисляем финальные статы
+    const finalStats = calculateNpcFinalStats(npc, activeEffects, items);
+
+    return {
+      ...npc,
+      final_stats: finalStats,
+      abilities,
+      items,
+      active_effects: activeEffects,
+    };
+  } catch (error) {
+    console.error("Ошибка получения полных данных NPC:", error);
+    throw error;
+  }
+}
+
+// Функция для проверки/создания эффекта "Испуг"
+async function ensureFrightenedEffect() {
+  let effect = await db("effects").where("name", "Испуг").first();
+  if (!effect) {
+    const [newEffect] = await db("effects")
+      .insert({
+        name: "Испуг",
+        description: "Цель испугана, её уровень агрессии повышен до 1",
+        attribute: null,
+        modifier: 0,
+        duration_turns: 3,
+        duration_days: null,
+        is_permanent: false,
+      })
+      .returning("*");
+    effect = newEffect;
+    console.log("Эффект 'Испуг' создан автоматически");
+  }
+  return effect;
+}
 
 // API эндпоинты для игроков
 app.get("/api/players", async (req, res) => {
@@ -4008,6 +4261,587 @@ async function getFullPlayerData(playerId: string) {
     throw error; // Пробрасываем ошибку дальше
   }
 }
+
+// GET /api/npcs - список всех NPC
+app.get("/api/npcs", async (req, res) => {
+  try {
+    const npcs = await db("npcs").select("*");
+    res.json(npcs);
+  } catch (error) {
+    console.error("Ошибка получения NPC:", error);
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// GET /api/npcs/:id - один NPC
+app.get("/api/npcs/:id", async (req, res) => {
+  try {
+    const npc = await db("npcs").where({ id: req.params.id }).first();
+    if (!npc) {
+      return res.status(404).json({ error: "NPC не найден" });
+    }
+    res.json({ success: true, npc });
+  } catch (error) {
+    console.error("Ошибка получения NPC:", error);
+    res.status(500).json({ error: "Внутренняя ошибка сервера" });
+  }
+});
+
+// POST /api/npcs - создание NPC
+app.post("/api/npcs", async (req, res) => {
+  const {
+    name,
+    gender = "male",
+    health = 50,
+    max_health = 50,
+    armor = 10,
+    strength = 0,
+    agility = 0,
+    intelligence = 0,
+    physique = 0,
+    wisdom = 0,
+    charisma = 0,
+    history = "",
+    in_battle = false,
+    is_online = false,
+    is_card_shown = true,
+    aggression = 0,
+  } = req.body;
+
+  // Валидация
+  if (!name || typeof name !== "string" || name.trim().length === 0) {
+    return res.status(400).json({ error: "Имя обязательно для создания NPC" });
+  }
+  if (name.length > 50) {
+    return res
+      .status(400)
+      .json({ error: "Имя не должно превышать 50 символов" });
+  }
+  if (gender !== "male" && gender !== "female") {
+    return res
+      .status(400)
+      .json({ error: 'Пол должен быть "male" или "female"' });
+  }
+  if (health <= 0 || max_health <= 0) {
+    return res
+      .status(400)
+      .json({ error: "Здоровье должно быть положительным" });
+  }
+  if (health > max_health) {
+    return res
+      .status(400)
+      .json({ error: "Текущее здоровье не может превышать максимальное" });
+  }
+  if (aggression < 0 || aggression > 2) {
+    return res.status(400).json({ error: "Агрессия должна быть от 0 до 2" });
+  }
+
+  try {
+    const [npc] = await db("npcs")
+      .insert({
+        name: name.trim(),
+        gender,
+        health,
+        max_health,
+        armor,
+        strength,
+        agility,
+        intelligence,
+        physique,
+        wisdom,
+        charisma,
+        history: history || "",
+        in_battle: Boolean(in_battle),
+        is_online: Boolean(is_online),
+        is_card_shown: Boolean(is_card_shown),
+        aggression,
+        created_at: db.fn.now(),
+      })
+      .returning("*");
+
+    console.log(`NPC "${npc.name}" создан с ID: ${npc.id}`);
+    io.emit("npc:created", npc);
+    res.status(201).json({ success: true, message: "NPC успешно создан", npc });
+  } catch (error: any) {
+    console.error("Ошибка создания NPC:", error);
+    if (error.message.includes("UNIQUE constraint failed")) {
+      return res
+        .status(409)
+        .json({ error: "NPC с таким именем уже существует" });
+    }
+    res.status(500).json({ error: "Внутренняя ошибка сервера" });
+  }
+});
+
+// PUT /api/npcs/:id - полное обновление NPC
+app.put("/api/npcs/:id", async (req, res) => {
+  const { id } = req.params;
+  const {
+    name,
+    gender,
+    health,
+    max_health,
+    armor,
+    strength,
+    agility,
+    intelligence,
+    physique,
+    wisdom,
+    charisma,
+    history,
+    in_battle,
+    is_online,
+    is_card_shown,
+    aggression,
+  } = req.body;
+
+  if (!id || isNaN(Number(id))) {
+    return res.status(400).json({ error: "Некорректный идентификатор NPC" });
+  }
+
+  try {
+    const existing = await db("npcs").where("id", id).first();
+    if (!existing) {
+      return res.status(404).json({ error: "NPC не найден" });
+    }
+
+    const updateData: any = {};
+    if (name !== undefined) {
+      if (typeof name !== "string" || name.trim().length === 0) {
+        return res.status(400).json({ error: "Имя не может быть пустым" });
+      }
+      if (name.length > 50)
+        return res.status(400).json({ error: "Имя слишком длинное" });
+      updateData.name = name.trim();
+    }
+    if (gender !== undefined) {
+      if (gender !== "male" && gender !== "female") {
+        return res
+          .status(400)
+          .json({ error: 'Пол должен быть "male" или "female"' });
+      }
+      updateData.gender = gender;
+    }
+    if (health !== undefined) {
+      if (health <= 0)
+        return res.status(400).json({ error: "Здоровье должно быть > 0" });
+      updateData.health = health;
+    }
+    if (max_health !== undefined) {
+      if (max_health <= 0)
+        return res
+          .status(400)
+          .json({ error: "Максимальное здоровье должно быть > 0" });
+      updateData.max_health = max_health;
+    }
+    if (
+      health !== undefined &&
+      max_health !== undefined &&
+      health > max_health
+    ) {
+      return res
+        .status(400)
+        .json({ error: "Здоровье не может превышать максимальное" });
+    }
+    if (armor !== undefined) updateData.armor = armor;
+    if (strength !== undefined) updateData.strength = strength;
+    if (agility !== undefined) updateData.agility = agility;
+    if (intelligence !== undefined) updateData.intelligence = intelligence;
+    if (physique !== undefined) updateData.physique = physique;
+    if (wisdom !== undefined) updateData.wisdom = wisdom;
+    if (charisma !== undefined) updateData.charisma = charisma;
+    if (history !== undefined) updateData.history = history || "";
+    if (in_battle !== undefined) updateData.in_battle = Boolean(in_battle);
+    if (is_online !== undefined) updateData.is_online = Boolean(is_online);
+    if (is_card_shown !== undefined)
+      updateData.is_card_shown = Boolean(is_card_shown);
+    if (aggression !== undefined) {
+      if (aggression < 0 || aggression > 2) {
+        return res
+          .status(400)
+          .json({ error: "Агрессия должна быть от 0 до 2" });
+      }
+      updateData.aggression = aggression;
+    }
+
+    const [updatedNpc] = await db("npcs")
+      .where("id", id)
+      .update(updateData)
+      .returning("*");
+    console.log(`NPC "${updatedNpc.name}" (ID: ${id}) обновлен`);
+    io.emit("npc:updated", updatedNpc);
+    res.json({
+      success: true,
+      message: "NPC успешно обновлен",
+      npc: updatedNpc,
+    });
+  } catch (error: any) {
+    console.error("Ошибка обновления NPC:", error);
+    if (error.message.includes("UNIQUE constraint failed")) {
+      return res
+        .status(409)
+        .json({ error: "NPC с таким именем уже существует" });
+    }
+    res.status(500).json({ error: "Внутренняя ошибка сервера" });
+  }
+});
+
+// PATCH /api/npcs/:id - частичное обновление NPC
+app.patch("/api/npcs/:id", async (req, res) => {
+  const { id } = req.params;
+  const updateData = req.body;
+
+  if (!id || isNaN(Number(id))) {
+    return res.status(400).json({ error: "Некорректный идентификатор NPC" });
+  }
+
+  try {
+    const existing = await db("npcs").where("id", id).first();
+    if (!existing) {
+      return res.status(404).json({ error: "NPC не найден" });
+    }
+
+    delete updateData.id;
+    delete updateData.created_at;
+
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({ error: "Нет данных для обновления" });
+    }
+
+    // Валидация полей
+    if (updateData.name !== undefined) {
+      if (
+        typeof updateData.name !== "string" ||
+        updateData.name.trim().length === 0
+      ) {
+        return res.status(400).json({ error: "Имя не может быть пустым" });
+      }
+      if (updateData.name.length > 50)
+        return res.status(400).json({ error: "Имя слишком длинное" });
+      updateData.name = updateData.name.trim();
+    }
+    if (
+      updateData.gender !== undefined &&
+      updateData.gender !== "male" &&
+      updateData.gender !== "female"
+    ) {
+      return res
+        .status(400)
+        .json({ error: 'Пол должен быть "male" или "female"' });
+    }
+    if (updateData.health !== undefined && updateData.health <= 0) {
+      return res.status(400).json({ error: "Здоровье должно быть > 0" });
+    }
+    if (updateData.max_health !== undefined && updateData.max_health <= 0) {
+      return res
+        .status(400)
+        .json({ error: "Максимальное здоровье должно быть > 0" });
+    }
+    if (
+      (updateData.health !== undefined &&
+        updateData.health > existing.max_health) ||
+      (updateData.max_health !== undefined &&
+        existing.health > updateData.max_health) ||
+      (updateData.health !== undefined &&
+        updateData.max_health !== undefined &&
+        updateData.health > updateData.max_health)
+    ) {
+      return res
+        .status(400)
+        .json({ error: "Текущее здоровье не может превышать максимальное" });
+    }
+    if (
+      updateData.aggression !== undefined &&
+      (updateData.aggression < 0 || updateData.aggression > 2)
+    ) {
+      return res.status(400).json({ error: "Агрессия должна быть от 0 до 2" });
+    }
+
+    await db("npcs").where("id", id).update(updateData);
+    const updatedNpc = await db("npcs").where("id", id).first();
+    io.emit("npc:updated", updatedNpc);
+    res.json({
+      success: true,
+      message: "NPC успешно обновлен",
+      npc: updatedNpc,
+    });
+  } catch (error: any) {
+    console.error("Ошибка частичного обновления NPC:", error);
+    if (error.message.includes("UNIQUE constraint failed")) {
+      return res
+        .status(409)
+        .json({ error: "NPC с таким именем уже существует" });
+    }
+    res.status(500).json({ error: "Внутренняя ошибка сервера" });
+  }
+});
+
+// DELETE /api/npcs/:id - удаление NPC с проверкой связей
+app.delete("/api/npcs/:id", async (req, res) => {
+  const { id } = req.params;
+
+  if (!id || isNaN(Number(id))) {
+    return res.status(400).json({ error: "Некорректный идентификатор NPC" });
+  }
+
+  try {
+    const existing = await db("npcs").where("id", id).first();
+    if (!existing) {
+      return res.status(404).json({ error: "NPC не найден" });
+    }
+
+    // Проверяем связанные записи
+    const [abilitiesCount, itemsCount, effectsCount] = await Promise.all([
+      db("npc_abilities").where("npc_id", id).first(),
+      db("npc_items").where("npc_id", id).first(),
+      db("npc_active_effects").where("npc_id", id).first(),
+    ]);
+
+    if (abilitiesCount || itemsCount || effectsCount) {
+      return res.status(409).json({
+        error:
+          "Невозможно удалить NPC, так как у него есть связанные способности, предметы или эффекты. Сначала удалите их.",
+      });
+    }
+
+    await db("npcs").where("id", id).delete();
+    console.log(`NPC "${existing.name}" (ID: ${id}) удален`);
+    io.emit("npc:deleted", Number(id));
+    res.json({ success: true, message: "NPC успешно удален", deleted_id: id });
+  } catch (error) {
+    console.error("Ошибка удаления NPC:", error);
+    res.status(500).json({ error: "Внутренняя ошибка сервера" });
+  }
+});
+
+// ==================== СПЕЦИАЛЬНЫЕ ЭНДПОИНТЫ ДЛЯ АГРЕССИИ ====================
+
+// POST /api/npcs/:id/intimidate - только для aggression === 0
+app.post("/api/npcs/:id/intimidate", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const npc = await db("npcs").where("id", id).first();
+    if (!npc) {
+      return res.status(404).json({ error: "NPC не найден" });
+    }
+    if (npc.aggression !== 0) {
+      return res
+        .status(400)
+        .json({
+          error:
+            "Запугивание возможно только для спокойных NPC (aggression = 0)",
+        });
+    }
+
+    // Обновляем агрессию до 1
+    const [updatedNpc] = await db("npcs")
+      .where("id", id)
+      .update({ aggression: 1 })
+      .returning("*");
+
+    // Добавляем эффект "Испуг", если его нет
+    const effect = await ensureFrightenedEffect();
+
+    // Проверяем, есть ли уже такой эффект у NPC
+    const existingEffect = await db("npc_active_effects")
+      .where({ npc_id: id, effect_id: effect.id })
+      .first();
+
+    if (!existingEffect) {
+      await db("npc_active_effects").insert({
+        npc_id: id,
+        effect_id: effect.id,
+        source_type: "admin",
+        source_id: null,
+        remaining_turns: effect.duration_turns,
+        remaining_days: effect.duration_days,
+        applied_at: db.fn.now(),
+      });
+    }
+
+    io.emit("npc:intimidated", updatedNpc);
+    io.emit("npc:updated", updatedNpc);
+    res.json({
+      success: true,
+      message: "NPC успешно запуган",
+      npc: updatedNpc,
+    });
+  } catch (error) {
+    console.error("Ошибка запугивания NPC:", error);
+    res.status(500).json({ error: "Внутренняя ошибка сервера" });
+  }
+});
+
+// POST /api/npcs/:id/modify-aggression - изменение агрессии для aggression === 1
+app.post("/api/npcs/:id/modify-aggression", async (req, res) => {
+  const { id } = req.params;
+  const { delta } = req.body;
+
+  if (delta === undefined || typeof delta !== "number") {
+    return res.status(400).json({ error: "Параметр delta (число) обязателен" });
+  }
+
+  try {
+    const npc = await db("npcs").where("id", id).first();
+    if (!npc) {
+      return res.status(404).json({ error: "NPC не найден" });
+    }
+    if (npc.aggression !== 1) {
+      return res
+        .status(400)
+        .json({
+          error:
+            "Изменение агрессии возможно только для напуганных NPC (aggression = 1)",
+        });
+    }
+
+    const newAggression = npc.aggression + delta;
+    if (newAggression < 0 || newAggression > 2) {
+      return res
+        .status(400)
+        .json({ error: "Результат агрессии должен быть в диапазоне 0-2" });
+    }
+
+    const [updatedNpc] = await db("npcs")
+      .where("id", id)
+      .update({ aggression: newAggression })
+      .returning("*");
+    io.emit("npc:aggression-changed", updatedNpc);
+    io.emit("npc:updated", updatedNpc);
+    res.json({ success: true, message: "Агрессия изменена", npc: updatedNpc });
+  } catch (error) {
+    console.error("Ошибка изменения агрессии NPC:", error);
+    res.status(500).json({ error: "Внутренняя ошибка сервера" });
+  }
+});
+
+// POST /api/npcs/:id/calm - успокоение для aggression === 2
+app.post("/api/npcs/:id/calm", async (req, res) => {
+  const { id } = req.params;
+  const { playerId, abilityId } = req.body;
+
+  try {
+    const npc = await db("npcs").where("id", id).first();
+    if (!npc) {
+      return res.status(404).json({ error: "NPC не найден" });
+    }
+    if (npc.aggression !== 2) {
+      return res
+        .status(400)
+        .json({
+          error:
+            "Успокоение возможно только для агрессивных NPC (aggression = 2)",
+        });
+    }
+
+    // Если переданы playerId и abilityId, проверяем способность "Успокоение"
+    if (playerId && abilityId) {
+      const ability = await db("abilities").where("id", abilityId).first();
+      if (!ability || ability.name !== "Успокоение") {
+        return res
+          .status(403)
+          .json({
+            error: "У игрока нет способности 'Успокоение' или она не найдена",
+          });
+      }
+      const hasAbility = await db("player_abilities")
+        .where({ player_id: playerId, ability_id: abilityId, is_active: true })
+        .first();
+      if (!hasAbility) {
+        return res
+          .status(403)
+          .json({ error: "У игрока нет активной способности 'Успокоение'" });
+      }
+    } else if (playerId || abilityId) {
+      return res
+        .status(400)
+        .json({
+          error:
+            "Для проверки способности нужно указать и playerId, и abilityId",
+        });
+    }
+
+    const [updatedNpc] = await db("npcs")
+      .where("id", id)
+      .update({ aggression: 1 })
+      .returning("*");
+    io.emit("npc:calmed", updatedNpc);
+    io.emit("npc:updated", updatedNpc);
+    res.json({ success: true, message: "NPC успокоен", npc: updatedNpc });
+  } catch (error) {
+    console.error("Ошибка успокоения NPC:", error);
+    res.status(500).json({ error: "Внутренняя ошибка сервера" });
+  }
+});
+
+// PATCH /api/npcs/:id/aggression - прямой сеттер агрессии
+app.patch("/api/npcs/:id/aggression", async (req, res) => {
+  const { id } = req.params;
+  const { aggression } = req.body;
+
+  if (
+    aggression === undefined ||
+    typeof aggression !== "number" ||
+    aggression < 0 ||
+    aggression > 2
+  ) {
+    return res
+      .status(400)
+      .json({ error: "Поле aggression должно быть числом от 0 до 2" });
+  }
+
+  try {
+    const npc = await db("npcs").where("id", id).first();
+    if (!npc) {
+      return res.status(404).json({ error: "NPC не найден" });
+    }
+
+    const [updatedNpc] = await db("npcs")
+      .where("id", id)
+      .update({ aggression })
+      .returning("*");
+    io.emit("npc:aggression-changed", updatedNpc);
+    io.emit("npc:updated", updatedNpc);
+    res.json({ success: true, message: "Агрессия обновлена", npc: updatedNpc });
+  } catch (error) {
+    console.error("Ошибка обновления агрессии NPC:", error);
+    res.status(500).json({ error: "Внутренняя ошибка сервера" });
+  }
+});
+
+// ==================== РАСШИРЕННАЯ ИНФОРМАЦИЯ О NPC ====================
+
+// GET /api/npcs/:id/details
+app.get("/api/npcs/:id/details", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const fullNpc = await getFullNpcData(id);
+    if (!fullNpc) {
+      return res.status(404).json({ error: "NPC не найден" });
+    }
+
+    res.json({
+      success: true,
+      npc: fullNpc,
+      summary: {
+        total_abilities: fullNpc.abilities.length,
+        total_items: fullNpc.items.reduce(
+          (sum: number, item: any) => sum + item.quantity,
+          0,
+        ),
+        active_effects_count: fullNpc.active_effects.length,
+        equipped_items_count: fullNpc.items.filter(
+          (item: any) => item.is_equipped,
+        ).length,
+      },
+    });
+  } catch (error) {
+    console.error("Ошибка получения деталей NPC:", error);
+    res.status(500).json({ error: "Внутренняя ошибка сервера" });
+  }
+});
 
 // Инициализация БД перед запуском сервера
 initializeDatabase()
