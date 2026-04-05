@@ -76,11 +76,6 @@ export const ItemsPage = () => {
         setIsCreateModalOpen(false);
     };
 
-    const handleEditItem = (item: ItemType) => {
-        setSelectedItem(item);
-        setIsEditModalOpen(true);
-    };
-
     const handleDeleteItemFromCard = async (item: ItemType) => {
         if (!confirm(`Вы уверены, что хотите удалить предмет "${item.name}"?`)) {
             return;
@@ -137,13 +132,11 @@ export const ItemsPage = () => {
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {items.map(item => (
-                        <ItemCard 
-                            key={item.id} 
-                            item={item} 
+                        <ItemCard
+                            key={item.id}
+                            item={item}
                             effects={effects}
                             onClick={() => handleItemClick(item)}
-                            showActions={true}
-                            onEdit={() => handleEditItem(item)}
                             onDelete={() => handleDeleteItemFromCard(item)}
                         />
                     ))}

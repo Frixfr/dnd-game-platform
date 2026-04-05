@@ -22,6 +22,20 @@ export const EffectsPage = () => {
     setIsEditModalOpen(true);
   };
 
+  const handleDeleteEffect = async (effect: EffectType) => {
+    if (!confirm(`Удалить эффект "${effect.name}"?`)) return;
+    try {
+      const response = await fetch(`http://localhost:5000/api/effects/${effect.id}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) throw new Error('Ошибка удаления');
+      // Стор обновится через сокет (useEffectStore)
+    } catch (error) {
+      console.error(error);
+      alert('Не удалось удалить эффект');
+    }
+  };
+
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <div className="flex justify-between items-center mb-6">
@@ -50,6 +64,7 @@ export const EffectsPage = () => {
               key={effect.id}
               effect={effect}
               onClick={() => handleEffectClick(effect)}
+              onDelete={() => handleDeleteEffect(effect)}
             />
           ))}
         </div>

@@ -67,6 +67,21 @@ export const AbilitiesPage = () => {
       setSelectedAbility(null);
     };
 
+    const handleDeleteAbility = async (ability: AbilityType) => {
+      if (!confirm(`Удалить способность "${ability.name}"?`)) return;
+      try {
+        const response = await fetch(`http://localhost:5000/api/abilities/${ability.id}`, {
+          method: 'DELETE',
+        });
+        if (!response.ok) throw new Error('Ошибка удаления');
+        // Обновляем список через abilityStore
+        fetchAbilities(); // если есть метод в сторе
+      } catch (error) {
+        console.error(error);
+        alert('Не удалось удалить способность');
+      }
+    };
+
     return (
       <div className="p-6 max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-6">
@@ -97,12 +112,12 @@ export const AbilitiesPage = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {abilities.map(ability => (
-              <AbilityCard 
-                key={ability.id} 
-                ability={ability} 
+              <AbilityCard
+                key={ability.id}
+                ability={ability}
+                effect={effects.find(e => e.id === ability.effect_id)}
                 onClick={() => handleAbilityClick(ability)}
-                disabled={loadingFullAbility}
-                effect={effects.find(effect => effect.id === ability.effect_id)}
+                onDelete={() => handleDeleteAbility(ability)}
               />
             ))}
           </div>

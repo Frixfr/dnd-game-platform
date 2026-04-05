@@ -73,6 +73,19 @@ export const MasterDashboardPage = () => {
     setSelectedPlayer(null);
   };
 
+  const handleDeletePlayer = async (player: PlayerType) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/players/${player.id}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) throw new Error('Ошибка удаления');
+      // стор обновится через сокет или можно вызвать fetchPlayers снова
+    } catch (error) {
+      console.error(error);
+      alert('Не удалось удалить игрока');
+    }
+  };
+
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <div className="flex justify-between items-center mb-6">
@@ -108,6 +121,7 @@ export const MasterDashboardPage = () => {
               player={player}
               onClick={() => handlePlayerClick(player)}
               disabled={loadingFullPlayer}
+              onDelete={() => handleDeletePlayer(player)}
             />
           ))}
         </div>
