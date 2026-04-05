@@ -65,15 +65,8 @@ const Sidebar: React.FC = () => {
           </li>
           
           <li>
-            <NavLink 
-              to="/master/enemies"
-              className={({ isActive }) => 
-                `block px-4 py-2 rounded transition-colors ${isActive 
-                  ? 'bg-blue-100 text-blue-700 font-medium' 
-                  : 'text-slate-700 hover:bg-slate-100'}`
-              }
-            >
-              🐉 Враги
+            <NavLink to="/master/npcs" className={({ isActive }) => `block px-4 py-2 rounded transition-colors ${isActive ? 'bg-blue-100 text-blue-700 font-medium' : 'text-slate-700 hover:bg-slate-100'}`}>
+              🧟 NPC
             </NavLink>
           </li>
         </ul>

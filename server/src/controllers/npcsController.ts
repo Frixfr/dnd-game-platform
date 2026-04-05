@@ -177,12 +177,10 @@ export const npcsController = {
       res.json({ success: true, message: "NPC удалён" });
     } catch (error: any) {
       if (error.message === "NPC has relations") {
-        return res
-          .status(409)
-          .json({
-            error:
-              "Невозможно удалить NPC, так как у него есть связанные способности, предметы или эффекты",
-          });
+        return res.status(409).json({
+          error:
+            "Невозможно удалить NPC, так как у него есть связанные способности, предметы или эффекты",
+        });
       }
       console.error(error);
       res.status(500).json({ error: "Ошибка удаления NPC" });
@@ -249,6 +247,137 @@ export const npcsController = {
       getIO().emit("npc:aggression-changed", updated);
       getIO().emit("npc:updated", updated);
       res.json({ success: true, message: "Агрессия обновлена", npc: updated });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  },
+
+  // Добавить в npcsController
+  async addItemsBatch(req: Request, res: Response) {
+    const id = String(req.params.id);
+    const { items } = req.body;
+    if (!items || !Array.isArray(items)) {
+      return res.status(400).json({ error: "Некорректный массив items" });
+    }
+    try {
+      const result = await npcsService.addItemsBatch(Number(id), items);
+      getIO().emit("npc:items-added", { npc_id: Number(id), result });
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  },
+
+  async addAbilitiesBatch(req: Request, res: Response) {
+    const id = String(req.params.id);
+    const { ability_ids } = req.body;
+    if (!ability_ids || !Array.isArray(ability_ids)) {
+      return res.status(400).json({ error: "Некорректный массив ability_ids" });
+    }
+    try {
+      const result = await npcsService.addAbilitiesBatch(
+        Number(id),
+        ability_ids,
+      );
+      getIO().emit("npc:abilities-added", { npc_id: Number(id), result });
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  },
+
+  async addEffectsBatch(req: Request, res: Response) {
+    const id = String(req.params.id);
+    const { effect_ids } = req.body;
+    if (!effect_ids || !Array.isArray(effect_ids)) {
+      return res.status(400).json({ error: "Некорректный массив effect_ids" });
+    }
+    try {
+      const result = await npcsService.addEffectsBatch(Number(id), effect_ids);
+      getIO().emit("npc:effects-added", { npc_id: Number(id), result });
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  },
+
+  async removeItem(req: Request, res: Response) {
+    const id = String(req.params.id);
+    const itemId = Number(req.params.itemId);
+    try {
+      await npcsService.removeItem(Number(id), itemId);
+      getIO().emit("npc:item-removed", { npc_id: Number(id), item_id: itemId });
+      res.json({ success: true, message: "Предмет удалён" });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  },
+
+  async removeAbility(req: Request, res: Response) {
+    const id = String(req.params.id);
+    const abilityId = Number(req.params.abilityId);
+    try {
+      await npcsService.removeAbility(Number(id), abilityId);
+      getIO().emit("npc:ability-removed", {
+        npc_id: Number(id),
+        ability_id: abilityId,
+      });
+      res.json({ success: true, message: "Способность удалена" });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  },
+
+  async removeEffect(req: Request, res: Response) {
+    const id = String(req.params.id);
+    const effectId = Number(req.params.effectId);
+    try {
+      await npcsService.removeEffect(Number(id), effectId);
+      getIO().emit("npc:effect-removed", {
+        npc_id: Number(id),
+        effect_id: effectId,
+      });
+      res.json({ success: true, message: "Эффект удалён" });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  },
+
+  async toggleEquip(req: Request, res: Response) {
+    const id = String(req.params.id);
+    const itemId = Number(req.params.itemId);
+    const { is_equipped } = req.body;
+    if (typeof is_equipped !== "boolean") {
+      return res.status(400).json({ error: "is_equipped должен быть булевым" });
+    }
+    try {
+      const updated = await npcsService.toggleEquip(
+        Number(id),
+        itemId,
+        is_equipped,
+      );
+      getIO().emit("npc:item-toggled", updated);
+      res.json({ success: true, npc_item: updated });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  },
+
+  async toggleAbility(req: Request, res: Response) {
+    const id = String(req.params.id);
+    const abilityId = Number(req.params.abilityId);
+    const { is_active } = req.body;
+    if (typeof is_active !== "boolean") {
+      return res.status(400).json({ error: "is_active должен быть булевым" });
+    }
+    try {
+      const updated = await npcsService.toggleAbility(
+        Number(id),
+        abilityId,
+        is_active,
+      );
+      getIO().emit("npc:ability-toggled", updated);
+      res.json({ success: true, npc_ability: updated });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }

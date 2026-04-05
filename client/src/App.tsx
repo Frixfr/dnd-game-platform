@@ -6,7 +6,7 @@ import MasterDashboardPage from './pages/MasterDashboardPage';
 import ItemsPage from './pages/ItemsPage';
 import AbilitiesPage from './pages/AbilitiesPage';
 import EffectsPage from './pages/EffectsPage';
-import EnemiesPage from './pages/EnemiesPage';
+import { NpcsPage } from "./pages/NpcsPage";
 import MasterLayout from './components/layout/MasterLayout'; // ← Обёртка с сайдбаром
 
 const App: React.FC = () => {
@@ -22,7 +22,7 @@ const App: React.FC = () => {
           <Route path="items" element={<ItemsPage />} />     // /master/items
           <Route path="abilities" element={<AbilitiesPage />} />
           <Route path="effects" element={<EffectsPage />} />
-          <Route path="enemies" element={<EnemiesPage />} />
+          <Route path="npcs" element={<NpcsPage />} />
         </Route>
       </Routes>
     </Router>

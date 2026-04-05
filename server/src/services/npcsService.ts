@@ -1,6 +1,7 @@
 import { db } from "../db/index.js";
 import { getFullNpcData, ensureFrightenedEffect } from "../utils/helpers.js";
 import type { NPC, FullNPCData } from "../types/index.js";
+import { npcAbilitiesService } from "./npcAbilitiesService.js";
 
 export const npcsService = {
   async getAll(): Promise<NPC[]> {
@@ -140,6 +141,173 @@ export const npcsService = {
       .where("id", npcId)
       .update({ aggression })
       .returning("*");
+    return updated;
+  },
+
+  // Добавить в npcsService (после существующих методов)
+
+  async addItemsBatch(
+    npcId: number,
+    items: { item_id: number; quantity: number }[],
+  ) {
+    const npc = await db("npcs").where("id", npcId).first();
+    if (!npc) throw new Error("NPC не найден");
+
+    const results = [];
+    for (const { item_id, quantity = 1 } of items) {
+      const item = await db("items").where("id", item_id).first();
+      if (!item) {
+        results.push({ item_id, error: "Предмет не найден" });
+        continue;
+      }
+      const existing = await db("npc_items")
+        .where({ npc_id: npcId, item_id })
+        .first();
+      if (existing) {
+        const newQuantity = existing.quantity + quantity;
+        const [updated] = await db("npc_items")
+          .where("id", existing.id)
+          .update({ quantity: newQuantity })
+          .returning("*");
+        results.push({
+          item_id,
+          success: true,
+          message: "Количество обновлено",
+          data: updated,
+        });
+      } else {
+        const [newItem] = await db("npc_items")
+          .insert({
+            npc_id: npcId,
+            item_id,
+            quantity,
+            is_equipped: false,
+            obtained_at: db.fn.now(),
+          })
+          .returning("*");
+        results.push({
+          item_id,
+          success: true,
+          message: "Предмет добавлен",
+          data: newItem,
+        });
+      }
+    }
+    return { success: true, message: "Операция завершена", results };
+  },
+
+  async addAbilitiesBatch(npcId: number, abilityIds: number[]) {
+    const npc = await db("npcs").where("id", npcId).first();
+    if (!npc) throw new Error("NPC не найден");
+
+    const results = [];
+    for (const ability_id of abilityIds) {
+      try {
+        const npcAbility = await npcAbilitiesService.create(
+          npcId,
+          ability_id,
+          true,
+        );
+        results.push({
+          ability_id,
+          success: true,
+          action: npcAbility.obtained_at ? "created" : "updated",
+          npc_ability: npcAbility,
+        });
+      } catch (error: any) {
+        results.push({ ability_id, success: false, error: error.message });
+      }
+    }
+    const successful = results.filter((r) => r.success).length;
+    const failed = results.length - successful;
+    return {
+      success: true,
+      message: `Успешно: ${successful}, ошибок: ${failed}`,
+      results,
+    };
+  },
+
+  async addEffectsBatch(npcId: number, effectIds: number[]) {
+    const npc = await db("npcs").where("id", npcId).first();
+    if (!npc) throw new Error("NPC не найден");
+
+    const results = [];
+    for (const effect_id of effectIds) {
+      const effect = await db("effects").where("id", effect_id).first();
+      if (!effect) {
+        results.push({ effect_id, error: "Эффект не найден" });
+        continue;
+      }
+      const existing = await db("npc_active_effects")
+        .where({ npc_id: npcId, effect_id })
+        .first();
+      if (existing) {
+        results.push({
+          effect_id,
+          success: true,
+          message: "Эффект уже есть у NPC",
+        });
+        continue;
+      }
+      const [newEffect] = await db("npc_active_effects")
+        .insert({
+          npc_id: npcId,
+          effect_id,
+          source_type: "admin",
+          source_id: null,
+          remaining_turns: effect.duration_turns,
+          remaining_days: effect.duration_days,
+          applied_at: db.fn.now(),
+        })
+        .returning("*");
+      results.push({
+        effect_id,
+        success: true,
+        message: "Эффект добавлен",
+        data: newEffect,
+      });
+    }
+    return { success: true, message: "Операция завершена", results };
+  },
+
+  async removeItem(npcId: number, itemId: number) {
+    const deleted = await db("npc_items")
+      .where({ npc_id: npcId, item_id: itemId })
+      .delete();
+    if (deleted === 0) throw new Error("Предмет не найден у NPC");
+    return true;
+  },
+
+  async removeAbility(npcId: number, abilityId: number) {
+    await npcAbilitiesService.delete(npcId, abilityId);
+    return true;
+  },
+
+  async removeEffect(npcId: number, effectId: number) {
+    const deleted = await db("npc_active_effects")
+      .where({ npc_id: npcId, effect_id: effectId, source_type: "admin" })
+      .delete();
+    if (deleted === 0)
+      throw new Error("Эффект не найден или не может быть удален");
+    return true;
+  },
+
+  async toggleEquip(npcId: number, itemId: number, is_equipped: boolean) {
+    const [updated] = await db("npc_items")
+      .where({ npc_id: npcId, item_id: itemId })
+      .update({ is_equipped })
+      .returning("*");
+    if (!updated) throw new Error("Предмет не найден");
+    return updated;
+  },
+
+  async toggleAbility(npcId: number, abilityId: number, is_active: boolean) {
+    const [updated] = await db("npc_abilities")
+      .where({ npc_id: npcId, ability_id: abilityId })
+      .update({ is_active })
+      .returning("*");
+    if (!updated) throw new Error("Способность не найдена");
+    await npcAbilitiesService.create(npcId, abilityId, is_active);
     return updated;
   },
 };

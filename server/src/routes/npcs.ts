@@ -17,4 +17,14 @@ router.post("/:id/modify-aggression", npcsController.modifyAggression);
 router.post("/:id/calm", npcsController.calm);
 router.patch("/:id/aggression", npcsController.setAggression);
 
+// Добавить в конец существующих маршрутов:
+router.post("/:id/items/batch", npcsController.addItemsBatch);
+router.post("/:id/abilities/batch", npcsController.addAbilitiesBatch);
+router.post("/:id/effects/batch", npcsController.addEffectsBatch);
+router.delete("/:id/items/:itemId", npcsController.removeItem);
+router.delete("/:id/abilities/:abilityId", npcsController.removeAbility);
+router.delete("/:id/effects/:effectId", npcsController.removeEffect);
+router.put("/:id/items/:itemId/equip", npcsController.toggleEquip);
+router.put("/:id/abilities/:abilityId/toggle", npcsController.toggleAbility);
+
 export default router;
