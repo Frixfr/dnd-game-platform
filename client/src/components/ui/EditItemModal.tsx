@@ -49,7 +49,7 @@ export const EditItemModal = ({
     const loadEffects = async () => {
       setEffectsLoading(true);
       try {
-        const response = await fetch('http://localhost:5000/api/effects');
+        const response = await fetch('/api/effects');
         if (!response.ok) throw new Error('Ошибка загрузки эффектов');
         const data = await response.json();
         setAllEffects(data || []);
@@ -146,11 +146,11 @@ export const EditItemModal = ({
     }
     
     try {
-      let url = 'http://localhost:5000/api/items';
+      let url = '/api/items';
       let method = 'POST';
       
       if (mode === 'edit' && item) {
-        url = `http://localhost:5000/api/items/${item.id}`;
+        url = `/api/items/${item.id}`;
         method = 'PUT';
       }
       
@@ -195,7 +195,7 @@ export const EditItemModal = ({
     setError(null);
     
     try {
-      const response = await fetch(`http://localhost:5000/api/items/${item.id}`, {
+      const response = await fetch(`/api/items/${item.id}`, {
         method: 'DELETE',
       });
       
@@ -246,8 +246,8 @@ export const EditItemModal = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 md:p-4">
+      <div className="bg-white rounded-lg shadow-xl w-[calc(100%-1rem)] md:w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold">{modalTitle}</h2>

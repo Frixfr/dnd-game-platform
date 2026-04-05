@@ -164,11 +164,11 @@ export const EditEffectModal = ({
     };
     
     try {
-        let url = 'http://localhost:5000/api/effects';
+        let url = '/api/effects';
         let method = 'POST';
         
         if (mode === 'edit' && effect) {
-        url = `http://localhost:5000/api/effects/${effect.id}`;
+        url = `/api/effects/${effect.id}`;
         method = 'PATCH'; // Используем PATCH для частичного обновления
         }
         
@@ -213,7 +213,7 @@ export const EditEffectModal = ({
     setError(null);
     
     try {
-      const response = await fetch(`http://localhost:5000/api/effects/${effect.id}`, {
+      const response = await fetch(`/api/effects/${effect.id}`, {
         method: 'DELETE',
       });
       
@@ -236,8 +236,8 @@ export const EditEffectModal = ({
     : 'Создание нового эффекта';
   
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 md:p-4">
+      <div className="bg-white rounded-lg shadow-xl w-[calc(100%-1rem)] md:w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold">{modalTitle}</h2>

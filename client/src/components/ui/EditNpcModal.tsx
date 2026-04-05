@@ -46,7 +46,7 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
     const loadFullNpc = async () => {
       setLoadingDetails(true);
       try {
-        const response = await fetch(`http://localhost:5000/api/npcs/${npc.id}/details`);
+        const response = await fetch(`/api/npcs/${npc.id}/details`);
         if (!response.ok) throw new Error('Ошибка загрузки полных данных');
         const data = await response.json();
         const fullNpc = data.npc;
@@ -74,7 +74,7 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
   const loadAllItems = useCallback(async () => {
     setItemsLoading(true);
     try {
-      const response = await fetch('http://localhost:5000/api/items');
+      const response = await fetch('/api/items');
       if (!response.ok) throw new Error('Ошибка загрузки предметов');
       const data = await response.json();
       const itemsWithStatus = data.map((item: ItemType) => ({
@@ -93,7 +93,7 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
   const loadAllAbilities = useCallback(async () => {
     setAbilitiesLoading(true);
     try {
-      const response = await fetch('http://localhost:5000/api/abilities');
+      const response = await fetch('/api/abilities');
       if (!response.ok) throw new Error('Ошибка загрузки способностей');
       const data = await response.json();
       const abilitiesWithStatus = data.map((ability: AbilityType) => ({
@@ -112,7 +112,7 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
   const loadAllEffects = useCallback(async () => {
     setEffectsLoading(true);
     try {
-      const response = await fetch('http://localhost:5000/api/effects');
+      const response = await fetch('/api/effects');
       if (!response.ok) throw new Error('Ошибка загрузки эффектов');
       const data = await response.json();
       const effectsWithStatus = data.map((effect: EffectType) => ({
@@ -162,7 +162,7 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
   const handleEquipToggle = async (itemId: number) => {
     const newEquipStatus = !equipStatus[itemId];
     try {
-      const response = await fetch(`http://localhost:5000/api/npcs/${npc.id}/items/${itemId}/equip`, {
+      const response = await fetch(`/api/npcs/${npc.id}/items/${itemId}/equip`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_equipped: newEquipStatus })
@@ -179,7 +179,7 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
   const handleRemoveItem = async (itemId: number) => {
     if (!confirm('Вы уверены, что хотите удалить этот предмет?')) return;
     try {
-      const response = await fetch(`http://localhost:5000/api/npcs/${npc.id}/items/${itemId}`, {
+      const response = await fetch(`/api/npcs/${npc.id}/items/${itemId}`, {
         method: 'DELETE'
       });
       if (!response.ok) throw new Error('Ошибка удаления предмета');
@@ -200,7 +200,7 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
     }
     setLoading(true);
     try {
-      const response = await fetch(`http://localhost:5000/api/npcs/${npc.id}/items/batch`, {
+      const response = await fetch(`/api/npcs/${npc.id}/items/batch`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ items: itemsToAdd })
@@ -227,7 +227,7 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
     try {
       const ability = formData.abilities?.find(a => a.id === abilityId);
       if (!ability) return;
-      const response = await fetch(`http://localhost:5000/api/npcs/${npc.id}/abilities/${abilityId}/toggle`, {
+      const response = await fetch(`/api/npcs/${npc.id}/abilities/${abilityId}/toggle`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_active: ability.is_active === 1 ? 0 : 1 })
@@ -243,7 +243,7 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
   const handleRemoveAbility = async (abilityId: number) => {
     if (!confirm('Вы уверены, что хотите удалить эту способность?')) return;
     try {
-      const response = await fetch(`http://localhost:5000/api/npcs/${npc.id}/abilities/${abilityId}`, {
+      const response = await fetch(`/api/npcs/${npc.id}/abilities/${abilityId}`, {
         method: 'DELETE'
       });
       if (!response.ok) throw new Error('Ошибка удаления способности');
@@ -261,7 +261,7 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
     }
     setLoading(true);
     try {
-      const response = await fetch(`http://localhost:5000/api/npcs/${npc.id}/abilities/batch`, {
+      const response = await fetch(`/api/npcs/${npc.id}/abilities/batch`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ability_ids: selectedAbilities })
@@ -287,7 +287,7 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
   const handleRemoveEffect = async (effectId: number) => {
     if (!confirm('Вы уверены, что хотите удалить этот эффект?')) return;
     try {
-      const response = await fetch(`http://localhost:5000/api/npcs/${npc.id}/effects/${effectId}`, {
+      const response = await fetch(`/api/npcs/${npc.id}/effects/${effectId}`, {
         method: 'DELETE'
       });
       if (!response.ok) throw new Error('Ошибка удаления эффекта');
@@ -305,7 +305,7 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
     }
     setLoading(true);
     try {
-      const response = await fetch(`http://localhost:5000/api/npcs/${npc.id}/effects/batch`, {
+      const response = await fetch(`/api/npcs/${npc.id}/effects/batch`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ effect_ids: selectedEffects })
@@ -323,7 +323,7 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
 
   const updateNpcData = async () => {
     try {
-      const response = await fetch(`http://localhost:5000/api/npcs/${npc.id}/details`);
+      const response = await fetch(`/api/npcs/${npc.id}/details`);
       if (!response.ok) throw new Error('Ошибка обновления данных');
       const data = await response.json();
       const updatedNpc = data.npc;
@@ -373,7 +373,7 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
         is_card_shown: formData.is_card_shown ? 1 : 0,
         aggression: Number(formData.aggression),
       };
-      const response = await fetch(`http://localhost:5000/api/npcs/${npc.id}`, {
+      const response = await fetch(`/api/npcs/${npc.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updateData),
@@ -400,7 +400,7 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
     setDeleting(true);
     setError(null);
     try {
-      const response = await fetch(`http://localhost:5000/api/npcs/${npc.id}`, {
+      const response = await fetch(`/api/npcs/${npc.id}`, {
         method: 'DELETE',
       });
       if (!response.ok) {
@@ -957,8 +957,8 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 md:p-4">
+      <div className="bg-white rounded-lg shadow-xl w-[calc(100%-1rem)] md:w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold">Редактирование NPC</h2>
