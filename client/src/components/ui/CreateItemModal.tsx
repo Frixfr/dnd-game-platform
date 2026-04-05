@@ -1,43 +1,56 @@
 // client/src/components/ui/CreateItemModal.tsx
 import { useState, useEffect } from 'react';
-import type { ItemType, EffectType } from '../../types';
-import { useItemStore } from '../../stores/itemStore';
+import type { ItemType, EffectType, RarityType } from '../../types';
 
 interface CreateItemModalProps {
   onClose: () => void;
   effects?: EffectType[];
+  onItemCreated?: (newItem: ItemType) => void;
 }
 
 // Форма создания предмета с валидацией
-export const CreateItemModal = ({ onClose, effects = [] }: CreateItemModalProps) => {
-  const [formData, setFormData] = useState<Omit<ItemType, 'id' | 'created_at' | 'updated_at'>>({
+export const CreateItemModal = ({ onClose, effects = [], onItemCreated }: CreateItemModalProps) => {
+  const [formData, setFormData] = useState<{
+    name: string;
+    description: string;          // ← строка, не null
+    rarity: RarityType;
+    base_quantity: number;
+    active_effect_id: number | null;
+    passive_effect_id: number | null;
+  }>({
     name: '',
-    description: '',
+    description: '',              // ← пустая строка
     rarity: 'common',
     base_quantity: 1,
     active_effect_id: null,
-    passive_effect_id: null
+    passive_effect_id: null,
   });
   
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { fetchItems } = useItemStore();
+  const [localEffects, setLocalEffects] = useState<EffectType[]>(effects);
+  const [effectsLoading, setEffectsLoading] = useState(false);
   
   // Загрузка эффектов при монтировании
   useEffect(() => {
     if (effects.length === 0) {
       fetchEffects();
+    } else {
+      setLocalEffects(effects);
     }
-  }, []);
+  }, [effects]);
   
   const fetchEffects = async () => {
+    setEffectsLoading(true);
     try {
       const response = await fetch('http://localhost:5000/api/effects');
       if (!response.ok) throw new Error('Ошибка загрузки эффектов');
       const data = await response.json();
-      // Здесь нужно обновить список эффектов в родительском компоненте или хранилище      
+      setLocalEffects(data || []);
     } catch (error) {
       console.error('Ошибка загрузки эффектов:', error);
+    } finally {
+      setEffectsLoading(false);
     }
   };
   
@@ -72,7 +85,7 @@ export const CreateItemModal = ({ onClose, effects = [] }: CreateItemModalProps)
         // Преобразуем пустые строки в null для числовых полей
         active_effect_id: formData.active_effect_id || null,
         passive_effect_id: formData.passive_effect_id || null,
-        description: formData.description || ''
+        description: formData.description === '' ? null : formData.description,
       };
       
       const response = await fetch('http://localhost:5000/api/items', {
@@ -86,8 +99,10 @@ export const CreateItemModal = ({ onClose, effects = [] }: CreateItemModalProps)
       if (!response.ok) {
         throw new Error(responseData.error || 'Ошибка сервера');
       }
-      
-      await fetchItems();
+
+      if (onItemCreated && responseData.item) {
+        onItemCreated(responseData.item);
+      }
       // Сервер сам обновит состояние через сокеты
       onClose();
     } catch (err) {
@@ -97,18 +112,32 @@ export const CreateItemModal = ({ onClose, effects = [] }: CreateItemModalProps)
     }
   };
   
-  const handleInputChange = (field: keyof typeof formData, value: any) => {
+  // Универсальная функция для строковых полей
+  const handleInputChange = (field: keyof typeof formData, value: string) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
   };
-  
+
+  // Для числовых полей (base_quantity и т.п.)
   const handleNumberChange = (field: keyof typeof formData, value: string) => {
-    const numValue = value === '' ? '' : Number(value);
-    handleInputChange(field, numValue);
+    const numValue = value === '' ? 0 : Number(value);
+    setFormData(prev => ({
+      ...prev,
+      [field]: numValue
+    }));
   };
   
+  // Для полей effect_id (могут быть number | null)
+  const handleEffectChange = (field: 'active_effect_id' | 'passive_effect_id', value: string) => {
+    const numValue = value === '' ? null : Number(value);
+    setFormData(prev => ({
+      ...prev,
+      [field]: numValue
+    }));
+  };
+
   const rarityOptions = [
     { value: 'common', label: 'Обычный', color: 'bg-gray-100' },
     { value: 'uncommon', label: 'Необычный', color: 'bg-green-100' },
@@ -214,7 +243,7 @@ export const CreateItemModal = ({ onClose, effects = [] }: CreateItemModalProps)
                     max="999"
                     value={formData.base_quantity}
                     onChange={(e) => handleNumberChange('base_quantity', e.target.value)}
-                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full p-2 border rounded..."
                     required
                   />
                   <div className="absolute right-3 top-2 text-gray-500">
@@ -224,59 +253,51 @@ export const CreateItemModal = ({ onClose, effects = [] }: CreateItemModalProps)
               </div>
               
               <div>
-                <label className="block text-sm font-medium mb-1">Активный эффект (ID)</label>
-                <div className="flex space-x-2">
-                  <input
-                    type="number"
-                    min="0"
-                    value={formData.active_effect_id || ''}
-                    onChange={(e) => handleNumberChange('active_effect_id', e.target.value)}
-                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="ID эффекта или оставьте пустым"
-                  />
-                  {formData.active_effect_id && (
-                    <button
-                      type="button"
-                      onClick={() => handleInputChange('active_effect_id', null)}
-                      className="px-3 bg-gray-100 hover:bg-gray-200 rounded border"
-                    >
-                      ×
-                    </button>
+                <label className="block text-sm font-medium mb-1">Активный эффект</label>
+                <select
+                  value={formData.active_effect_id ?? ''}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    handleEffectChange('active_effect_id', value);
+                  }}
+                  className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  disabled={effectsLoading}
+                >
+                  <option value="">Без активного эффекта</option>
+                  {effectsLoading ? (
+                    <option disabled>Загрузка эффектов...</option>
+                  ) : (
+                    localEffects.filter(effect => !effect.is_permanent).map(effect => (
+                      <option key={`active-${effect.id}`} value={effect.id}>
+                        {effect.name} (ID: {effect.id})
+                      </option>
+                    ))
                   )}
-                </div>
-                {formData.active_effect_id && (
-                  <div className="text-xs text-gray-500 mt-1">
-                    Будет применен при использовании предмета
-                  </div>
-                )}
+                </select>
               </div>
               
               <div>
-                <label className="block text-sm font-medium mb-1">Пассивный эффект (ID)</label>
-                <div className="flex space-x-2">
-                  <input
-                    type="number"
-                    min="0"
-                    value={formData.passive_effect_id || ''}
-                    onChange={(e) => handleNumberChange('passive_effect_id', e.target.value)}
-                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="ID эффекта или оставьте пустым"
-                  />
-                  {formData.passive_effect_id && (
-                    <button
-                      type="button"
-                      onClick={() => handleInputChange('passive_effect_id', null)}
-                      className="px-3 bg-gray-100 hover:bg-gray-200 rounded border"
-                    >
-                      ×
-                    </button>
+                <label className="block text-sm font-medium mb-1">Пассивный эффект</label>
+                <select
+                  value={formData.passive_effect_id ?? ''}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    handleEffectChange('passive_effect_id', value);
+                  }}
+                  className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  disabled={effectsLoading}
+                >
+                  <option value="">Без пассивного эффекта</option>
+                  {effectsLoading ? (
+                    <option disabled>Загрузка эффектов...</option>
+                  ) : (
+                    localEffects.filter(effect => effect.is_permanent).map(effect => (
+                      <option key={`passive-${effect.id}`} value={effect.id}>
+                        {effect.name} (ID: {effect.id})
+                      </option>
+                    ))
                   )}
-                </div>
-                {formData.passive_effect_id && (
-                  <div className="text-xs text-gray-500 mt-1">
-                    Действует при наличии предмета в инвентаре
-                  </div>
-                )}
+                </select>
               </div>
             </div>
             
@@ -288,23 +309,55 @@ export const CreateItemModal = ({ onClose, effects = [] }: CreateItemModalProps)
                   {formData.active_effect_id && (
                     <div className="border-l-4 border-blue-500 pl-3">
                       <div className="text-sm font-medium text-blue-700">Активный эффект</div>
-                      <div className="text-xs text-gray-600">
-                        ID: {formData.active_effect_id}
-                      </div>
-                      <div className="text-xs text-gray-500 mt-1">
-                        Загружается информация об эффекте...
-                      </div>
+                      {(() => {
+                        const effect = localEffects.find(e => e.id === formData.active_effect_id);
+                        if (!effect) return (
+                          <div className="text-xs text-gray-600">
+                            ID: {formData.active_effect_id}
+                          </div>
+                        );
+                        return (
+                          <div className="text-xs space-y-1">
+                            <div className="font-medium">{effect.name}</div>
+                            <div>{effect.description}</div>
+                            <div className="text-gray-600">
+                              {effect.attribute && `Атрибут: ${effect.attribute}`}
+                              {effect.modifier && ` | Модификатор: ${effect.modifier > 0 ? '+' : ''}${effect.modifier}`}
+                            </div>
+                            {effect.duration_turns && (
+                              <div className="text-gray-500">
+                                Длительность: {effect.duration_turns} ходов
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
                   {formData.passive_effect_id && (
                     <div className="border-l-4 border-green-500 pl-3">
                       <div className="text-sm font-medium text-green-700">Пассивный эффект</div>
-                      <div className="text-xs text-gray-600">
-                        ID: {formData.passive_effect_id}
-                      </div>
-                      <div className="text-xs text-gray-500 mt-1">
-                        Загружается информация об эффекте...
-                      </div>
+                      {(() => {
+                        const effect = localEffects.find(e => e.id === formData.passive_effect_id);
+                        if (!effect) return (
+                          <div className="text-xs text-gray-600">
+                            ID: {formData.passive_effect_id}
+                          </div>
+                        );
+                        return (
+                          <div className="text-xs space-y-1">
+                            <div className="font-medium">{effect.name}</div>
+                            <div>{effect.description}</div>
+                            <div className="text-gray-600">
+                              {effect.attribute && `Атрибут: ${effect.attribute}`}
+                              {effect.modifier && ` | Модификатор: ${effect.modifier > 0 ? '+' : ''}${effect.modifier}`}
+                            </div>
+                            {effect.is_permanent && (
+                              <div className="text-green-600 font-medium">Постоянный эффект</div>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
                 </div>
@@ -313,8 +366,9 @@ export const CreateItemModal = ({ onClose, effects = [] }: CreateItemModalProps)
             
             {/* Подсказка */}
             <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
-              <strong>Совет:</strong> Для поиска подходящих эффектов используйте раздел "Эффекты".<br />
-              Активный эффект применяется при использовании предмета, пассивный — постоянно действует.
+              <strong>Совет:</strong> Активный эффект применяется при использовании предмета.<br />
+              Пассивный эффект постоянно действует при наличии предмета в инвентаре.<br />
+              Постоянные эффекты (is_permanent) рекомендуется использовать для пассивных эффектов.
             </div>
             
             {/* Кнопки */}

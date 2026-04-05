@@ -5,97 +5,127 @@ interface PlayerCardProps {
   player: PlayerType;
   onClick: () => void;
   disabled?: boolean;
+  onDelete?: () => void;
 }
 
-// Минималистичная карточка с возможностью клика
-export const PlayerCard = ({ player, onClick, disabled = false }: PlayerCardProps) => {
-  return (
-    <div 
-      onClick={disabled ? undefined : onClick}
-      className={` ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:border-blue-300'}`}
-    >
-    <div 
-      onClick={onClick}
-      className="group bg-gradient-to-br from-gray-50 to-white rounded-2xl p-6 cursor-pointer transition-all duration-300 border border-gray-200 hover:border-gray-300 hover:shadow-lg hover:shadow-gray-200/50 hover:scale-[1.02]"
-    >
-      {/* Заголовок карточки */}
-      <div className="mb-6 text-center">
-        <h3 className="text-2xl font-semibold text-gray-900 tracking-tight">
-          {player.name}
-        </h3>
-      </div>
+const statLabels: Record<StatType, string> = {
+  strength: 'СИЛ',
+  agility: 'ЛОВ',
+  intelligence: 'ИНТ',
+  physique: 'ТЕЛ',
+  wisdom: 'МДР',
+  charisma: 'ХАР',
+};
 
-      {/* Статусная панель */}
-      <div className="mb-6">
+export const PlayerCard = ({ player, onClick, disabled = false, onDelete }: PlayerCardProps) => {
+  const healthPercent = (player.health / player.max_health) * 100;
+  const initials = player.name
+    .split(' ')
+    .map(n => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onDelete && confirm(`Удалить игрока "${player.name}"?`)) {
+      onDelete();
+    }
+  };
+
+  return (
+    <div
+      onClick={disabled ? undefined : onClick}
+      className={`group bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer overflow-hidden border border-gray-100 hover:border-gray-200 ${
+        disabled ? 'opacity-60 cursor-not-allowed' : ''
+      }`}
+    >
+      <div className="relative h-2 bg-gradient-to-r from-blue-400 to-indigo-500" />
+
+      <div className="p-5">
+        {/* Шапка с именем и правым блоком (крестик + ID) */}
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center text-gray-700 font-bold text-lg shadow-inner">
+              {initials}
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-gray-800 tracking-tight">{player.name}</h3>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="text-xs text-gray-500 capitalize">{player.gender === 'male' ? '♂ Муж' : '♀ Жен'}</span>
+                {player.in_battle && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                    <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
+                    В бою
+                  </span>
+                )}
+                {player.is_online && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full" />
+                    Онлайн
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Блок крестик + ID */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full">#{player.id}</span>
+            {onDelete && (
+              <button
+                onClick={handleDelete}
+                className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors text-xl font-bold"
+                title="Удалить"
+              >
+                ×
+              </button>
+            )}
+          </div>
+        </div>
+
         {/* Здоровье */}
         <div className="mb-4">
           <div className="flex justify-between text-sm text-gray-600 mb-1">
-            <span>Здоровье</span>
-            <span className="font-medium text-gray-800">
+            <span>❤️ Здоровье</span>
+            <span className="font-medium">
               {player.health}/{player.max_health}
             </span>
           </div>
-          <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-gradient-to-r from-red-400 to-red-500 rounded-full transition-all duration-500"
-              style={{ width: `${(player.health / player.max_health) * 100}%` }}
+          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-red-400 to-red-500 rounded-full transition-all duration-300"
+              style={{ width: `${healthPercent}%` }}
             />
           </div>
         </div>
 
         {/* Броня */}
-        <div className="flex items-center justify-between p-3 bg-blue-50/50 rounded-lg border border-blue-100">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 flex items-center justify-center bg-blue-100 rounded-lg">
-              <span className="text-blue-600">🛡️</span>
-            </div>
-            <div>
-              <div className="text-xs text-gray-600">Класс брони</div>
-              <div className="text-lg font-bold text-gray-900">{player.armor} AC</div>
-            </div>
+        <div className="flex items-center justify-between bg-gray-50 rounded-xl p-2 mb-4 border border-gray-100">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">🛡️</span>
+            <span className="text-sm text-gray-600">Класс брони</span>
           </div>
+          <span className="text-xl font-bold text-gray-800">{player.armor}</span>
+        </div>
+
+        {/* Характеристики */}
+        <div className="grid grid-cols-3 gap-2">
+          {(['strength', 'agility', 'intelligence', 'physique', 'wisdom', 'charisma'] as StatType[]).map(stat => {
+            const value = player[stat];
+            return (
+              <div
+                key={stat}
+                className="flex items-center justify-between bg-gray-50 rounded-lg px-2 py-1.5"
+                title={statLabels[stat]}
+              >
+                <span className="text-sm font-mono font-medium text-gray-700">{statLabels[stat]}</span>
+                <span className="font-mono font-semibold text-gray-800">{value}</span>
+              </div>
+            );
+          })}
         </div>
       </div>
-
-      {/* Характеристики */}
-      <div className="grid grid-cols-3 gap-2">
-        {(['strength', 'agility', 'intelligence', 'physique', 'wisdom', 'charisma'] as StatType[]).map(stat => {
-          const statLabels: Record<StatType, string> = {
-            strength: 'СИЛ',
-            agility: 'ЛОВ',
-            intelligence: 'ИНТ',
-            physique: 'ТЕЛ',
-            wisdom: 'МДР',
-            charisma: 'ХАР'
-          };
-
-          const colorClasses: Record<StatType, string> = {
-            strength: 'border-red-200 bg-red-50 text-red-700',
-            agility: 'border-green-200 bg-green-50 text-green-700',
-            intelligence: 'border-blue-200 bg-blue-50 text-blue-700',
-            physique: 'border-amber-200 bg-amber-50 text-amber-700',
-            wisdom: 'border-purple-200 bg-purple-50 text-purple-700',
-            charisma: 'border-pink-200 bg-pink-50 text-pink-700',
-          };
-
-          const value = player[stat];
-
-          return (
-            <div
-              key={stat}
-              className={`rounded-lg p-3 border ${colorClasses[stat]} transition-all duration-200 hover:scale-[1.03] hover:shadow-sm`}
-            >
-              <div className="text-xs text-gray-600 mb-1 opacity-80">
-                {statLabels[stat as StatType]}
-              </div>
-              <div className="text-2xl font-bold text-gray-900">
-                {value}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
     </div>
   );
 };

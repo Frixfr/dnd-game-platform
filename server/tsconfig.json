@@ -19,6 +19,7 @@
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"],
   "ts-node": {
-    "esm": true // ← Обязательно для запуска ES-модулей через ts-node
+    "esm": true,
+    "experimentalSpecifierResolution": "node"
   }
 }

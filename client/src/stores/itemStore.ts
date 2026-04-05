@@ -1,7 +1,7 @@
-// client/src/store/playerStore.ts
-import { create } from 'zustand';
-import { io, Socket } from 'socket.io-client';
-import type { ItemType } from '../types';
+// client/src/stores/itemStore.ts
+import { create } from "zustand";
+import { io, Socket } from "socket.io-client";
+import type { ItemType } from "../types";
 
 interface ItemState {
   items: ItemType[];
@@ -9,57 +9,90 @@ interface ItemState {
   addItem: (item: ItemType) => void;
   setItems: (items: ItemType[]) => void;
   initializeSocket: () => void;
+  disconnectSocket: () => void;
   fetchItems: () => Promise<void>;
+  updateItem: (item: ItemType) => void;
+  removeItem: (id: number) => void;
 }
 
 export const useItemStore = create<ItemState>((set, get) => ({
   items: [],
   socket: null,
-  
-  // Добавление игрока в локальное состояние (используется при получении через сокет)
-  addItem: (item) => set(state => ({
-    items: [...state.items, item]
-  })),
-  
-  // Обновление всего списка (при первоначальной загрузке)
-  setItems: (items) => set({ items }),
-  
-  // Инициализация сокет-соединения с обработкой события
+
   initializeSocket: () => {
-    if (typeof window === 'undefined') return;
-    
-    const socket = io('http://localhost:5000', {
+    if (typeof window === "undefined") return;
+    // Предотвращаем повторную инициализацию
+    if (get().socket) return;
+
+    const socket = io({
       withCredentials: true,
-      transports: ['websocket', 'polling'], // Явно указываем транспорты
+      transports: ["websocket", "polling"],
       autoConnect: true,
       reconnection: true,
-      reconnectionAttempts: 5
-    });
-    
-    socket.on('itemCreated', (item: ItemType) => {
-      set(state => ({
-        items: [...state.items, item]
-      }));
+      reconnectionAttempts: 5,
     });
 
-    // Инициализация: загружаем начальный список игроков
-    socket.on('connect', async () => {
-      const { fetchItems } = get();
-      await fetchItems();
+    socket.on("item:created", (item: ItemType) => {
+      console.log("Предмет создан (сокет):", item);
+      get().addItem(item);
     });
-    
-    set({ socket: socket });
+
+    socket.on("item:updated", (item: ItemType) => {
+      console.log("Предмет обновлён (сокет):", item);
+      get().updateItem(item);
+    });
+
+    socket.on("item:deleted", ({ id }: { id: number }) => {
+      console.log("Предмет удалён (сокет):", id);
+      get().removeItem(id);
+    });
+
+    socket.on("connect", async () => {
+      console.log("Socket connected (items)");
+      await get().fetchItems();
+    });
+
+    set({ socket });
   },
+
+  disconnectSocket: () => {
+    const { socket } = get();
+    if (socket) {
+      socket.disconnect();
+      set({ socket: null });
+    }
+  },
+
+  addItem: (item) =>
+    set((state) => {
+      // Защита от дублирования
+      if (state.items.some((i) => i.id === item.id)) {
+        return state;
+      }
+      return { items: [...state.items, item] };
+    }),
+
+  setItems: (items) => set({ items }),
+
+  updateItem: (item) =>
+    set((state) => ({
+      items: state.items.map((i) => (i.id === item.id ? item : i)),
+    })),
+
+  removeItem: (id) =>
+    set((state) => ({
+      items: state.items.filter((i) => i.id !== id),
+    })),
 
   fetchItems: async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/items');
+      const response = await fetch("/api/items");
       if (response.ok) {
         const items = await response.json();
         set({ items });
       }
     } catch (error) {
-      console.error('Ошибка загрузки игроков:', error);
+      console.error("Ошибка загрузки предметов:", error);
     }
-  }
+  },
 }));

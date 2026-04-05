@@ -1,5 +1,11 @@
 // client/src/types/index.ts
-export type StatType = 'strength' | 'agility' | 'intelligence' | 'physique' | 'wisdom' | 'charisma';
+export type StatType =
+  | "strength"
+  | "agility"
+  | "intelligence"
+  | "physique"
+  | "wisdom"
+  | "charisma";
 
 export interface PlayerType {
   id: number;
@@ -22,13 +28,49 @@ export interface PlayerType {
   abilities: AbilityType[];
   items: ItemType[];
   active_effects: EffectType[];
+  race_id: number | null;
+  race?: RaceType;
+}
+
+export interface NpcType {
+  id: number;
+  name: string;
+  gender: "male" | "female";
+  health: number;
+  max_health: number;
+  armor: number;
+  strength: number;
+  agility: number;
+  intelligence: number;
+  physique: number;
+  wisdom: number;
+  charisma: number;
+  history: string | null;
+  in_battle: boolean;
+  is_online: boolean;
+  is_card_shown: boolean;
+  aggression: 0 | 1 | 2;
+  created_at?: string;
+  abilities?: AbilityType[];
+  items?: ItemType[];
+  active_effects?: EffectType[];
+  race_id: number | null;
+  race?: RaceType;
+}
+
+export interface RaceType {
+  id: number;
+  name: string;
+  description: string | null;
+  created_at: string;
+  effects?: EffectType[];
 }
 
 export interface AbilityType {
   id: number;
   name: string;
   description: string | null;
-  ability_type: 'active' | 'passive';
+  ability_type: "active" | "passive";
   cooldown_turns: number;
   cooldown_days: number;
   effect_id: number | null;
@@ -50,7 +92,14 @@ export interface EffectType {
 }
 
 // Добавляем тип для редкости предметов
-export type RarityType = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary' | 'mythical' | 'story';
+export type RarityType =
+  | "common"
+  | "uncommon"
+  | "rare"
+  | "epic"
+  | "legendary"
+  | "mythical"
+  | "story";
 
 // Основной интерфейс предмета
 export interface ItemType {
@@ -63,8 +112,8 @@ export interface ItemType {
   passive_effect_id: number | null;
   created_at?: string;
   updated_at?: string;
-  quantity?: number; 
-  is_equipped?: number; 
+  quantity?: number;
+  is_equipped?: number;
   active_effect_name?: string | null;
   passive_effect_name?: string | null;
 }
@@ -84,6 +133,6 @@ export type AbilityWithEffect = AbilityType & {
 export interface InventoryItem {
   id: number;
   name: string;
-  type: 'weapon' | 'armor' | 'consumable' | 'other';
+  type: "weapon" | "armor" | "consumable" | "other";
   description?: string;
 }

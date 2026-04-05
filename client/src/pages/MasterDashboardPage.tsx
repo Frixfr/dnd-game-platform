@@ -10,16 +10,17 @@ export const MasterDashboardPage = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerType | null>(null);
-  const [players, setPlayers] = useState<PlayerType[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingFullPlayer, setLoadingFullPlayer] = useState(false);
-  const { initializeSocket, socket, updatePlayer, deletePlayer } = usePlayerStore();
+
+  // Берём всё из стора
+  const { players, setPlayers, updatePlayer, socket, initializeSocket } = usePlayerStore();
 
   // Инициализация сокетов при монтировании
   useEffect(() => {
     initializeSocket();
-  }, []);
-  
+  }, [initializeSocket]);
+
   // Загрузка начальных данных
   useEffect(() => {
     const fetchData = async () => {
@@ -27,87 +28,64 @@ export const MasterDashboardPage = () => {
         const response = await fetch('http://localhost:5000/api/players');
         if (!response.ok) throw new Error('Ошибка загрузки');
         const data = await response.json();
-        setPlayers(data);
+        setPlayers(data); // обновляем стор
       } catch (error) {
         console.error('Ошибка:', error);
       } finally {
         setLoading(false);
       }
     };
-    
+
     fetchData();
-    
+
+    // Очистка сокет-событий при размонтировании (исправленные имена)
     return () => {
       if (socket) {
-        socket.off('playerCreated');
-        socket.off('playerUpdated');
-        socket.off('playerDeleted');
+        socket.off('player:created');
+        socket.off('player:updated');
+        socket.off('player:deleted');
       }
     };
-  }, [socket]);
-  
-  // Синхронизация Zustand стора с локальным состоянием
-  const { players: zustandPlayers } = usePlayerStore();
-  useEffect(() => {
-    setPlayers(zustandPlayers);
-  }, [zustandPlayers]);
+  }, [socket, setPlayers]);
 
-  // Обработчик клика по карточке игрока - теперь загружаем полные данные
+  // Обработчик клика по карточке игрока – загружаем полные данные
   const handlePlayerClick = async (player: PlayerType) => {
     setLoadingFullPlayer(true);
     try {
-      // Загружаем полные данные игрока
-      const response = await fetch(`http://localhost:5000/api/players/${player.id}/full`);
+      const response = await fetch(`http://localhost:5000/api/players/${player.id}/details`);
       if (!response.ok) throw new Error('Ошибка загрузки полных данных игрока');
       const fullPlayer = await response.json();
       setSelectedPlayer(fullPlayer);
       setIsEditModalOpen(true);
     } catch (error) {
       console.error('Ошибка загрузки полных данных:', error);
-      // Если не удалось загрузить полные данные, открываем с базовыми
       setSelectedPlayer(player);
       setIsEditModalOpen(true);
     } finally {
       setLoadingFullPlayer(false);
     }
   };
-  
-  // Обработчик обновления игрока
+
+  // Обработчик обновления игрока (вызывается из EditPlayerModal)
   const handlePlayerUpdated = (updatedPlayer: PlayerType) => {
     updatePlayer(updatedPlayer);
     setIsEditModalOpen(false);
     setSelectedPlayer(null);
   };
 
-  // Обработчик удаления игрока
-  const handleDeletePlayer = async () => {
-    if (!selectedPlayer || !confirm(`Вы уверены, что хотите удалить игрока "${selectedPlayer.name}"?`)) {
-      return;
-    }
-    
+  const handleDeletePlayer = async (player: PlayerType) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/players/${selectedPlayer.id}`, {
+      const response = await fetch(`http://localhost:5000/api/players/${player.id}`, {
         method: 'DELETE',
       });
-      
-      if (!response.ok) {
-        throw new Error('Ошибка удаления игрока');
-      }
-      
-      const result = await response.json();
-      
-      if (result.success) {
-        deletePlayer(selectedPlayer.id);
-        setIsEditModalOpen(false);
-        setSelectedPlayer(null);
-        alert(`Игрок "${selectedPlayer.name}" удален`);
-      }
+      if (!response.ok) throw new Error('Ошибка удаления');
+      // стор обновится через сокет или можно вызвать fetchPlayers снова
     } catch (error) {
-      console.error('Ошибка удаления:', error);
+      console.error(error);
       alert('Не удалось удалить игрока');
     }
   };
-  
+
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <div className="flex justify-between items-center mb-6">
@@ -124,7 +102,7 @@ export const MasterDashboardPage = () => {
           + Создать игрока
         </button>
       </div>
-      
+
       {loading ? (
         <div className="text-center py-12">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
@@ -137,17 +115,18 @@ export const MasterDashboardPage = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {players.map(player => (
-            <PlayerCard 
-              key={player.id} 
-              player={player} 
+          {players.map((player) => (
+            <PlayerCard
+              key={player.id}
+              player={player}
               onClick={() => handlePlayerClick(player)}
               disabled={loadingFullPlayer}
+              onDelete={() => handleDeletePlayer(player)}
             />
           ))}
         </div>
       )}
-      
+
       {/* Индикатор загрузки полных данных */}
       {loadingFullPlayer && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -159,12 +138,10 @@ export const MasterDashboardPage = () => {
           </div>
         </div>
       )}
-      
+
       {/* Модальное окно создания игрока */}
-      {isCreateModalOpen && (
-        <CreatePlayerModal onClose={() => setIsCreateModalOpen(false)} />
-      )}
-      
+      {isCreateModalOpen && <CreatePlayerModal onClose={() => setIsCreateModalOpen(false)} />}
+
       {/* Модальное окно редактирования игрока */}
       {isEditModalOpen && selectedPlayer && (
         <EditPlayerModal

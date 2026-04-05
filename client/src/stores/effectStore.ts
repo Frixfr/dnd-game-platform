@@ -1,7 +1,7 @@
-// client/src/store/playerStore.ts
-import { create } from 'zustand';
-import { io, Socket } from 'socket.io-client';
-import type { EffectType } from '../types';
+// client/src/stores/effectStore.ts
+import { create } from "zustand";
+import { io, Socket } from "socket.io-client";
+import type { EffectType } from "../types";
 
 interface EffectState {
   effects: EffectType[];
@@ -10,56 +10,94 @@ interface EffectState {
   setEffects: (effects: EffectType[]) => void;
   initializeSocket: () => void;
   fetchEffects: () => Promise<void>;
+  updateEffect: (effect: EffectType) => void;
+  removeEffect: (id: number) => void;
 }
 
 export const useEffectStore = create<EffectState>((set, get) => ({
   effects: [],
   socket: null,
-  
-  // Добавление игрока в локальное состояние (используется при получении через сокет)
-  addEffect: (effect) => set(state => ({
-    effects: [...state.effects, effect]
-  })),
-  
-  // Обновление всего списка (при первоначальной загрузке)
-  setEffects: (effects) => set({ effects }),
-  
-  // Инициализация сокет-соединения с обработкой события
+
   initializeSocket: () => {
-    if (typeof window === 'undefined') return;
-    
-    const socket = io('http://localhost:5000', {
+    // Защита от повторной инициализации
+    if (get().socket?.connected) {
+      console.log("Socket already initialized");
+      return;
+    }
+
+    if (typeof window === "undefined") return;
+
+    const socket = io({
       withCredentials: true,
-      transports: ['websocket', 'polling'], // Явно указываем транспорты
+      transports: ["websocket", "polling"],
       autoConnect: true,
       reconnection: true,
-      reconnectionAttempts: 5
+      reconnectionAttempts: 5,
     });
-    
-    socket.on('effectCreated', (effect: EffectType) => {
-      set(state => ({
-        effects: [...state.effects, effect]
+
+    socket.on("effect:created", (effect: EffectType) => {
+      console.log("Эффект создан (сокет):", effect);
+      set((state) => {
+        // Проверяем, нет ли уже такого эффекта
+        if (state.effects.some((e) => e.id === effect.id)) {
+          console.warn("Effect already exists, skipping add");
+          return state;
+        }
+        return { effects: [...state.effects, effect] };
+      });
+    });
+
+    socket.on("effect:updated", (updatedEffect: EffectType) => {
+      console.log("Эффект обновлён (сокет):", updatedEffect);
+      set((state) => ({
+        effects: state.effects.map((e) =>
+          e.id === updatedEffect.id ? updatedEffect : e,
+        ),
       }));
     });
 
-    // Инициализация: загружаем начальный список игроков
-    socket.on('connect', async () => {
-      const { fetchEffects } = get();
-      await fetchEffects();
+    socket.on("effect:deleted", ({ id }: { id: number }) => {
+      console.log("Эффект удалён (сокет):", id);
+      set((state) => ({
+        effects: state.effects.filter((e) => e.id !== id),
+      }));
     });
-    
-    set({ socket: socket });
+
+    socket.on("connect", async () => {
+      console.log("Socket connected (effects)");
+      await get().fetchEffects();
+    });
+
+    set({ socket });
   },
+
+  addEffect: (effect) =>
+    set((state) => {
+      if (state.effects.some((e) => e.id === effect.id)) return state;
+      return { effects: [...state.effects, effect] };
+    }),
+
+  setEffects: (effects) => set({ effects }),
+
+  updateEffect: (effect) =>
+    set((state) => ({
+      effects: state.effects.map((e) => (e.id === effect.id ? effect : e)),
+    })),
+
+  removeEffect: (id) =>
+    set((state) => ({
+      effects: state.effects.filter((e) => e.id !== id),
+    })),
 
   fetchEffects: async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/effects');
+      const response = await fetch("/api/effects");
       if (response.ok) {
         const effects = await response.json();
         set({ effects });
       }
     } catch (error) {
-      console.error('Ошибка загрузки игроков:', error);
+      console.error("Ошибка загрузки эффектов:", error);
     }
-  }
+  },
 }));

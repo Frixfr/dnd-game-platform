@@ -1,41 +1,35 @@
 // client/src/components/ui/CreateAbilityModal.tsx
-import { useState, useEffect } from 'react';
-import type { AbilityType, EffectType } from '../../types';
-import { useAbilityStore } from '../../stores/abilityStore';
+import { useState } from 'react';
+import type { EffectType } from '../../types';
 
-export const CreateAbilityModal = ({ onClose }: { onClose: () => void }) => {
-  const [formData, setFormData] = useState<Omit<AbilityType, 'id' | 'created_at' | 'updated_at'>>({
+interface CreateAbilityModalProps {
+  onClose: () => void;
+  effects?: EffectType[];
+}
+
+export const CreateAbilityModal = ({ 
+  onClose, 
+  effects = [] 
+}: CreateAbilityModalProps) => {
+  const [formData, setFormData] = useState<{
+    name: string;
+    description: string;        // ← только string, не null
+    ability_type: 'active' | 'passive';
+    cooldown_turns: number;
+    cooldown_days: number;
+    effect_id: number | null;
+  }>({
     name: '',
-    description: '',
+    description: '',            // ← пустая строка
     ability_type: 'active',
     cooldown_turns: 0,
     cooldown_days: 0,
-    effect_id: null
+    effect_id: null,
   });
-  
-  const [effects, setEffects] = useState<EffectType[]>([]);
+    
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const { fetchAbilities } = useAbilityStore();
-  
-  // Загружаем список эффектов для выпадающего списка
-  useEffect(() => {
-    const loadEffects = async () => {
-        try {
-        console.log('Загрузка эффектов...');
-        const response = await fetch('http://localhost:5000/api/effects');
-        const data = await response.json();
-        console.log('Получены эффекты:', data);
-        setEffects(data);
-
-        } catch (error) {
-        console.error('Ошибка загрузки эффектов:', error);
-        }
-    };
-
-    loadEffects();
-    }, []);
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,7 +89,6 @@ export const CreateAbilityModal = ({ onClose }: { onClose: () => void }) => {
       setSuccess('Способность успешно создана!');         
       
       onClose();
-      await fetchAbilities();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Неизвестная ошибка');
     } finally {
@@ -203,7 +196,7 @@ export const CreateAbilityModal = ({ onClose }: { onClose: () => void }) => {
                 value={formData.description}
                 onChange={(e) => setFormData({...formData, description: e.target.value})}
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 h-32 resize-none"
-                placeholder="Опишите способность, ее эффекты и особенности..."
+                placeholder="Опишите способность, её эффекты и особенности..."
                 maxLength={500}
               />
               <div className="text-xs text-gray-500 mt-1">

@@ -1,6 +1,5 @@
 // client/src/components/ui/CreateEffectModal.tsx
 import { useState } from 'react';
-import { useEffectStore } from '../../stores/effectStore';
 
 interface EffectFormData {
   name: string;
@@ -37,7 +36,6 @@ export const CreateEffectModal = ({ onClose }: { onClose: () => void }) => {
   
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
-  const { fetchEffects } = useEffectStore();
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -103,9 +101,7 @@ export const CreateEffectModal = ({ onClose }: { onClose: () => void }) => {
 
       if (!response.ok) {
         throw new Error(data.error || 'Ошибка сервера');
-      }
-
-      await fetchEffects();
+      }   
 
       onClose();
     } catch (err) {
