@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { NpcType, ItemType, AbilityType, EffectType } from '../../types';
+import type { NpcType, ItemType, AbilityType, EffectType, RaceType } from '../../types';
 import { useNpcStore } from '../../stores/npcStore';
 
 interface EditNpcModalProps {
@@ -38,8 +38,13 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
   
   const [equipStatus, setEquipStatus] = useState<{ [key: number]: boolean }>({});
   const [deleting, setDeleting] = useState(false);
+  const [races, setRaces] = useState<RaceType[]>([]);
   
   const { fetchNpcs } = useNpcStore();
+
+  useEffect(() => {
+    fetch('/api/races').then(res => res.json()).then(setRaces);
+  }, []);
 
   // Загрузка полных данных NPC
   useEffect(() => {
@@ -429,6 +434,19 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
           <select name="gender" value={formData.gender} onChange={handleInputChange} className="w-full px-3 py-2 border rounded" disabled={loading}>
             <option value="male">Мужской</option>
             <option value="female">Женский</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Раса</label>
+          <select
+            value={formData.race_id || ''}
+            onChange={(e) => setFormData({ ...formData, race_id: e.target.value ? Number(e.target.value) : null })}
+            className="w-full px-3 py-2 border rounded-xl"
+          >
+            <option value="">Нет</option>
+            {races.map(race => (
+              <option key={race.id} value={race.id}>{race.name}</option>
+            ))}
           </select>
         </div>
       </div>

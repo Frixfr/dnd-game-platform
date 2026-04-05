@@ -24,6 +24,11 @@ export async function initializeDatabase() {
         table.boolean("is_online").defaultTo(false);
         table.boolean("is_card_shown").defaultTo(true);
         table.timestamp("created_at").defaultTo(db.fn.now());
+        table
+          .integer("race_id")
+          .references("id")
+          .inTable("races")
+          .onDelete("SET NULL");
       });
       console.log("Таблица players создана");
     }
@@ -198,6 +203,11 @@ export async function initializeDatabase() {
         table.boolean("is_card_shown").defaultTo(true);
         table.integer("aggression").defaultTo(0).checkIn(["0", "1", "2"]);
         table.timestamp("created_at").defaultTo(db.fn.now());
+        table
+          .integer("race_id")
+          .references("id")
+          .inTable("races")
+          .onDelete("SET NULL");
       });
       console.log("Таблица npcs создана");
     }
@@ -266,6 +276,34 @@ export async function initializeDatabase() {
         table.index(["npc_id", "effect_id"]);
       });
       console.log("Таблица npc_active_effects создана");
+    }
+
+    if (!(await db.schema.hasTable("races"))) {
+      await db.schema.createTable("races", (table) => {
+        table.increments("id").primary();
+        table.string("name", 50).notNullable().unique();
+        table.text("description");
+        table.timestamp("created_at").defaultTo(db.fn.now());
+      });
+      console.log("Таблица races создана");
+    }
+
+    // Таблица race_effects (связь расы с эффектами)
+    if (!(await db.schema.hasTable("race_effects"))) {
+      await db.schema.createTable("race_effects", (table) => {
+        table
+          .integer("race_id")
+          .references("id")
+          .inTable("races")
+          .onDelete("CASCADE");
+        table
+          .integer("effect_id")
+          .references("id")
+          .inTable("effects")
+          .onDelete("CASCADE");
+        table.primary(["race_id", "effect_id"]);
+      });
+      console.log("Таблица race_effects создана");
     }
 
     // Индексы

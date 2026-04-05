@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/server.js",
-    "dev": "nodemon --exec \"node --loader ts-node/esm\" src/server.ts",
+    "dev": "nodemon --exec node --import tsx src/server.ts",
     "migrate:latest": "knex migrate:latest --knexfile src/database/knexfile.ts",
     "migrate:rollback": "knex migrate:rollback --knexfile src/database/knexfile.ts"
   },
@@ -29,11 +29,12 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
+    "@types/knex": "^0.16.1",
     "@types/node": "^25.0.9",
     "@types/socket.io": "^3.0.1",
-    "@types/knex": "^0.16.1",
     "nodemon": "^3.1.11",
     "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   }
 }

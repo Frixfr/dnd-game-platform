@@ -18,6 +18,7 @@ import playerEffectsRouter from "./routes/playerEffects.js";
 import npcAbilitiesRoutes from "./routes/npcAbilities.js";
 import npcItemsRoutes from "./routes/npcItems.js";
 import npcEffectsRoutes from "./routes/npcEffects.js";
+import racesRouter from "./routes/races.js";
 
 const app = express();
 const server = createServer(app);
@@ -57,6 +58,7 @@ app.use("/api/player-active-effects", playerEffectsRouter);
 app.use("/api/npc-abilities", npcAbilitiesRoutes);
 app.use("/api/npc-items", npcItemsRoutes);
 app.use("/api/npc-effects", npcEffectsRoutes);
+app.use("/api/races", racesRouter);
 
 // Функция для запуска приложения (инициализация БД и сокетов)
 export async function startApp() {

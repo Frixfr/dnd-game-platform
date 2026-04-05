@@ -28,6 +28,8 @@ export interface PlayerType {
   abilities: AbilityType[];
   items: ItemType[];
   active_effects: EffectType[];
+  race_id: number | null;
+  race?: RaceType;
 }
 
 export interface NpcType {
@@ -52,6 +54,16 @@ export interface NpcType {
   abilities?: AbilityType[];
   items?: ItemType[];
   active_effects?: EffectType[];
+  race_id: number | null;
+  race?: RaceType;
+}
+
+export interface RaceType {
+  id: number;
+  name: string;
+  description: string | null;
+  created_at: string;
+  effects?: EffectType[];
 }
 
 export interface AbilityType {

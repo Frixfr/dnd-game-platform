@@ -25,6 +25,7 @@ export function calculateFinalStats(
   | "is_online"
   | "is_card_shown"
   | "created_at"
+  | "race_id"
 > {
   const finalStats = {
     health: basePlayer.health,
@@ -78,6 +79,7 @@ export function calculateNpcFinalStats(
   | "is_card_shown"
   | "aggression"
   | "created_at"
+  | "race_id"
 > {
   const finalStats = {
     health: baseNpc.health,
@@ -290,7 +292,36 @@ export async function getFullPlayerData(
 
     const activeEffects = activeEffectsRaw.map((row: any) => ({ ...row }));
 
-    const finalStats = calculateFinalStats(player, activeEffects, items as any);
+    // 4. Эффекты расы (если есть)
+    let raceEffects: Effect[] = [];
+    let raceData: {
+      id: number;
+      name: string;
+      description: string | null;
+    } | null = null;
+
+    if (player.race_id) {
+      const race = await db("races").where("id", player.race_id).first();
+      if (race) {
+        raceData = {
+          id: race.id,
+          name: race.name,
+          description: race.description,
+        };
+        const raceEffectsRaw = await db("race_effects")
+          .where("race_id", player.race_id)
+          .join("effects", "race_effects.effect_id", "effects.id")
+          .select("effects.*");
+        raceEffects = raceEffectsRaw;
+      }
+    }
+
+    const allActiveEffects = [...activeEffects, ...raceEffects];
+    const finalStats = calculateFinalStats(
+      player,
+      allActiveEffects,
+      items as any,
+    );
 
     return {
       ...player,
@@ -298,6 +329,12 @@ export async function getFullPlayerData(
       abilities,
       items,
       active_effects: activeEffects,
+      race: raceData
+        ? {
+            ...raceData,
+            effects: raceEffects,
+          }
+        : null,
     };
   } catch (error) {
     console.error("Ошибка в getFullPlayerData:", error);
@@ -480,7 +517,35 @@ export async function getFullNpcData(
 
     const activeEffects = activeEffectsRaw.map((row: any) => ({ ...row }));
 
-    const finalStats = calculateNpcFinalStats(npc, activeEffects, items as any);
+    let raceEffects: Effect[] = [];
+    let raceData: {
+      id: number;
+      name: string;
+      description: string | null;
+    } | null = null;
+
+    if (npc.race_id) {
+      const race = await db("races").where("id", npc.race_id).first();
+      if (race) {
+        raceData = {
+          id: race.id,
+          name: race.name,
+          description: race.description,
+        };
+        const raceEffectsRaw = await db("race_effects")
+          .where("race_id", npc.race_id)
+          .join("effects", "race_effects.effect_id", "effects.id")
+          .select("effects.*");
+        raceEffects = raceEffectsRaw;
+      }
+    }
+
+    const allActiveEffects = [...activeEffects, ...raceEffects];
+    const finalStats = calculateNpcFinalStats(
+      npc,
+      allActiveEffects,
+      items as any,
+    );
 
     return {
       ...npc,
@@ -488,6 +553,12 @@ export async function getFullNpcData(
       abilities,
       items,
       active_effects: activeEffects,
+      race: raceData
+        ? {
+            ...raceData,
+            effects: raceEffects,
+          }
+        : null,
     };
   } catch (error) {
     console.error("Ошибка в getFullNpcData:", error);

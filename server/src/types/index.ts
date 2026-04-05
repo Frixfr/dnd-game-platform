@@ -18,6 +18,7 @@ export interface Player {
   is_online: boolean;
   is_card_shown: boolean;
   created_at: string;
+  race_id: number | null;
 }
 
 export interface Effect {
@@ -93,6 +94,7 @@ export interface NPC {
   is_card_shown: boolean;
   aggression: 0 | 1 | 2;
   created_at: string;
+  race_id: number | null;
 }
 
 export interface PlayerAbility {
@@ -176,6 +178,7 @@ export interface FullPlayerData extends Player {
     remaining_days: number | null;
     applied_at: string;
   })[];
+  race?: Race & { effects: Effect[] };
 }
 
 export interface FullNPCData extends NPC {
@@ -205,4 +208,17 @@ export interface FullNPCData extends NPC {
     remaining_days: number | null;
     applied_at: string;
   })[];
+  race?: Race & { effects: Effect[] };
+}
+
+export interface Race {
+  id: number;
+  name: string;
+  description: string | null;
+  created_at: string;
+}
+
+export interface RaceEffect {
+  race_id: number;
+  effect_id: number;
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useSyncExternalStore } from 'react';
-import type { PlayerType, ItemType, AbilityType, EffectType } from '../../types';
+import type { PlayerType, ItemType, AbilityType, EffectType, RaceType } from '../../types';
 import { usePlayerStore } from '../../stores/playerStore';
 
 interface EditPlayerModalProps {
@@ -62,11 +62,15 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
   const [abilitySearch, setAbilitySearch] = useState('');
   const [effectSearch, setEffectSearch] = useState('');
   
-  const [race, setRace] = useState('');
+  const [races, setRaces] = useState<RaceType[]>([]);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   
   const { fetchPlayers } = usePlayerStore();
 
+
+  useEffect(() => {
+    fetch('/api/races').then(res => res.json()).then(setRaces);
+  }, []);
   // Загрузка полных данных игрока
   useEffect(() => {
     const loadFullPlayer = async () => {
@@ -354,7 +358,19 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
           <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Имя *</label><input type="text" name="name" value={formData.name} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-xl" required disabled={loading} /></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Пол</label><select name="gender" value={formData.gender} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-xl" disabled={loading}><option value="male">Мужской</option><option value="female">Женский</option></select></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Раса</label><input type="text" value={race} onChange={(e) => setRace(e.target.value)} placeholder="Эльф, Дварф..." className="w-full px-3 py-2 border rounded-xl" disabled={loading} /></div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Раса</label>
+              <select
+                value={formData.race_id || ''}
+                onChange={(e) => setFormData({ ...formData, race_id: e.target.value ? Number(e.target.value) : null })}
+                className="w-full px-3 py-2 border rounded-xl"
+              >
+                <option value="">Нет</option>
+                {races.map(race => (
+                  <option key={race.id} value={race.id}>{race.name}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
       </div>
