@@ -22,7 +22,7 @@ export const useNpcStore = create<NpcStore>((set, get) => ({
     // Если сокет уже существует и подключён — не создаём новый
     if (socket && socket.connected) return;
 
-    const newSocket = io("http://localhost:5000", {
+    const newSocket = io({
       withCredentials: true,
       transports: ["websocket", "polling"],
       autoConnect: true,
@@ -48,7 +48,7 @@ export const useNpcStore = create<NpcStore>((set, get) => ({
 
   fetchNpcs: async () => {
     try {
-      const response = await fetch("http://localhost:5000/api/npcs");
+      const response = await fetch("/api/npcs");
       if (response.ok) {
         const npcs = await response.json();
         set({ npcs });

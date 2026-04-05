@@ -19,7 +19,8 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
   socket: null,
 
   initializeSocket: () => {
-    const socket = io("http://localhost:5000", {
+    const socket = io({
+      // без указания URL
       withCredentials: true,
       transports: ["websocket", "polling"],
       autoConnect: true,
@@ -61,7 +62,7 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
 
   fetchPlayers: async () => {
     try {
-      const response = await fetch("http://localhost:5000/api/players");
+      const response = await fetch("/api/players");
       if (response.ok) {
         const players = await response.json();
         set({ players });

@@ -24,7 +24,7 @@ export const useItemStore = create<ItemState>((set, get) => ({
     // Предотвращаем повторную инициализацию
     if (get().socket) return;
 
-    const socket = io("http://localhost:5000", {
+    const socket = io({
       withCredentials: true,
       transports: ["websocket", "polling"],
       autoConnect: true,
@@ -86,7 +86,7 @@ export const useItemStore = create<ItemState>((set, get) => ({
 
   fetchItems: async () => {
     try {
-      const response = await fetch("http://localhost:5000/api/items");
+      const response = await fetch("/api/items");
       if (response.ok) {
         const items = await response.json();
         set({ items });

@@ -25,7 +25,16 @@ const server = createServer(app);
 // Middleware
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || "http://localhost:3000",
+    origin: (origin, callback) => {
+      // В разработке разрешаем всё (или проверяем на локальные адреса)
+      const allowed =
+        !origin ||
+        origin.startsWith("http://localhost") ||
+        origin.startsWith("http://192.168.") ||
+        origin.startsWith("http://10.") ||
+        origin.startsWith("http://172.");
+      callback(null, allowed);
+    },
     credentials: true,
   }),
 );

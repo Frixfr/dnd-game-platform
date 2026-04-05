@@ -2,12 +2,13 @@
 
 import app, { startApp } from "./app.js";
 
-const PORT = process.env.PORT || 5000;
+const PORT = Number(process.env.PORT) || 5000; // преобразуем в число
+const HOST = process.env.HOST || "0.0.0.0";
 
 startApp()
   .then((server) => {
-    server.listen(PORT, () => {
-      console.log(`Сервер запущен на порту ${PORT}`);
+    server.listen(PORT, HOST, () => {
+      console.log(`Сервер запущен на ${HOST}:${PORT}`);
     });
   })
   .catch((err) => {

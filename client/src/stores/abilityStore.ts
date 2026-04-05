@@ -44,7 +44,7 @@ export const useAbilityStore = create<AbilityStore>((set, get) => ({
     if (typeof window === "undefined") return;
     if (get().socket) return; // предотвращаем повторную инициализацию
 
-    const socket = io("http://localhost:5000", {
+    const socket = io({
       withCredentials: true,
       transports: ["websocket", "polling"],
       autoConnect: true,
@@ -73,7 +73,7 @@ export const useAbilityStore = create<AbilityStore>((set, get) => ({
 
   fetchAbilities: async () => {
     try {
-      const response = await fetch("http://localhost:5000/api/abilities");
+      const response = await fetch("/api/abilities");
       if (response.ok) {
         const abilities = await response.json();
         set({ abilities });

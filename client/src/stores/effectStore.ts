@@ -27,7 +27,7 @@ export const useEffectStore = create<EffectState>((set, get) => ({
 
     if (typeof window === "undefined") return;
 
-    const socket = io("http://localhost:5000", {
+    const socket = io({
       withCredentials: true,
       transports: ["websocket", "polling"],
       autoConnect: true,
@@ -91,7 +91,7 @@ export const useEffectStore = create<EffectState>((set, get) => ({
 
   fetchEffects: async () => {
     try {
-      const response = await fetch("http://localhost:5000/api/effects");
+      const response = await fetch("/api/effects");
       if (response.ok) {
         const effects = await response.json();
         set({ effects });
