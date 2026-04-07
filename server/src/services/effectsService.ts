@@ -1,3 +1,4 @@
+// Файл: server/src/services/effectsService.ts (полностью)
 import { db } from "../db/index.js";
 import type { Effect } from "../types/index.js";
 
@@ -71,6 +72,9 @@ export const effectsService = {
       .where("effect_id", id)
       .first();
     if (usedInNpcEffect) throw new Error("Effect is in use");
+    // Проверка использования в расах (через race_effects)
+    const usedInRace = await db("race_effects").where("effect_id", id).first();
+    if (usedInRace) throw new Error("Effect is in use");
 
     const deleted = await db("effects").where({ id }).delete();
     return deleted > 0;

@@ -113,6 +113,9 @@ export const EditEffectModal = ({
     const raw = e.target.value;
     const tagsArray = raw.split(',').map(s => s.trim()).filter(s => s.length > 0);
     setFormData({ ...formData, tags: tagsArray });
+    if (serverErrors.tags) {
+      setServerErrors(prev => ({ ...prev, tags: '' }));
+    }
   };
   
   const handleTogglePermanent = (isPermanent: boolean) => {
@@ -139,6 +142,16 @@ export const EditEffectModal = ({
 
     if (formData.modifier < -100 || formData.modifier > 100) {
       errors.modifier = 'Модификатор должен быть в диапазоне от -100 до 100';
+    }
+
+    // Новая валидация тегов
+    if (formData.tags.length > 10) {
+      errors.tags = 'Максимум 10 тегов';
+    } else {
+      const longTag = formData.tags.find(tag => tag.length > 30);
+      if (longTag) {
+        errors.tags = `Тег "${longTag}" превышает 30 символов`;
+      }
     }
 
     if (!formData.is_permanent) {
@@ -321,10 +334,15 @@ export const EditEffectModal = ({
                 type="text"
                 value={formData.tags.join(', ')}
                 onChange={handleTagsChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={`w-full px-3 py-2 border ${
+                  serverErrors.tags ? 'border-red-500' : 'border-gray-300'
+                } rounded focus:outline-none focus:ring-2 focus:ring-blue-500`}
                 placeholder="например: боевой, расовый, магия"
                 disabled={loading}
               />
+              {serverErrors.tags && (
+                <p className="mt-1 text-sm text-red-600">{serverErrors.tags}</p>
+              )}
               <p className="text-xs text-gray-500 mt-1">Максимум 10 тегов, каждый до 30 символов</p>
             </div>
             
