@@ -10,6 +10,17 @@ interface EditEffectModalProps {
   mode: 'edit' | 'create';
 }
 
+interface FormData {
+  name: string;
+  description: string;
+  attribute: string | null;
+  modifier: number;
+  duration_turns: number | null;
+  duration_days: number | null;
+  is_permanent: boolean;
+  tags: string[];
+}
+
 const ATTRIBUTE_OPTIONS = [
   { value: 'health', label: 'Здоровье' },
   { value: 'max_health', label: 'Макс. здоровье' },
@@ -29,21 +40,21 @@ export const EditEffectModal = ({
   onEffectCreated,
   mode = 'edit' 
 }: EditEffectModalProps) => {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     name: '',
     description: '',
-    attribute: null as string | null,
+    attribute: null,
     modifier: 0,
-    duration_turns: null as number | null,
-    duration_days: null as number | null,
-    is_permanent: false
+    duration_turns: null,
+    duration_days: null,
+    is_permanent: false,
+    tags: []
   });
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [serverErrors, setServerErrors] = useState<Record<string, string>>({});
   
-  // Инициализация формы при открытии модального окна
   useEffect(() => {
     if (mode === 'edit' && effect) {
       setFormData({
@@ -53,7 +64,8 @@ export const EditEffectModal = ({
         modifier: effect.modifier || 0,
         duration_turns: effect.duration_turns || null,
         duration_days: effect.duration_days || null,
-        is_permanent: effect.is_permanent || false
+        is_permanent: effect.is_permanent || false,
+        tags: effect.tags || []           // ← добавлено
       });
     } else if (mode === 'create') {
       setFormData({
@@ -63,7 +75,8 @@ export const EditEffectModal = ({
         modifier: 0,
         duration_turns: null,
         duration_days: null,
-        is_permanent: false
+        is_permanent: false,
+        tags: []
       });
     }
   }, [effect, mode]);
@@ -90,10 +103,16 @@ export const EditEffectModal = ({
       });
     }
     
-    // Очищаем ошибки при изменении
     if (serverErrors[name]) {
       setServerErrors(prev => ({ ...prev, [name]: '' }));
     }
+  };
+
+  // Обработчик изменения тегов (строка через запятую)
+  const handleTagsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    const tagsArray = raw.split(',').map(s => s.trim()).filter(s => s.length > 0);
+    setFormData({ ...formData, tags: tagsArray });
   };
   
   const handleTogglePermanent = (isPermanent: boolean) => {
@@ -143,7 +162,7 @@ export const EditEffectModal = ({
     return Object.keys(errors).length === 0;
   };
   
-    const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
@@ -154,13 +173,13 @@ export const EditEffectModal = ({
         return;
     }
     
-    // Подготавливаем данные для отправки
     const submitData = {
         ...formData,
         description: formData.description || '',
         attribute: formData.attribute || null,
         duration_turns: formData.is_permanent ? null : (formData.duration_turns || null),
-        duration_days: formData.is_permanent ? null : (formData.duration_days || null)
+        duration_days: formData.is_permanent ? null : (formData.duration_days || null),
+        tags: formData.tags
     };
     
     try {
@@ -168,39 +187,38 @@ export const EditEffectModal = ({
         let method = 'POST';
         
         if (mode === 'edit' && effect) {
-        url = `/api/effects/${effect.id}`;
-        method = 'PATCH'; // Используем PATCH для частичного обновления
+          url = `/api/effects/${effect.id}`;
+          method = 'PATCH';
         }
         
         const response = await fetch(url, {
-        method,
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(submitData),
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(submitData),
         });
         
         if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Ошибка сохранения эффекта');
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Ошибка сохранения эффекта');
         }
         
         const result = await response.json();
         
         if (mode === 'edit' && effect) {
-        onEffectUpdated(result.effect || result);
+          onEffectUpdated(result.effect || result);
         } else if (mode === 'create' && onEffectCreated) {
-        onEffectCreated(result.effect || result);
+          onEffectCreated(result.effect || result);
         }
         
         onClose();
-    } catch (err: any) {
-        setError(err.message || 'Произошла ошибка при сохранении эффекта');
+    } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Произошла ошибка при сохранении эффекта';
+        setError(message);
         console.error('Ошибка сохранения:', err);
     } finally {
         setLoading(false);
     }
-    };
+  };
   
   const handleDelete = async () => {
     if (mode !== 'edit' || !effect) return;
@@ -213,27 +231,22 @@ export const EditEffectModal = ({
     setError(null);
     
     try {
-      const response = await fetch(`/api/effects/${effect.id}`, {
-        method: 'DELETE',
-      });
-      
+      const response = await fetch(`/api/effects/${effect.id}`, { method: 'DELETE' });
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Ошибка удаления эффекта');
       }
-      
       onClose();
-    } catch (err: any) {
-      setError(err.message || 'Произошла ошибка при удалении эффекта');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Произошла ошибка при удалении эффекта';
+      setError(message);
       console.error('Ошибка удаления:', err);
     } finally {
       setLoading(false);
     }
   };
   
-  const modalTitle = mode === 'edit' 
-    ? `Редактирование эффекта` 
-    : 'Создание нового эффекта';
+  const modalTitle = mode === 'edit' ? 'Редактирование эффекта' : 'Создание нового эффекта';
   
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 md:p-4">
@@ -241,11 +254,7 @@ export const EditEffectModal = ({
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold">{modalTitle}</h2>
-            <button
-              onClick={onClose}
-              className="text-gray-500 hover:text-gray-700 text-2xl"
-              disabled={loading}
-            >
+            <button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-2xl" disabled={loading}>
               &times;
             </button>
           </div>
@@ -259,106 +268,93 @@ export const EditEffectModal = ({
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Основные поля */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Название */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Название эффекта *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Название эффекта *</label>
                 <input
                   type="text"
                   name="name"
                   value={formData.name}
                   onChange={handleInputChange}
                   className={`w-full px-3 py-2 border ${serverErrors.name ? 'border-red-500' : 'border-gray-300'} rounded focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                  required
-                  maxLength={100}
-                  disabled={loading}
-                  placeholder="Введите название эффекта"
+                  required maxLength={100} disabled={loading}
                 />
-                {serverErrors.name && (
-                  <p className="mt-1 text-sm text-red-600">{serverErrors.name}</p>
-                )}
+                {serverErrors.name && <p className="mt-1 text-sm text-red-600">{serverErrors.name}</p>}
               </div>
               
-              {/* Атрибут */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Атрибут
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Атрибут</label>
                 <select
                   name="attribute"
                   value={formData.attribute || ''}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border ${serverErrors.attribute ? 'border-red-500' : 'border-gray-300'} rounded focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                  className={`w-full px-3 py-2 border ${serverErrors.attribute ? 'border-red-500' : 'border-gray-300'} rounded`}
                   disabled={loading}
                 >
                   <option value="">Не выбран</option>
                   {ATTRIBUTE_OPTIONS.map(attr => (
-                    <option key={attr.value} value={attr.value}>
-                      {attr.label}
-                    </option>
+                    <option key={attr.value} value={attr.value}>{attr.label}</option>
                   ))}
                 </select>
-                {serverErrors.attribute && (
-                  <p className="mt-1 text-sm text-red-600">{serverErrors.attribute}</p>
-                )}
+                {serverErrors.attribute && <p className="mt-1 text-sm text-red-600">{serverErrors.attribute}</p>}
               </div>
             </div>
             
             {/* Описание */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Описание
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Описание</label>
               <textarea
                 name="description"
                 value={formData.description}
                 onChange={handleInputChange}
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded"
                 disabled={loading}
-                placeholder="Введите описание эффекта"
               />
+            </div>
+            
+            {/* Теги (новое поле) */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Теги (через запятую)
+              </label>
+              <input
+                type="text"
+                value={formData.tags.join(', ')}
+                onChange={handleTagsChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="например: боевой, расовый, магия"
+                disabled={loading}
+              />
+              <p className="text-xs text-gray-500 mt-1">Максимум 10 тегов, каждый до 30 символов</p>
             </div>
             
             {/* Модификатор и тип эффекта */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Модификатор
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    name="modifier"
-                    min="-100"
-                    max="100"
-                    value={formData.modifier}
-                    onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border ${serverErrors.modifier ? 'border-red-500' : 'border-gray-300'} rounded focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                    disabled={loading}
-                  />
-                </div>
-                {serverErrors.modifier && (
-                  <p className="mt-1 text-sm text-red-600">{serverErrors.modifier}</p>
-                )}
+                <label className="block text-sm font-medium text-gray-700 mb-1">Модификатор</label>
+                <input
+                  type="number"
+                  name="modifier"
+                  min="-100" max="100"
+                  value={formData.modifier}
+                  onChange={handleInputChange}
+                  className={`w-full px-3 py-2 border ${serverErrors.modifier ? 'border-red-500' : 'border-gray-300'} rounded`}
+                  disabled={loading}
+                />
+                {serverErrors.modifier && <p className="mt-1 text-sm text-red-600">{serverErrors.modifier}</p>}
                 <div className="mt-2 text-xs text-gray-500">
                   Положительное значение увеличивает атрибут, отрицательное — уменьшает
                 </div>
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Тип эффекта
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-3">Тип эффекта</label>
                 <div className="flex space-x-4">
                   <button
                     type="button"
                     onClick={() => handleTogglePermanent(false)}
                     className={`flex-1 py-2 px-4 rounded-md border ${
-                      !formData.is_permanent
-                        ? 'bg-blue-500 text-white border-blue-600'
-                        : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
+                      !formData.is_permanent ? 'bg-blue-500 text-white border-blue-600' : 'bg-gray-100 text-gray-700'
                     }`}
                     disabled={loading}
                   >
@@ -368,18 +364,14 @@ export const EditEffectModal = ({
                     type="button"
                     onClick={() => handleTogglePermanent(true)}
                     className={`flex-1 py-2 px-4 rounded-md border ${
-                      formData.is_permanent
-                        ? 'bg-blue-500 text-white border-blue-600'
-                        : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
+                      formData.is_permanent ? 'bg-blue-500 text-white border-blue-600' : 'bg-gray-100 text-gray-700'
                     }`}
                     disabled={loading}
                   >
                     Постоянный
                   </button>
                 </div>
-                {serverErrors.is_permanent && (
-                  <p className="mt-1 text-sm text-red-600">{serverErrors.is_permanent}</p>
-                )}
+                {serverErrors.is_permanent && <p className="mt-1 text-sm text-red-600">{serverErrors.is_permanent}</p>}
               </div>
             </div>
             
@@ -389,85 +381,68 @@ export const EditEffectModal = ({
                 <h3 className="font-medium text-gray-800 mb-3">Длительность эффекта</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      В ходах
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">В ходах</label>
                     <input
                       type="number"
                       name="duration_turns"
                       min="1"
                       value={formData.duration_turns || ''}
                       onChange={handleInputChange}
-                      className={`w-full px-3 py-2 border ${serverErrors.duration_turns ? 'border-red-500' : 'border-gray-300'} rounded focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                      className={`w-full px-3 py-2 border ${serverErrors.duration_turns ? 'border-red-500' : 'border-gray-300'} rounded`}
                       disabled={loading}
-                      placeholder="Например: 5"
                     />
-                    {serverErrors.duration_turns && (
-                      <p className="mt-1 text-sm text-red-600">{serverErrors.duration_turns}</p>
-                    )}
+                    {serverErrors.duration_turns && <p className="mt-1 text-sm text-red-600">{serverErrors.duration_turns}</p>}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      В днях
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">В днях</label>
                     <input
                       type="number"
                       name="duration_days"
                       min="1"
                       value={formData.duration_days || ''}
                       onChange={handleInputChange}
-                      className={`w-full px-3 py-2 border ${serverErrors.duration_days ? 'border-red-500' : 'border-gray-300'} rounded focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                      className={`w-full px-3 py-2 border ${serverErrors.duration_days ? 'border-red-500' : 'border-gray-300'} rounded`}
                       disabled={loading}
-                      placeholder="Например: 3"
                     />
-                    {serverErrors.duration_days && (
-                      <p className="mt-1 text-sm text-red-600">{serverErrors.duration_days}</p>
-                    )}
+                    {serverErrors.duration_days && <p className="mt-1 text-sm text-red-600">{serverErrors.duration_days}</p>}
                   </div>
                 </div>
-                {serverErrors.duration && (
-                  <p className="mt-2 text-sm text-red-600">{serverErrors.duration}</p>
-                )}
+                {serverErrors.duration && <p className="mt-2 text-sm text-red-600">{serverErrors.duration}</p>}
                 <div className="mt-2 text-xs text-gray-600">
                   Укажите хотя бы один тип длительности. Если указаны оба, эффект закончится при истечении любого из сроков.
                 </div>
               </div>
             )}
             
-            {/* Кнопки действий */}
+            {/* Кнопки */}
             <div className="flex justify-between pt-6 border-t">
               <div>
                 {mode === 'edit' && effect && (
                   <button
                     type="button"
                     onClick={handleDelete}
-                    className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
                     disabled={loading}
                   >
                     {loading ? 'Удаление...' : 'Удалить'}
                   </button>
                 )}
               </div>
-              
               <div className="flex space-x-3">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-50"
                   disabled={loading}
                 >
                   Отмена
                 </button>
-                
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
                   disabled={loading}
                 >
-                  {loading 
-                    ? (mode === 'edit' ? 'Сохранение...' : 'Создание...') 
-                    : (mode === 'edit' ? 'Сохранить изменения' : 'Создать эффект')
-                  }
+                  {loading ? (mode === 'edit' ? 'Сохранение...' : 'Создание...') : (mode === 'edit' ? 'Сохранить изменения' : 'Создать эффект')}
                 </button>
               </div>
             </div>

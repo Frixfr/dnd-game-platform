@@ -11,6 +11,7 @@ export const EffectsPage = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedEffect, setSelectedEffect] = useState<EffectType | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Инициализируем сокет один раз при монтировании
   useEffect(() => {
@@ -21,6 +22,15 @@ export const EffectsPage = () => {
     setSelectedEffect(effect);
     setIsEditModalOpen(true);
   };
+
+  const filteredEffects = effects.filter(effect => {
+    const term = searchTerm.toLowerCase();
+    return (
+      effect.name.toLowerCase().includes(term) ||
+      (effect.description?.toLowerCase().includes(term)) ||
+      effect.tags.some(tag => tag.toLowerCase().includes(term))
+    );
+  });
 
   const handleDeleteEffect = async (effect: EffectType) => {
     if (!confirm(`Удалить эффект "${effect.name}"?`)) return;
@@ -45,6 +55,15 @@ export const EffectsPage = () => {
             Всего эффектов: <span className="font-semibold">{effects.length}</span>
           </p>
         </div>
+        <div className="mb-4">
+          <input
+            type="text"
+            placeholder="Поиск по названию, описанию или тегу..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full md:w-80 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
         <button
           onClick={() => setIsCreateModalOpen(true)}
           className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
@@ -59,7 +78,7 @@ export const EffectsPage = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {effects.map((effect) => (
+          {filteredEffects.map((effect) => (
             <EffectCard
               key={effect.id}
               effect={effect}

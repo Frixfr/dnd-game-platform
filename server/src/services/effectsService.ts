@@ -1,26 +1,51 @@
 import { db } from "../db/index.js";
 import type { Effect } from "../types/index.js";
 
+function parseTags(effect: any): Effect {
+  if (effect && effect.tags) {
+    try {
+      effect.tags = JSON.parse(effect.tags);
+    } catch {
+      effect.tags = [];
+    }
+  } else if (effect) {
+    effect.tags = [];
+  }
+  return effect;
+}
+
 export const effectsService = {
   async getAll(): Promise<Effect[]> {
-    return db("effects").select("*");
+    const effects = await db("effects").select("*");
+    return effects.map(parseTags);
   },
 
   async getById(id: string): Promise<Effect | null> {
-    return db("effects").where({ id }).first();
+    const effect = await db("effects").where({ id }).first();
+    return effect ? parseTags(effect) : null;
   },
 
   async create(data: Omit<Effect, "id">): Promise<Effect> {
-    const [effect] = await db("effects").insert(data).returning("*");
-    return effect;
+    const insertData: any = { ...data };
+    if (insertData.tags) {
+      insertData.tags = JSON.stringify(insertData.tags);
+    } else {
+      insertData.tags = "[]";
+    }
+    const [effect] = await db("effects").insert(insertData).returning("*");
+    return parseTags(effect);
   },
 
   async update(id: string, data: Partial<Effect>): Promise<Effect | null> {
+    const updateData: any = { ...data };
+    if (updateData.tags !== undefined) {
+      updateData.tags = JSON.stringify(updateData.tags);
+    }
     const [updated] = await db("effects")
       .where({ id })
-      .update(data)
+      .update(updateData)
       .returning("*");
-    return updated || null;
+    return updated ? parseTags(updated) : null;
   },
 
   async delete(id: string): Promise<boolean> {

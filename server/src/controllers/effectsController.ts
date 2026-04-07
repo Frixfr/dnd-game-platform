@@ -79,6 +79,27 @@ export const effectsController = {
       }
     }
 
+    // Валидация тегов
+    let tags: string[] = [];
+    if (req.body.tags) {
+      if (!Array.isArray(req.body.tags)) {
+        return res
+          .status(400)
+          .json({ error: "Теги должны быть массивом строк" });
+      }
+      tags = req.body.tags.filter(
+        (t: string) => typeof t === "string" && t.trim().length > 0,
+      );
+      if (tags.some((t) => t.length > 30)) {
+        return res
+          .status(400)
+          .json({ error: "Длина тега не более 30 символов" });
+      }
+      if (tags.length > 10) {
+        return res.status(400).json({ error: "Не более 10 тегов" });
+      }
+    }
+
     try {
       const effect = await effectsService.create({
         name: name.trim(),
@@ -88,6 +109,7 @@ export const effectsController = {
         duration_turns: is_permanent ? null : duration_turns,
         duration_days: is_permanent ? null : duration_days,
         is_permanent,
+        tags,
       });
       getIO().emit("effect:created", effect);
       res.status(201).json({ success: true, message: "Эффект создан", effect });
@@ -216,11 +238,9 @@ export const effectsController = {
       updateData.attribute !== null &&
       !allowedAttributes.includes(updateData.attribute)
     ) {
-      return res
-        .status(400)
-        .json({
-          error: `Недопустимый атрибут. Допустимые: ${allowedAttributes.join(", ")}`,
-        });
+      return res.status(400).json({
+        error: `Недопустимый атрибут. Допустимые: ${allowedAttributes.join(", ")}`,
+      });
     }
     if (
       updateData.modifier !== undefined &&
@@ -236,11 +256,9 @@ export const effectsController = {
           updateData.duration_turns !== undefined &&
           updateData.duration_turns !== null
         ) {
-          return res
-            .status(400)
-            .json({
-              error: "Постоянные эффекты не могут иметь duration_turns",
-            });
+          return res.status(400).json({
+            error: "Постоянные эффекты не могут иметь duration_turns",
+          });
         }
         if (
           updateData.duration_days !== undefined &&

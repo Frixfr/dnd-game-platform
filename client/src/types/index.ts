@@ -89,6 +89,7 @@ export interface EffectType {
   duration_days: number | null;
   is_permanent: boolean;
   remaining_turns: number | null;
+  tags: string[];
 }
 
 // Добавляем тип для редкости предметов

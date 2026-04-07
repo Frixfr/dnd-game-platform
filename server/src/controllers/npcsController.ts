@@ -102,11 +102,15 @@ export const npcsController = {
         is_online: Boolean(is_online),
         is_card_shown: Boolean(is_card_shown),
         aggression,
+        race_id: null, // добавлено
       });
       getIO().emit("npc:created", npc);
       res.status(201).json({ success: true, npc });
-    } catch (error: any) {
-      if (error.message.includes("UNIQUE constraint failed")) {
+    } catch (error: unknown) {
+      if (
+        error instanceof Error &&
+        error.message.includes("UNIQUE constraint failed")
+      ) {
         return res
           .status(409)
           .json({ error: "NPC с таким именем уже существует" });
@@ -131,14 +135,17 @@ export const npcsController = {
       if (!updated) return res.status(404).json({ error: "NPC не найден" });
       getIO().emit("npc:updated", updated);
       res.json({ success: true, npc: updated });
-    } catch (error: any) {
-      if (error.message.includes("UNIQUE constraint failed")) {
+    } catch (error: unknown) {
+      if (
+        error instanceof Error &&
+        error.message.includes("UNIQUE constraint failed")
+      ) {
         return res
           .status(409)
           .json({ error: "NPC с таким именем уже существует" });
       }
       console.error(error);
-      res.status(500).json({ error: "Ошибка обновления NPC" });
+      res.status(500).json({ error: "Ошибка создания NPC" });
     }
   },
 
@@ -157,14 +164,17 @@ export const npcsController = {
       if (!updated) return res.status(404).json({ error: "NPC не найден" });
       getIO().emit("npc:updated", updated);
       res.json({ success: true, npc: updated });
-    } catch (error: any) {
-      if (error.message.includes("UNIQUE constraint failed")) {
+    } catch (error: unknown) {
+      if (
+        error instanceof Error &&
+        error.message.includes("UNIQUE constraint failed")
+      ) {
         return res
           .status(409)
           .json({ error: "NPC с таким именем уже существует" });
       }
       console.error(error);
-      res.status(500).json({ error: "Ошибка обновления NPC" });
+      res.status(500).json({ error: "Ошибка создания NPC" });
     }
   },
 
@@ -175,8 +185,8 @@ export const npcsController = {
       if (!deleted) return res.status(404).json({ error: "NPC не найден" });
       getIO().emit("npc:deleted", Number(id));
       res.json({ success: true, message: "NPC удалён" });
-    } catch (error: any) {
-      if (error.message === "NPC has relations") {
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message === "NPC has relations") {
         return res.status(409).json({
           error:
             "Невозможно удалить NPC, так как у него есть связанные способности, предметы или эффекты",
@@ -198,8 +208,12 @@ export const npcsController = {
         message: "NPC успешно запуган",
         npc: result.npc,
       });
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        res.status(400).json({ error: error.message });
+      } else {
+        res.status(400).json({ error: "Неизвестная ошибка" });
+      }
     }
   },
 
@@ -216,8 +230,12 @@ export const npcsController = {
       getIO().emit("npc:aggression-changed", updated);
       getIO().emit("npc:updated", updated);
       res.json({ success: true, message: "Агрессия изменена", npc: updated });
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        res.status(400).json({ error: error.message });
+      } else {
+        res.status(400).json({ error: "Неизвестная ошибка" });
+      }
     }
   },
 
@@ -229,8 +247,12 @@ export const npcsController = {
       getIO().emit("npc:calmed", updated);
       getIO().emit("npc:updated", updated);
       res.json({ success: true, message: "NPC успокоен", npc: updated });
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        res.status(400).json({ error: error.message });
+      } else {
+        res.status(400).json({ error: "Неизвестная ошибка" });
+      }
     }
   },
 
@@ -247,8 +269,12 @@ export const npcsController = {
       getIO().emit("npc:aggression-changed", updated);
       getIO().emit("npc:updated", updated);
       res.json({ success: true, message: "Агрессия обновлена", npc: updated });
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        res.status(400).json({ error: error.message });
+      } else {
+        res.status(400).json({ error: "Неизвестная ошибка" });
+      }
     }
   },
 
@@ -263,8 +289,12 @@ export const npcsController = {
       const result = await npcsService.addItemsBatch(Number(id), items);
       getIO().emit("npc:items-added", { npc_id: Number(id), result });
       res.json(result);
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        res.status(400).json({ error: error.message });
+      } else {
+        res.status(400).json({ error: "Неизвестная ошибка" });
+      }
     }
   },
 
@@ -281,8 +311,12 @@ export const npcsController = {
       );
       getIO().emit("npc:abilities-added", { npc_id: Number(id), result });
       res.json(result);
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        res.status(400).json({ error: error.message });
+      } else {
+        res.status(400).json({ error: "Неизвестная ошибка" });
+      }
     }
   },
 
@@ -296,8 +330,12 @@ export const npcsController = {
       const result = await npcsService.addEffectsBatch(Number(id), effect_ids);
       getIO().emit("npc:effects-added", { npc_id: Number(id), result });
       res.json(result);
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        res.status(400).json({ error: error.message });
+      } else {
+        res.status(400).json({ error: "Неизвестная ошибка" });
+      }
     }
   },
 
@@ -308,8 +346,12 @@ export const npcsController = {
       await npcsService.removeItem(Number(id), itemId);
       getIO().emit("npc:item-removed", { npc_id: Number(id), item_id: itemId });
       res.json({ success: true, message: "Предмет удалён" });
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        res.status(400).json({ error: error.message });
+      } else {
+        res.status(400).json({ error: "Неизвестная ошибка" });
+      }
     }
   },
 
@@ -323,8 +365,12 @@ export const npcsController = {
         ability_id: abilityId,
       });
       res.json({ success: true, message: "Способность удалена" });
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        res.status(400).json({ error: error.message });
+      } else {
+        res.status(400).json({ error: "Неизвестная ошибка" });
+      }
     }
   },
 
@@ -338,8 +384,12 @@ export const npcsController = {
         effect_id: effectId,
       });
       res.json({ success: true, message: "Эффект удалён" });
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        res.status(400).json({ error: error.message });
+      } else {
+        res.status(400).json({ error: "Неизвестная ошибка" });
+      }
     }
   },
 
@@ -358,8 +408,12 @@ export const npcsController = {
       );
       getIO().emit("npc:item-toggled", updated);
       res.json({ success: true, npc_item: updated });
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        res.status(400).json({ error: error.message });
+      } else {
+        res.status(400).json({ error: "Неизвестная ошибка" });
+      }
     }
   },
 
@@ -378,8 +432,12 @@ export const npcsController = {
       );
       getIO().emit("npc:ability-toggled", updated);
       res.json({ success: true, npc_ability: updated });
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        res.status(400).json({ error: error.message });
+      } else {
+        res.status(400).json({ error: "Неизвестная ошибка" });
+      }
     }
   },
 };

@@ -176,8 +176,9 @@ export const EditItemModal = ({
       }
       
       onClose();
-    } catch (err: any) {
-      setError(err.message || 'Произошла ошибка при сохранении предмета');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Произошла ошибка при сохранении предмета';
+      setError(message);
       console.error('Ошибка сохранения:', err);
     } finally {
       setLoading(false);
@@ -205,8 +206,9 @@ export const EditItemModal = ({
       }
       
       onClose();
-    } catch (err: any) {
-      setError(err.message || 'Произошла ошибка при удалении предмета');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Произошла ошибка при удалении предмета';
+      setError(message);
       console.error('Ошибка удаления:', err);
     } finally {
       setLoading(false);

@@ -1,5 +1,6 @@
 // client/src/components/ui/PlayerCard.tsx
 import type { PlayerType, StatType } from '../../types';
+import { useRaceStore } from '../../stores/raceStore'; // <-- добавить
 
 interface PlayerCardProps {
   player: PlayerType;
@@ -26,6 +27,11 @@ export const PlayerCard = ({ player, onClick, disabled = false, onDelete }: Play
     .toUpperCase()
     .slice(0, 2);
 
+  // Получаем список рас из стора
+  const { races } = useRaceStore();
+  // Находим расу игрока по race_id
+  const race = races.find(r => r.id === player.race_id);
+
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (onDelete && confirm(`Удалить игрока "${player.name}"?`)) {
@@ -43,7 +49,6 @@ export const PlayerCard = ({ player, onClick, disabled = false, onDelete }: Play
       <div className="relative h-2 bg-gradient-to-r from-blue-400 to-indigo-500" />
 
       <div className="p-5">
-        {/* Шапка с именем и правым блоком (крестик + ID) */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center text-gray-700 font-bold text-lg shadow-inner">
@@ -51,8 +56,16 @@ export const PlayerCard = ({ player, onClick, disabled = false, onDelete }: Play
             </div>
             <div>
               <h3 className="text-xl font-bold text-gray-800 tracking-tight">{player.name}</h3>
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-xs text-gray-500 capitalize">{player.gender === 'male' ? '♂ Муж' : '♀ Жен'}</span>
+              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                <span className="text-xs text-gray-500 capitalize">
+                  {player.gender === 'male' ? '♂ Муж' : '♀ Жен'}
+                </span>
+                {/* Отображаем расу, если есть */}
+                {race && (
+                  <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                    {race.name}
+                  </span>
+                )}
                 {player.in_battle && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
                     <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
@@ -69,7 +82,6 @@ export const PlayerCard = ({ player, onClick, disabled = false, onDelete }: Play
             </div>
           </div>
 
-          {/* Блок крестик + ID */}
           <div className="flex items-center gap-2">
             <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full">#{player.id}</span>
             {onDelete && (

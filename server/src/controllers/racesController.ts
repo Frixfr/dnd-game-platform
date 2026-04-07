@@ -42,8 +42,11 @@ export const racesController = {
       );
       getIO().emit("race:created", race);
       res.status(201).json({ success: true, message: "Раса создана", race });
-    } catch (error: any) {
-      if (error.message.includes("UNIQUE constraint failed")) {
+    } catch (error: unknown) {
+      if (
+        error instanceof Error &&
+        error.message.includes("UNIQUE constraint failed")
+      ) {
         return res
           .status(409)
           .json({ error: "Раса с таким именем уже существует" });
@@ -71,8 +74,11 @@ export const racesController = {
       if (!updated) return res.status(404).json({ error: "Раса не найдена" });
       getIO().emit("race:updated", updated);
       res.json({ success: true, race: updated });
-    } catch (error: any) {
-      if (error.message.includes("UNIQUE constraint failed")) {
+    } catch (error: unknown) {
+      if (
+        error instanceof Error &&
+        error.message.includes("UNIQUE constraint failed")
+      ) {
         return res
           .status(409)
           .json({ error: "Раса с таким именем уже существует" });
@@ -89,12 +95,14 @@ export const racesController = {
       if (!deleted) return res.status(404).json({ error: "Раса не найдена" });
       getIO().emit("race:deleted", { id: Number(id) });
       res.json({ success: true, message: "Раса удалена" });
-    } catch (error: any) {
-      if (
-        error.message === "Race is used by players" ||
-        error.message === "Race is used by NPCs"
-      ) {
-        return res.status(409).json({ error: error.message });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        if (
+          error.message === "Race is used by players" ||
+          error.message === "Race is used by NPCs"
+        ) {
+          return res.status(409).json({ error: error.message });
+        }
       }
       console.error(error);
       res.status(500).json({ error: "Ошибка удаления расы" });

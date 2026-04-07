@@ -2,6 +2,44 @@
 
 import { db } from "./index.js";
 
+// Добавление отсутствующих колонок (миграция)
+async function addMissingColumns() {
+  // Проверяем и добавляем race_id в таблицу players
+  const playersColumns = await db.table("players").columnInfo();
+  if (!playersColumns.race_id) {
+    await db.schema.alterTable("players", (table) => {
+      table
+        .integer("race_id")
+        .references("id")
+        .inTable("races")
+        .onDelete("SET NULL");
+    });
+    console.log("Колонка race_id добавлена в таблицу players");
+  }
+
+  // Проверяем и добавляем race_id в таблицу npcs
+  const npcsColumns = await db.table("npcs").columnInfo();
+  if (!npcsColumns.race_id) {
+    await db.schema.alterTable("npcs", (table) => {
+      table
+        .integer("race_id")
+        .references("id")
+        .inTable("races")
+        .onDelete("SET NULL");
+    });
+    console.log("Колонка race_id добавлена в таблицу npcs");
+  }
+
+  // Проверяем и добавляем колонку tags в таблицу effects
+  const effectsColumns = await db.table("effects").columnInfo();
+  if (!effectsColumns.tags) {
+    await db.schema.alterTable("effects", (table) => {
+      table.text("tags").defaultTo("[]");
+    });
+    console.log("Колонка tags добавлена в таблицу effects");
+  }
+}
+
 export async function initializeDatabase() {
   try {
     // Таблица players
@@ -56,6 +94,7 @@ export async function initializeDatabase() {
         table.integer("duration_turns").nullable();
         table.integer("duration_days").nullable();
         table.boolean("is_permanent").defaultTo(false);
+        table.text("tags").defaultTo("[]");
       });
       console.log("Таблица effects создана");
     }
@@ -305,6 +344,8 @@ export async function initializeDatabase() {
       });
       console.log("Таблица race_effects создана");
     }
+
+    await addMissingColumns();
 
     // Индексы
     await db

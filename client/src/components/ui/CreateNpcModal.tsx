@@ -1,6 +1,7 @@
 // client/src/components/ui/CreateNpcModal.tsx
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNpcStore } from "../../stores/npcStore";
+import type { RaceType } from "../../types";
 
 export const CreateNpcModal = ({ onClose }: { onClose: () => void }) => {
   const [formData, setFormData] = useState({
@@ -20,10 +21,17 @@ export const CreateNpcModal = ({ onClose }: { onClose: () => void }) => {
     is_online: false,
     is_card_shown: true,
     aggression: 0 as 0 | 1 | 2,
+    raceId: "",
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { fetchNpcs } = useNpcStore();
+  const [raceId, setRaceId] = useState<number | null>(null);
+  const [races, setRaces] = useState<RaceType[]>([]);
+
+  useEffect(() => {
+    fetch('/api/races').then(res => res.json()).then(setRaces);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,6 +73,19 @@ export const CreateNpcModal = ({ onClose }: { onClose: () => void }) => {
               <label className="flex items-center"><input type="radio" name="gender" value="male" checked={formData.gender === "male"} onChange={() => setFormData({ ...formData, gender: "male" })} className="mr-2" disabled={loading} /> Мужской</label>
               <label className="flex items-center"><input type="radio" name="gender" value="female" checked={formData.gender === "female"} onChange={() => setFormData({ ...formData, gender: "female" })} className="mr-2" disabled={loading} /> Женский</label>
             </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Раса</label>
+            <select
+              value={raceId ?? ''}
+              onChange={(e) => setRaceId(e.target.value ? Number(e.target.value) : null)}
+              className="w-full p-2 border rounded"
+            >
+              <option value="">Нет</option>
+              {races.map(race => (
+                <option key={race.id} value={race.id}>{race.name}</option>
+              ))}
+            </select>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>

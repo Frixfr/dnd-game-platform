@@ -9,6 +9,7 @@ interface EffectFormData {
   duration_turns: number | null;
   duration_days: number | null;
   is_permanent: boolean;
+  tags: string[];
 }
 
 const ATTRIBUTE_OPTIONS = [
@@ -31,7 +32,8 @@ export const CreateEffectModal = ({ onClose }: { onClose: () => void }) => {
     modifier: 0,
     duration_turns: null,
     duration_days: null,
-    is_permanent: false
+    is_permanent: false,
+    tags: [],
   });
   
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -286,6 +288,24 @@ export const CreateEffectModal = ({ onClose }: { onClose: () => void }) => {
                 rows={3}
                 placeholder="Опишите эффект, его проявления и особенности..."
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Теги (через запятую)
+              </label>
+              <input
+                type="text"
+                value={formData.tags.join(', ')}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  const tagsArray = raw.split(',').map(s => s.trim()).filter(s => s);
+                  setFormData({...formData, tags: tagsArray});
+                }}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                placeholder="например: боевой, расовый, магия"
+              />
+              <p className="text-xs text-gray-500 mt-1">Максимум 10 тегов, каждый до 30 символов</p>
             </div>
 
             {/* Длительность (только для временных эффектов) */}

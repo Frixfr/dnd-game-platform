@@ -19,6 +19,7 @@ const ALLOWED_UPDATE_FIELDS = new Set([
   "in_battle",
   "is_online",
   "is_card_shown",
+  "race_id",
 ]);
 
 export const playersController = {
@@ -116,13 +117,17 @@ export const playersController = {
         in_battle: false,
         is_online: Boolean(is_online),
         is_card_shown: Boolean(is_card_shown),
+        race_id: null, // добавлено
       });
       getIO().emit("player:created", newPlayer);
       res
         .status(201)
         .json({ success: true, message: "Игрок создан", player: newPlayer });
-    } catch (error: any) {
-      if (error.message.includes("UNIQUE constraint failed")) {
+    } catch (error: unknown) {
+      if (
+        error instanceof Error &&
+        error.message.includes("UNIQUE constraint failed")
+      ) {
         return res
           .status(409)
           .json({ error: "Игрок с таким именем уже существует" });
@@ -160,16 +165,18 @@ export const playersController = {
         return res.status(404).json({ error: "Игрок не найден" });
       getIO().emit("player:updated", updatedPlayer);
       res.json({ success: true, player: updatedPlayer });
-    } catch (error: any) {
-      if (error.message.includes("Health cannot exceed max health")) {
-        return res
-          .status(400)
-          .json({ error: "Текущее здоровье не может превышать максимальное" });
-      }
-      if (error.message.includes("UNIQUE constraint failed")) {
-        return res
-          .status(409)
-          .json({ error: "Игрок с таким именем уже существует" });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        if (error.message.includes("Health cannot exceed max health")) {
+          return res.status(400).json({
+            error: "Текущее здоровье не может превышать максимальное",
+          });
+        }
+        if (error.message.includes("UNIQUE constraint failed")) {
+          return res
+            .status(409)
+            .json({ error: "Игрок с таким именем уже существует" });
+        }
       }
       console.error(error);
       res.status(500).json({ error: "Ошибка обновления игрока" });
@@ -205,8 +212,12 @@ export const playersController = {
       const fullPlayer = await playersService.getFullDetails(playerId);
       if (fullPlayer) getIO().emit("player:updated", fullPlayer);
       res.json(result);
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        res.status(500).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: "Неизвестная ошибка" });
+      }
     }
   },
 
@@ -229,8 +240,12 @@ export const playersController = {
       const fullPlayer = await playersService.getFullDetails(playerId);
       if (fullPlayer) getIO().emit("player:updated", fullPlayer);
       res.json(result);
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        res.status(500).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: "Неизвестная ошибка" });
+      }
     }
   },
 
@@ -248,8 +263,12 @@ export const playersController = {
       const fullPlayer = await playersService.getFullDetails(playerId);
       if (fullPlayer) getIO().emit("player:updated", fullPlayer);
       res.json(result);
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        res.status(500).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: "Неизвестная ошибка" });
+      }
     }
   },
 
@@ -268,8 +287,12 @@ export const playersController = {
       const fullPlayer = await playersService.getFullDetails(playerId);
       if (fullPlayer) getIO().emit("player:updated", fullPlayer);
       res.json({ success: true, message: "Предмет удален" });
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        res.status(500).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: "Неизвестная ошибка" });
+      }
     }
   },
 
@@ -288,8 +311,12 @@ export const playersController = {
       const fullPlayer = await playersService.getFullDetails(playerId);
       if (fullPlayer) getIO().emit("player:updated", fullPlayer);
       res.json({ success: true, message: "Способность удалена" });
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        res.status(500).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: "Неизвестная ошибка" });
+      }
     }
   },
 
@@ -308,8 +335,12 @@ export const playersController = {
       const fullPlayer = await playersService.getFullDetails(playerId);
       if (fullPlayer) getIO().emit("player:updated", fullPlayer);
       res.json({ success: true, message: "Эффект удален" });
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        res.status(500).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: "Неизвестная ошибка" });
+      }
     }
   },
 
@@ -333,8 +364,12 @@ export const playersController = {
       const fullPlayer = await playersService.getFullDetails(playerId);
       if (fullPlayer) getIO().emit("player:updated", fullPlayer);
       res.json({ success: true, player_item: updated });
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        res.status(500).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: "Неизвестная ошибка" });
+      }
     }
   },
 
@@ -357,8 +392,12 @@ export const playersController = {
       const fullPlayer = await playersService.getFullDetails(playerId);
       if (fullPlayer) getIO().emit("player:updated", fullPlayer);
       res.json({ success: true, player_ability: updated });
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        res.status(500).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: "Неизвестная ошибка" });
+      }
     }
   },
 };

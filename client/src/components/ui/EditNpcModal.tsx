@@ -377,6 +377,7 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
         is_online: formData.is_online ? 1 : 0,
         is_card_shown: formData.is_card_shown ? 1 : 0,
         aggression: Number(formData.aggression),
+        race_id: formData.race_id ?? null,
       };
       const response = await fetch(`/api/npcs/${npc.id}`, {
         method: 'PUT',

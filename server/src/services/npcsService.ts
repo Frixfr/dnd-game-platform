@@ -214,8 +214,20 @@ export const npcsService = {
           action: npcAbility.obtained_at ? "created" : "updated",
           npc_ability: npcAbility,
         });
-      } catch (error: any) {
-        results.push({ ability_id, success: false, error: error.message });
+      } catch (error: unknown) {
+        if (error instanceof Error) {
+          results.push({
+            ability_id,
+            success: false,
+            error: error.message,
+          });
+        } else {
+          results.push({
+            ability_id,
+            success: false,
+            error: "Неизвестная ошибка",
+          });
+        }
       }
     }
     const successful = results.filter((r) => r.success).length;

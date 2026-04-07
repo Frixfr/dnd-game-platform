@@ -110,6 +110,16 @@ export const EffectCard = ({ effect, onClick, showDescription = true, compact = 
           <p className="text-sm text-gray-600 mb-4 line-clamp-2">{effect.description}</p>
         )}
 
+        {effect.tags && effect.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-2">
+            {effect.tags.map(tag => (
+              <span key={tag} className="inline-block px-2 py-0.5 text-xs bg-gray-100 text-gray-600 rounded-full">
+                #{tag}
+              </span>
+            ))}
+          </div>
+        )}
+
         <div className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
           <div className="flex items-center gap-2">
             <span className="text-lg">{effect.is_permanent ? '∞' : '⏳'}</span>

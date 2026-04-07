@@ -2,22 +2,19 @@ import { useState, useEffect } from 'react';
 import { EditRaceModal } from '../components/ui/EditRaceModal';
 import { RaceCard } from '../components/ui/RaceCard';
 import { useRaceStore } from '../stores/raceStore';
+import { CreateRaceModal } from '../components/ui/CreateRaceModal';
 import type { RaceType } from '../types';
 
 export const RacesPage = () => {
-  const { races, initializeSocket, fetchRaces, removeRace } = useRaceStore();
+  const { races, initializeSocket, fetchRaces } = useRaceStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedRace, setSelectedRace] = useState<RaceType | null>(null);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   useEffect(() => {
     initializeSocket();
     fetchRaces();
   }, [initializeSocket, fetchRaces]);
-
-  const handleCreate = () => {
-    setSelectedRace(null);
-    setIsModalOpen(true);
-  };
 
   const handleEdit = (race: RaceType) => {
     setSelectedRace(race);
@@ -43,9 +40,7 @@ export const RacesPage = () => {
           <h1 className="text-3xl font-bold">Расы</h1>
           <p className="text-gray-600 mt-1">Всего рас: {races.length}</p>
         </div>
-        <button onClick={handleCreate} className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
-          + Создать расу
-        </button>
+        <button onClick={() => setIsCreateOpen(true)}>+ Создать расу</button>
       </div>
 
       {races.length === 0 ? (
@@ -68,6 +63,8 @@ export const RacesPage = () => {
           }}
         />
       )}
+
+      {isCreateOpen && <CreateRaceModal onClose={() => setIsCreateOpen(false)} />}
     </div>
   );
 };

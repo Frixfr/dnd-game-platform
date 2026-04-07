@@ -42,6 +42,7 @@ export interface Effect {
   duration_turns: number | null;
   duration_days: number | null;
   is_permanent: boolean;
+  tags: string[];
 }
 
 export interface Ability {

@@ -1,5 +1,6 @@
 // client/src/components/ui/NpcCard.tsx
 import type { NpcType, StatType } from '../../types';
+import { useRaceStore } from '../../stores/raceStore'; // <-- добавить
 
 interface NpcCardProps {
   npc: NpcType;
@@ -32,6 +33,8 @@ export const NpcCard = ({ npc, onClick, disabled = false, onDelete }: NpcCardPro
     .toUpperCase()
     .slice(0, 2);
 
+  const { races } = useRaceStore();
+  const race = races.find(r => r.id === npc.race_id);
   const aggression = aggressionConfig[npc.aggression];
 
   const handleDelete = (e: React.MouseEvent) => {
@@ -58,10 +61,15 @@ export const NpcCard = ({ npc, onClick, disabled = false, onDelete }: NpcCardPro
             </div>
             <div>
               <h3 className="text-xl font-bold text-gray-800 tracking-tight">{npc.name}</h3>
-              <div className="flex items-center gap-2 mt-0.5">
+              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                 <span className="text-xs text-gray-500 capitalize">
                   {npc.gender === 'male' ? '♂ Муж' : '♀ Жен'}
                 </span>
+                {race && (
+                  <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                    {race.name}
+                  </span>
+                )}
                 {npc.in_battle && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
                     <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
@@ -84,17 +92,18 @@ export const NpcCard = ({ npc, onClick, disabled = false, onDelete }: NpcCardPro
           <div className="flex items-center gap-2">
             <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full">#{npc.id}</span>
             {onDelete && (
-                <button
+              <button
                 onClick={handleDelete}
                 className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors text-xl font-bold"
                 title="Удалить"
-                >
+              >
                 ×
-                </button>
+              </button>
             )}
-            </div>
+          </div>
         </div>
 
+        {/* Здоровье */}
         <div className="mb-4">
           <div className="flex justify-between text-sm text-gray-600 mb-1">
             <span>❤️ Здоровье</span>
@@ -110,6 +119,7 @@ export const NpcCard = ({ npc, onClick, disabled = false, onDelete }: NpcCardPro
           </div>
         </div>
 
+        {/* Броня */}
         <div className="flex items-center justify-between bg-gray-50 rounded-xl p-2 mb-4 border border-gray-100">
           <div className="flex items-center gap-2">
             <span className="text-lg">🛡️</span>
@@ -118,6 +128,7 @@ export const NpcCard = ({ npc, onClick, disabled = false, onDelete }: NpcCardPro
           <span className="text-xl font-bold text-gray-800">{npc.armor}</span>
         </div>
 
+        {/* Характеристики */}
         <div className="grid grid-cols-3 gap-2">
           {(['strength', 'agility', 'intelligence', 'physique', 'wisdom', 'charisma'] as StatType[]).map(stat => {
             const value = npc[stat];
