@@ -91,9 +91,13 @@ export const EditRaceModal = ({ race, onClose, onRaceSaved }: EditRaceModalProps
     }
   };
 
-  const filteredEffects = effects.filter(e =>
-    e.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // ИЗМЕНЕНО: поиск по названию ИЛИ по любому тегу (регистронезависимо)
+  const filteredEffects = effects.filter(e => {
+    const term = searchTerm.toLowerCase();
+    const matchesName = e.name.toLowerCase().includes(term);
+    const matchesTags = e.tags?.some(tag => tag.toLowerCase().includes(term)) ?? false;
+    return matchesName || matchesTags;
+  });
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 md:p-4" onClick={onClose}>
@@ -147,7 +151,7 @@ export const EditRaceModal = ({ race, onClose, onRaceSaved }: EditRaceModalProps
               <div className="mb-3">
                 <input
                   type="text"
-                  placeholder="🔍 Поиск эффектов..."
+                  placeholder="🔍 Поиск эффектов (по названию или тегу)..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full px-4 py-2 border border-gray-200 rounded-xl"
@@ -192,6 +196,13 @@ export const EditRaceModal = ({ race, onClose, onRaceSaved }: EditRaceModalProps
                         </div>
                         {effect.description && (
                           <div className="text-xs text-gray-400 mt-1">{effect.description}</div>
+                        )}
+                        {effect.tags && effect.tags.length > 0 && (
+                          <div className="text-xs text-gray-400 mt-1 flex gap-1 flex-wrap">
+                            {effect.tags.map(tag => (
+                              <span key={tag} className="bg-gray-100 px-1.5 py-0.5 rounded">#{tag}</span>
+                            ))}
+                          </div>
                         )}
                       </div>
                     </label>

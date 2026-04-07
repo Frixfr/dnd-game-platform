@@ -66,11 +66,29 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   
   const { fetchPlayers } = usePlayerStore();
+  const [selectedRaceEffects, setSelectedRaceEffects] = useState<EffectType[]>([]);
 
 
   useEffect(() => {
     fetch('/api/races').then(res => res.json()).then(setRaces);
   }, []);
+
+  useEffect(() => {
+    if (formData.race_id) {
+      fetch(`/api/races/${formData.race_id}`)
+        .then(res => res.json())
+        .then(data => {
+          // Ожидаем, что API возвращает объект с полем race, у которого есть effects
+          setSelectedRaceEffects(data.race?.effects || []);
+        })
+        .catch(err => {
+          console.error('Ошибка загрузки эффектов расы:', err);
+          setSelectedRaceEffects([]);
+        });
+    } else {
+      setSelectedRaceEffects([]);
+    }
+  }, [formData.race_id]);
   // Загрузка полных данных игрока
   useEffect(() => {
     const loadFullPlayer = async () => {
@@ -524,15 +542,74 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
   };
 
   const renderCurrentEffects = () => {
-    const effects = formData.active_effects || [];
-    if (!effects.length) return <p className="text-center text-gray-500 py-8">🌀 Нет эффектов</p>;
+    const activeEffects = formData.active_effects || [];
+    const raceEffects = selectedRaceEffects || [];
+
+    const hasEffects = activeEffects.length > 0 || raceEffects.length > 0;
+
+    if (!hasEffects) {
+      return <p className="text-center text-gray-500 py-8">🌀 Нет эффектов</p>;
+    }
+
     return (
       <div className="space-y-3 max-h-[60vh] overflow-y-auto">
-        {effects.map(effect => (
+        {/* Эффекты расы (отображаются первыми, с меткой) */}
+        {raceEffects.map(effect => (
+          <div key={`race-${effect.id}`} className="bg-purple-50 rounded-xl p-3 md:p-4 border border-purple-200">
+            <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h4 className="font-semibold text-purple-800">{effect.name}</h4>
+                  <span className="text-xs bg-purple-200 text-purple-800 px-2 py-0.5 rounded-full">Расовый эффект</span>
+                </div>
+                <p className="text-sm text-gray-600 mt-1">{effect.description || 'Нет описания'}</p>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {effect.attribute && (
+                    <span className="text-xs bg-white px-2 py-0.5 rounded-full">
+                      {effect.attribute}: {effect.modifier > 0 ? `+${effect.modifier}` : effect.modifier}
+                    </span>
+                  )}
+                  {effect.duration_turns && (
+                    <span className="text-xs bg-white px-2 py-0.5 rounded-full">{effect.duration_turns} ходов</span>
+                  )}
+                  {effect.duration_days && (
+                    <span className="text-xs bg-white px-2 py-0.5 rounded-full">{effect.duration_days} дней</span>
+                  )}
+                  {effect.is_permanent && (
+                    <span className="text-xs bg-white px-2 py-0.5 rounded-full">Постоянный</span>
+                  )}
+                </div>
+              </div>
+              {/* У расовых эффектов нет кнопки удаления, только информационный текст */}
+              <div className="text-xs text-purple-500 italic">(меняется только сменой расы)</div>
+            </div>
+          </div>
+        ))}
+
+        {/* Обычные активные эффекты (админские, от предметов, способностей) */}
+        {activeEffects.map(effect => (
           <div key={effect.id} className="bg-gray-50 rounded-xl p-3 md:p-4 border">
             <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
-              <div><h4 className="font-semibold">{effect.name}</h4><p className="text-sm text-gray-500">{effect.description}</p><div className="flex flex-wrap gap-2 mt-1"><span className="text-xs bg-white px-2 py-0.5 rounded-full">{effect.attribute}: {effect.modifier > 0 ? `+${effect.modifier}` : effect.modifier}</span>{effect.duration_turns && <span className="text-xs bg-white px-2 py-0.5 rounded-full">{effect.duration_turns} ходов</span>}</div></div>
-              <button onClick={() => handleRemoveEffect(effect.id)} className="text-red-500 text-sm">Удалить</button>
+              <div>
+                <h4 className="font-semibold">{effect.name}</h4>
+                <p className="text-sm text-gray-500">{effect.description}</p>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {effect.attribute && (
+                    <span className="text-xs bg-white px-2 py-0.5 rounded-full">
+                      {effect.attribute}: {effect.modifier > 0 ? `+${effect.modifier}` : effect.modifier}
+                    </span>
+                  )}
+                  {effect.duration_turns && (
+                    <span className="text-xs bg-white px-2 py-0.5 rounded-full">{effect.duration_turns} ходов</span>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={() => handleRemoveEffect(effect.id)}
+                className="text-red-500 text-sm"
+              >
+                Удалить
+              </button>
             </div>
           </div>
         ))}

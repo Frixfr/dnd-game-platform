@@ -14,7 +14,7 @@ export const MasterDashboardPage = () => {
   const [loadingFullPlayer, setLoadingFullPlayer] = useState(false);
 
   // Берём всё из стора
-  const { players, setPlayers, updatePlayer, socket, initializeSocket } = usePlayerStore();
+  const { players, setPlayers, updatePlayer, updatePlayerFull, socket, initializeSocket } = usePlayerStore();
 
   // Инициализация сокетов при монтировании
   useEffect(() => {
@@ -25,10 +25,25 @@ export const MasterDashboardPage = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/players');
+        const response = await fetch('/api/players');
         if (!response.ok) throw new Error('Ошибка загрузки');
         const data = await response.json();
-        setPlayers(data); // обновляем стор
+        setPlayers(data); // базовые данные
+
+        // Загружаем полные данные для каждого игрока
+        const fullPlayers = await Promise.all(
+          data.map(async (player: PlayerType) => {
+            const detailsRes = await fetch(`/api/players/${player.id}/details`);
+            if (detailsRes.ok) {
+              const full = await detailsRes.json();
+              // Возвращаем игрока с final_stats и race
+              return { ...player, final_stats: full.final_stats, race: full.race };
+            }
+            return player;
+          })
+        );
+        // Обновляем стор полными данными
+        fullPlayers.forEach((fp) => updatePlayerFull(fp));
       } catch (error) {
         console.error('Ошибка:', error);
       } finally {
@@ -52,7 +67,7 @@ export const MasterDashboardPage = () => {
   const handlePlayerClick = async (player: PlayerType) => {
     setLoadingFullPlayer(true);
     try {
-      const response = await fetch(`http://localhost:5000/api/players/${player.id}/details`);
+      const response = await fetch(`/api/players/${player.id}/details`);
       if (!response.ok) throw new Error('Ошибка загрузки полных данных игрока');
       const fullPlayer = await response.json();
       setSelectedPlayer(fullPlayer);
@@ -75,7 +90,7 @@ export const MasterDashboardPage = () => {
 
   const handleDeletePlayer = async (player: PlayerType) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/players/${player.id}`, {
+      const response = await fetch(`/api/players/${player.id}`, {
         method: 'DELETE',
       });
       if (!response.ok) throw new Error('Ошибка удаления');

@@ -25,11 +25,14 @@ export const RacesPage = () => {
     if (!confirm(`Удалить расу "${race.name}"?`)) return;
     try {
       const response = await fetch(`/api/races/${race.id}`, { method: 'DELETE' });
-      if (!response.ok) throw new Error();
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Ошибка ${response.status}: не удалось удалить расу`);
+      }
       // стор обновится через сокет
     } catch (error) {
       console.error(error);
-      alert('Не удалось удалить расу');
+      alert(error instanceof Error ? error.message : 'Не удалось удалить расу');
     }
   };
 

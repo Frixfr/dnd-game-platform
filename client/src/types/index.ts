@@ -29,6 +29,17 @@ export interface PlayerType {
   items: ItemType[];
   active_effects: EffectType[];
   race_id: number | null;
+  final_stats?: {
+    health: number;
+    max_health: number;
+    armor: number;
+    strength: number;
+    agility: number;
+    intelligence: number;
+    physique: number;
+    wisdom: number;
+    charisma: number;
+  };
   race?: RaceType;
 }
 
@@ -55,6 +66,17 @@ export interface NpcType {
   items?: ItemType[];
   active_effects?: EffectType[];
   race_id: number | null;
+  final_stats?: {
+    health: number;
+    max_health: number;
+    armor: number;
+    strength: number;
+    agility: number;
+    intelligence: number;
+    physique: number;
+    wisdom: number;
+    charisma: number;
+  };
   race?: RaceType;
 }
 

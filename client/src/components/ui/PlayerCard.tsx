@@ -121,10 +121,13 @@ export const PlayerCard = ({ player, onClick, disabled = false, onDelete }: Play
           <span className="text-xl font-bold text-gray-800">{player.armor}</span>
         </div>
 
-        {/* Характеристики */}
+        {/* Характеристики с модификаторами */}
         <div className="grid grid-cols-3 gap-2">
           {(['strength', 'agility', 'intelligence', 'physique', 'wisdom', 'charisma'] as StatType[]).map(stat => {
-            const value = player[stat];
+            const baseValue = player[stat]; // исходное значение
+            const finalValue = player.final_stats?.[stat] ?? baseValue;
+            const diff = finalValue - baseValue;
+            const diffText = diff !== 0 ? (diff > 0 ? `(+${diff})` : `(${diff})`) : '';
             return (
               <div
                 key={stat}
@@ -132,7 +135,9 @@ export const PlayerCard = ({ player, onClick, disabled = false, onDelete }: Play
                 title={statLabels[stat]}
               >
                 <span className="text-sm font-mono font-medium text-gray-700">{statLabels[stat]}</span>
-                <span className="font-mono font-semibold text-gray-800">{value}</span>
+                <span className="font-mono font-semibold text-gray-800">
+                  {baseValue} <span className="text-xs text-gray-500">{diffText}</span>
+                </span>
               </div>
             );
           })}

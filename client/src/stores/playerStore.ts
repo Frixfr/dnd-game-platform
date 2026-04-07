@@ -12,6 +12,7 @@ interface PlayerStore {
   deletePlayer: (playerId: number) => void;
   setPlayers: (players: PlayerType[]) => void;
   fetchPlayers: () => Promise<void>;
+  updatePlayerFull: (fullPlayer: PlayerType) => void;
 }
 
 export const usePlayerStore = create<PlayerStore>((set, get) => ({
@@ -94,6 +95,14 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
 
   setPlayers: (players) => {
     set({ players });
+  },
+
+  updatePlayerFull: (fullPlayer) => {
+    set((state) => ({
+      players: state.players.map((p) =>
+        p.id === fullPlayer.id ? fullPlayer : p,
+      ),
+    }));
   },
 }));
 

@@ -15,6 +15,22 @@ export const RaceCard = ({ race, onClick, onDelete }: RaceCardProps) => {
     }
   };
 
+  // Вспомогательная функция для отображения эффектов
+  const renderEffects = () => {
+    if (!race.effects || race.effects.length === 0) {
+      return <span className="text-gray-400">Нет эффектов</span>;
+    }
+    // Показываем первые 3 названия эффектов
+    const effectNames = race.effects.slice(0, 3).map(e => e.name).join(', ');
+    const remainder = race.effects.length - 3;
+    return (
+      <div className="text-sm text-gray-600">
+        {effectNames}
+        {remainder > 0 && <span className="text-gray-400"> +{remainder}</span>}
+      </div>
+    );
+  };
+
   return (
     <div
       onClick={onClick}
@@ -24,12 +40,7 @@ export const RaceCard = ({ race, onClick, onDelete }: RaceCardProps) => {
 
       <div className="p-5">
         <div className="flex items-start justify-between mb-3">
-          <div>
-            <h3 className="text-xl font-bold text-gray-800 tracking-tight">{race.name}</h3>
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-xs text-gray-400">ID: {race.id}</span>
-            </div>
-          </div>
+          <h3 className="text-xl font-bold text-gray-800 tracking-tight">{race.name}</h3>
           <button
             onClick={handleDelete}
             className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors text-xl font-bold"
@@ -46,17 +57,12 @@ export const RaceCard = ({ race, onClick, onDelete }: RaceCardProps) => {
         <div className="flex items-center justify-between bg-gray-50 rounded-xl p-3 border border-gray-100">
           <div className="flex items-center gap-2">
             <span className="text-lg">✨</span>
-            <span className="text-sm text-gray-600">Эффектов</span>
+            <span className="text-sm text-gray-600">Эффекты</span>
           </div>
-          <span className="text-xl font-bold text-gray-800">{race.effects?.length || 0}</span>
+          <div className="text-right">
+            {renderEffects()}
+          </div>
         </div>
-
-        <button
-          onClick={onClick}
-          className="mt-4 w-full py-2 text-sm font-medium bg-gray-100 hover:bg-gray-200 rounded-xl transition text-gray-700"
-        >
-          Редактировать
-        </button>
       </div>
     </div>
   );
