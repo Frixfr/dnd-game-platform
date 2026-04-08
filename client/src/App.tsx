@@ -9,6 +9,13 @@ import EffectsPage from './pages/EffectsPage';
 import { NpcsPage } from "./pages/NpcsPage";
 import MasterLayout from './components/layout/MasterLayout'; // ← Обёртка с сайдбаром
 import { RacesPage } from './pages/RacesPage';
+import { PlayerSelectionPage } from './pages/PlayerSelectionPage';
+import PlayerLayout from './components/layout/PlayerLayout';
+import { PlayerCharacterSheetPage } from './pages/PlayerCharacterSheetPage';
+import { PlayerInventoryPage } from './pages/PlayerInventoryPage';
+import { PlayerAbilitiesPage } from './pages/PlayerAbilitiesPage';
+import { PlayerEffectsPage } from './pages/PlayerEffectsPage';
+import { PlayerMapPage } from './pages/PlayerMapPage';
 
 const App: React.FC = () => {
   return (
@@ -25,6 +32,14 @@ const App: React.FC = () => {
           <Route path="effects" element={<EffectsPage />} />
           <Route path="npcs" element={<NpcsPage />} />
           <Route path="races" element={<RacesPage />} />
+        </Route>
+        <Route path="/player/select" element={<PlayerSelectionPage playerName={''} />} />
+        <Route path="/player/:playerId" element={<PlayerLayout />}>
+          <Route index element={<PlayerCharacterSheetPage />} />
+          <Route path="inventory" element={<PlayerInventoryPage />} />
+          <Route path="abilities" element={<PlayerAbilitiesPage />} />
+          <Route path="effects" element={<PlayerEffectsPage />} />
+          <Route path="map" element={<PlayerMapPage />} />
         </Route>
       </Routes>
     </Router>

@@ -152,4 +152,25 @@ export const abilitiesController = {
       res.status(500).json({ error: "Ошибка удаления способности" });
     }
   },
+
+  async useAbility(req: Request, res: Response) {
+    const abilityId = Number(req.params.id);
+    const { playerId } = req.body; // ожидаем { playerId: number }
+
+    if (isNaN(abilityId) || !playerId || isNaN(Number(playerId))) {
+      return res.status(400).json({ error: "Invalid abilityId or playerId" });
+    }
+
+    try {
+      const result = await abilitiesService.useAbility(
+        Number(playerId),
+        abilityId,
+      );
+      res.json(result);
+    } catch (error: any) {
+      console.error(error);
+      const status = error.message.includes("not found") ? 404 : 400;
+      res.status(status).json({ error: error.message });
+    }
+  },
 };

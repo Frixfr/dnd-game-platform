@@ -389,6 +389,19 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
                 ))}
               </select>
             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Пароль доступа</label>
+              <input
+                type="password"
+                name="access_password"
+                value={formData.access_password || ''}
+                onChange={handleInputChange}
+                placeholder="Оставьте пустым для открытого доступа"
+                className="w-full px-3 py-2 border rounded-xl"
+                disabled={loading}
+              />
+              <p className="text-xs text-gray-500 mt-1">Игрок сможет войти, введя этот пароль</p>
+            </div>
           </div>
         </div>
       </div>

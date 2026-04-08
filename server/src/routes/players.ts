@@ -10,6 +10,8 @@ router.get("/", playersController.getAll);
 router.get("/:id", playersController.getById);
 router.get("/:id/details", playersController.getFullDetails);
 router.post("/", playersController.create);
+router.post("/login", playersController.loginByPassword);
+router.post("/:id/set-password", playersController.setPassword);
 router.patch("/:id", playersController.update);
 router.put("/:id", playersController.update); // или можно отдельный replace
 router.delete("/:id", playersController.delete);

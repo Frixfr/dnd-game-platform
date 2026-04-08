@@ -19,6 +19,7 @@ export interface Player {
   is_card_shown: boolean;
   created_at: string;
   race_id: number | null;
+  access_password?: string | null;
 }
 
 export interface Effect {

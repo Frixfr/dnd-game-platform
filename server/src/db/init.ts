@@ -17,6 +17,20 @@ async function addMissingColumns() {
     console.log("Колонка race_id добавлена в таблицу players");
   }
 
+  // Проверяем и добавляем access_password в таблицу players
+  if (!playersColumns.access_password) {
+    await db.schema.alterTable("players", (table) => {
+      table.text("access_password");
+    });
+    // Добавляем уникальный индекс для паролей (кроме NULL)
+    await db.raw(`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_access_password 
+      ON players (access_password) 
+      WHERE access_password IS NOT NULL
+    `);
+    console.log("Колонка access_password и уникальный индекс добавлены");
+  }
+
   // Проверяем и добавляем race_id в таблицу npcs
   const npcsColumns = await db.table("npcs").columnInfo();
   if (!npcsColumns.race_id) {
@@ -67,6 +81,7 @@ export async function initializeDatabase() {
           .references("id")
           .inTable("races")
           .onDelete("SET NULL");
+        table.text("access_password");
       });
       console.log("Таблица players создана");
     }

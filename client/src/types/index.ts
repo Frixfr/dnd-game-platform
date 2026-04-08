@@ -29,6 +29,7 @@ export interface PlayerType {
   items: ItemType[];
   active_effects: EffectType[];
   race_id: number | null;
+  access_password?: string;
   final_stats?: {
     health: number;
     max_health: number;
@@ -158,4 +159,27 @@ export interface InventoryItem {
   name: string;
   type: "weapon" | "armor" | "consumable" | "other";
   description?: string;
+}
+
+// Расширенный тип способности (с полями из player_abilities)
+export interface PlayerAbilityExtended extends AbilityType {
+  is_active: boolean;
+  effect?: EffectType | null;
+}
+
+// Расширенный тип предмета (с полями из player_items)
+export interface PlayerItemExtended extends ItemType {
+  quantity: number;
+  is_equipped: boolean;
+  active_effect?: EffectType | null;
+  passive_effect?: EffectType | null;
+}
+
+// Расширенный тип активного эффекта
+export interface PlayerEffectExtended extends EffectType {
+  source_type: "ability" | "item" | "admin";
+  source_id: number | null;
+  remaining_turns: number | null;
+  remaining_days: number | null;
+  applied_at: string;
 }

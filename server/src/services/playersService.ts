@@ -6,8 +6,18 @@ import { playerAbilitiesService } from "./playerAbilitiesService.js";
 import type { Player, FullPlayerData } from "../types/index.js";
 
 export const playersService = {
-  async getAll(): Promise<Player[]> {
-    return db("players").select("*");
+  async getAll(
+    card_shown_only?: boolean,
+    available_for_selection?: boolean,
+  ): Promise<Player[]> {
+    let query = db("players").select("*");
+    if (card_shown_only) {
+      query = query.where("is_card_shown", true);
+    }
+    if (available_for_selection) {
+      query = query.where("is_card_shown", true).whereNull("access_password");
+    }
+    return query;
   },
 
   async getById(id: number): Promise<Player | null> {
@@ -18,12 +28,28 @@ export const playersService = {
     return getFullPlayerData(id.toString());
   },
 
+  async loginWithPassword(password: string): Promise<Player | null> {
+    const player = await db("players")
+      .where({ access_password: password })
+      .first();
+    return player || null;
+  },
+
   async create(data: Omit<Player, "id" | "created_at">): Promise<Player> {
-    const [player] = await db("players").insert(data).returning("*");
+    const [player] = await db("players")
+      .insert({
+        ...data,
+        access_password: data.access_password ?? null,
+      })
+      .returning("*");
     return player;
   },
 
   async update(id: number, data: Partial<Player>): Promise<Player | null> {
+    // Нормализация access_password: пустая строка → null
+    if (data.access_password === "") {
+      data.access_password = null;
+    }
     const [updated] = await db("players")
       .where({ id })
       .update(data)
@@ -85,6 +111,36 @@ export const playersService = {
       }
     }
     return { success: true, message: "Операция завершена", results };
+  },
+
+  async setPassword(
+    playerId: number,
+    password: string,
+  ): Promise<Player | null> {
+    // Проверяем, существует ли игрок
+    const player = await db("players").where({ id: playerId }).first();
+    if (!player) throw new Error("Игрок не найден");
+
+    // Проверяем, что пароль ещё не установлен
+    if (player.access_password !== null) {
+      throw new Error("Пароль уже установлен для этого игрока");
+    }
+
+    // Проверяем уникальность пароля среди всех игроков (где пароль не null)
+    const existing = await db("players")
+      .where({ access_password: password })
+      .whereNotNull("access_password")
+      .first();
+    if (existing) {
+      throw new Error("Этот пароль уже используется другим игроком");
+    }
+
+    // Устанавливаем пароль
+    const [updated] = await db("players")
+      .where({ id: playerId })
+      .update({ access_password: password })
+      .returning("*");
+    return updated || null;
   },
 
   async addAbilitiesBatch(playerId: number, abilityIds: number[]) {

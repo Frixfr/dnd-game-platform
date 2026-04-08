@@ -20,16 +20,83 @@ const ALLOWED_UPDATE_FIELDS = new Set([
   "is_online",
   "is_card_shown",
   "race_id",
+  "access_password",
 ]);
 
 export const playersController = {
   async getAll(req: Request, res: Response) {
     try {
-      const players = await playersService.getAll();
+      const card_shown_only = req.query.card_shown === "true";
+      const available_for_selection =
+        req.query.available_for_selection === "true";
+      const players = await playersService.getAll(
+        card_shown_only,
+        available_for_selection,
+      );
       res.json(players);
     } catch (error) {
       console.error(error);
       res.status(500).json({ error: "Ошибка сервера" });
+    }
+  },
+
+  async loginByPassword(req: Request, res: Response) {
+    const { password } = req.body;
+    if (!password || typeof password !== "string") {
+      return res.status(400).json({ error: "Пароль обязателен" });
+    }
+    try {
+      const player = await playersService.loginWithPassword(password);
+      if (!player) {
+        return res.status(401).json({ error: "Неверный пароль" });
+      }
+      const fullPlayer = await playersService.getFullDetails(player.id);
+      res.json({ success: true, player: fullPlayer });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Ошибка сервера" });
+    }
+  },
+
+  async setPassword(req: Request, res: Response) {
+    const id = Number(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: "Некорректный ID" });
+
+    const { password } = req.body;
+    if (
+      !password ||
+      typeof password !== "string" ||
+      password.trim().length === 0
+    ) {
+      return res.status(400).json({ error: "Пароль обязателен" });
+    }
+    if (password.length < 3) {
+      return res
+        .status(400)
+        .json({ error: "Пароль должен содержать минимум 3 символа" });
+    }
+
+    try {
+      const updatedPlayer = await playersService.setPassword(
+        id,
+        password.trim(),
+      );
+      if (!updatedPlayer)
+        return res.status(404).json({ error: "Игрок не найден" });
+
+      // После установки пароля загружаем полные данные и эмитим обновление
+      const fullPlayer = await playersService.getFullDetails(id);
+      getIO().emit("player:updated", fullPlayer);
+      res.json({ success: true, player: fullPlayer });
+    } catch (error: any) {
+      if (error.message === "Пароль уже установлен для этого игрока") {
+        return res.status(409).json({ error: error.message });
+      }
+      if (error.message === "Этот пароль уже используется другим игроком") {
+        return res.status(409).json({ error: error.message });
+      }
+      console.error(error);
+      res.status(500).json({ error: "Ошибка установки пароля" });
     }
   },
 
@@ -118,6 +185,7 @@ export const playersController = {
         is_online: Boolean(is_online),
         is_card_shown: Boolean(is_card_shown),
         race_id: null, // добавлено
+        access_password: req.body.access_password || null,
       });
       getIO().emit("player:created", newPlayer);
       res
