@@ -31,8 +31,24 @@ async function addMissingColumns() {
     console.log("Колонка access_password и уникальный индекс добавлены");
   }
 
-  // Проверяем и добавляем race_id в таблицу npcs
+  // Добавляем avatar_url в players
+  if (!playersColumns.avatar_url) {
+    await db.schema.alterTable("players", (table) => {
+      table.string("avatar_url", 255).nullable();
+    });
+    console.log("Колонка avatar_url добавлена в таблицу players");
+  }
+
+  // Добавляем avatar_url в npcs
   const npcsColumns = await db.table("npcs").columnInfo();
+  if (!npcsColumns.avatar_url) {
+    await db.schema.alterTable("npcs", (table) => {
+      table.string("avatar_url", 255).nullable();
+    });
+    console.log("Колонка avatar_url добавлена в таблицу npcs");
+  }
+
+  // Проверяем и добавляем race_id в таблицу npcs
   if (!npcsColumns.race_id) {
     await db.schema.alterTable("npcs", (table) => {
       table
@@ -82,6 +98,7 @@ export async function initializeDatabase() {
           .inTable("races")
           .onDelete("SET NULL");
         table.text("access_password");
+        table.string("avatar_url", 255).nullable();
       });
       console.log("Таблица players создана");
     }
@@ -262,6 +279,7 @@ export async function initializeDatabase() {
           .references("id")
           .inTable("races")
           .onDelete("SET NULL");
+        table.string("avatar_url", 255).nullable();
       });
       console.log("Таблица npcs создана");
     }

@@ -269,4 +269,33 @@ export const playersService = {
 
     return updated;
   },
+
+  async updateAvatar(
+    id: number,
+    avatarUrl: string | null,
+  ): Promise<Player | null> {
+    const [updated] = await db("players")
+      .where({ id })
+      .update({ avatar_url: avatarUrl })
+      .returning("*");
+    return updated || null;
+  },
+
+  async deleteAvatar(id: number): Promise<Player | null> {
+    // Получаем старый URL, чтобы удалить файл
+    const player = await db("players").where({ id }).first();
+    if (player?.avatar_url) {
+      const fs = await import("fs");
+      const path = await import("path");
+      const filePath = path.join(process.cwd(), player.avatar_url);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }
+    const [updated] = await db("players")
+      .where({ id })
+      .update({ avatar_url: null })
+      .returning("*");
+    return updated || null;
+  },
 };

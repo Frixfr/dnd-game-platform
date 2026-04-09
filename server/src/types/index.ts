@@ -20,6 +20,7 @@ export interface Player {
   created_at: string;
   race_id: number | null;
   access_password?: string | null;
+  avatar_url?: string | null;
 }
 
 export interface Effect {
@@ -97,6 +98,7 @@ export interface NPC {
   aggression: 0 | 1 | 2;
   created_at: string;
   race_id: number | null;
+  avatar_url?: string | null;
 }
 
 export interface PlayerAbility {

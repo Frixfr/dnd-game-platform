@@ -64,6 +64,7 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
   
   const [races, setRaces] = useState<RaceType[]>([]);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   
   const { fetchPlayers } = usePlayerStore();
   const [selectedRaceEffects, setSelectedRaceEffects] = useState<EffectType[]>([]);
@@ -116,6 +117,15 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
     };
     loadFullPlayer();
   }, [player.id]);
+
+  // Загрузка существующей аватарки
+  useEffect(() => {
+    if (formData.avatar_url) {
+      setAvatarPreview(formData.avatar_url);
+    } else {
+      setAvatarPreview(null);
+    }
+  }, [formData.avatar_url]);
 
   const loadAllItems = useCallback(async () => {
     setItemsLoading(true);
@@ -191,12 +201,46 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
     }
   };
 
+    const uploadAvatar = async (file: File) => {
+    setUploadingAvatar(true);
+    const formDataUpload = new FormData();
+    formDataUpload.append("avatar", file);
+    try {
+      const response = await fetch(`/api/players/${player.id}/avatar`, {
+        method: "POST",
+        body: formDataUpload,
+      });
+      if (!response.ok) throw new Error("Ошибка загрузки");
+      const result = await response.json();
+      setAvatarPreview(result.avatarUrl);
+      await updatePlayerData(); // обновляем данные игрока, чтобы получить новый avatar_url
+      setError(null);
+    } catch (err) {
+      setError("Не удалось загрузить аватарку");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const deleteAvatar = async () => {
+    if (!confirm("Удалить аватарку?")) return;
+    try {
+      const response = await fetch(`/api/players/${player.id}/avatar`, {
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error("Ошибка удаления");
+      setAvatarPreview(null);
+      await updatePlayerData();
+      setError(null);
+    } catch (err) {
+      setError("Не удалось удалить аватарку");
+    }
+  };
+
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => setAvatarPreview(reader.result as string);
-      reader.readAsDataURL(file);
+      uploadAvatar(file);
     }
   };
 
@@ -371,7 +415,23 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
             <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
               {avatarPreview ? <img src={avatarPreview} alt="avatar" className="w-full h-full object-cover" /> : <span className="text-3xl text-gray-400">👤</span>}
             </div>
-            <label className="cursor-pointer text-xs bg-white px-2 py-1 rounded border text-gray-600">Загрузить<input type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} disabled={loading} /></label>
+            <div className="flex gap-2">
+              <label className="cursor-pointer text-xs bg-white px-2 py-1 rounded border text-gray-600">
+                Загрузить
+                <input type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} disabled={loading || uploadingAvatar} />
+              </label>
+              {avatarPreview && (
+                <button
+                  type="button"
+                  onClick={deleteAvatar}
+                  disabled={loading || uploadingAvatar}
+                  className="text-xs bg-red-50 px-2 py-1 rounded border border-red-200 text-red-600 hover:bg-red-100"
+                >
+                  Удалить
+                </button>
+              )}
+            </div>
+            {uploadingAvatar && <span className="text-xs text-gray-500">Загрузка...</span>}
           </div>
           <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Имя *</label><input type="text" name="name" value={formData.name} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-xl" required disabled={loading} /></div>

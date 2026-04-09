@@ -322,4 +322,32 @@ export const npcsService = {
     await npcAbilitiesService.create(npcId, abilityId, is_active);
     return updated;
   },
+
+  async updateAvatar(
+    id: number,
+    avatarUrl: string | null,
+  ): Promise<NPC | null> {
+    const [updated] = await db("npcs")
+      .where({ id })
+      .update({ avatar_url: avatarUrl })
+      .returning("*");
+    return updated || null;
+  },
+
+  async deleteAvatar(id: number): Promise<NPC | null> {
+    const npc = await db("npcs").where({ id }).first();
+    if (npc?.avatar_url) {
+      const fs = await import("fs");
+      const path = await import("path");
+      const filePath = path.join(process.cwd(), npc.avatar_url);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }
+    const [updated] = await db("npcs")
+      .where({ id })
+      .update({ avatar_url: null })
+      .returning("*");
+    return updated || null;
+  },
 };

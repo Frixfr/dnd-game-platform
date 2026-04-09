@@ -51,8 +51,12 @@ export const PlayerCard = ({ player, onClick, disabled = false, onDelete }: Play
       <div className="p-5">
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center text-gray-700 font-bold text-lg shadow-inner">
-              {initials}
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center overflow-hidden shadow-inner">
+              {player.avatar_url ? (
+                <img src={player.avatar_url} alt={player.name} className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-gray-700 font-bold text-lg">{initials}</span>
+              )}
             </div>
             <div>
               <h3 className="text-xl font-bold text-gray-800 tracking-tight">{player.name}</h3>

@@ -42,6 +42,7 @@ export interface PlayerType {
     charisma: number;
   };
   race?: RaceType;
+  avatar_url?: string | null;
 }
 
 export interface NpcType {
@@ -79,6 +80,7 @@ export interface NpcType {
     charisma: number;
   };
   race?: RaceType;
+  avatar_url?: string | null;
 }
 
 export interface RaceType {

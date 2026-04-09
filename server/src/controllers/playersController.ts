@@ -468,4 +468,35 @@ export const playersController = {
       }
     }
   },
+
+  async uploadAvatar(req: Request, res: Response) {
+    const id = Number(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: "Некорректный ID" });
+    if (!req.file) return res.status(400).json({ error: "Файл не загружен" });
+
+    try {
+      const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+      const updated = await playersService.updateAvatar(id, avatarUrl);
+      if (!updated) return res.status(404).json({ error: "Игрок не найден" });
+      getIO().emit("player:updated", updated);
+      res.json({ success: true, player: updated, avatarUrl });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Ошибка загрузки аватарки" });
+    }
+  },
+
+  async deleteAvatar(req: Request, res: Response) {
+    const id = Number(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: "Некорректный ID" });
+    try {
+      const updated = await playersService.deleteAvatar(id);
+      if (!updated) return res.status(404).json({ error: "Игрок не найден" });
+      getIO().emit("player:updated", updated);
+      res.json({ success: true, player: updated });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Ошибка удаления аватарки" });
+    }
+  },
 };

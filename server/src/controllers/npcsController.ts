@@ -440,4 +440,32 @@ export const npcsController = {
       }
     }
   },
+
+  async uploadAvatar(req: Request, res: Response) {
+    const id = String(req.params.id);
+    if (!req.file) return res.status(400).json({ error: "Файл не загружен" });
+    try {
+      const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+      const updated = await npcsService.updateAvatar(Number(id), avatarUrl);
+      if (!updated) return res.status(404).json({ error: "NPC не найден" });
+      getIO().emit("npc:updated", updated);
+      res.json({ success: true, npc: updated, avatarUrl });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Ошибка загрузки аватарки" });
+    }
+  },
+
+  async deleteAvatar(req: Request, res: Response) {
+    const id = String(req.params.id);
+    try {
+      const updated = await npcsService.deleteAvatar(Number(id));
+      if (!updated) return res.status(404).json({ error: "NPC не найден" });
+      getIO().emit("npc:updated", updated);
+      res.json({ success: true, npc: updated });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Ошибка удаления аватарки" });
+    }
+  },
 };

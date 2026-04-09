@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { npcsController } from "../controllers/npcsController.js";
+import { upload } from "../middleware/upload.js";
 
 const router = Router();
 
@@ -26,5 +27,11 @@ router.delete("/:id/abilities/:abilityId", npcsController.removeAbility);
 router.delete("/:id/effects/:effectId", npcsController.removeEffect);
 router.put("/:id/items/:itemId/equip", npcsController.toggleEquip);
 router.put("/:id/abilities/:abilityId/toggle", npcsController.toggleAbility);
+router.post(
+  "/:id/avatar",
+  upload.single("avatar"),
+  npcsController.uploadAvatar,
+);
+router.delete("/:id/avatar", npcsController.deleteAvatar);
 
 export default router;

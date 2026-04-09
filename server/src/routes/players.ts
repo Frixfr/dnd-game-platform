@@ -2,6 +2,7 @@
 
 import { Router } from "express";
 import { playersController } from "../controllers/playersController.js";
+import { upload } from "../middleware/upload.js";
 
 const router = Router();
 
@@ -15,6 +16,12 @@ router.post("/:id/set-password", playersController.setPassword);
 router.patch("/:id", playersController.update);
 router.put("/:id", playersController.update); // или можно отдельный replace
 router.delete("/:id", playersController.delete);
+router.post(
+  "/:id/avatar",
+  upload.single("avatar"),
+  playersController.uploadAvatar,
+);
+router.delete("/:id/avatar", playersController.deleteAvatar);
 
 // Batch операции
 router.post("/:playerId/items/batch", playersController.addItemsBatch);
