@@ -165,14 +165,14 @@ export interface InventoryItem {
 
 // Расширенный тип способности (с полями из player_abilities)
 export interface PlayerAbilityExtended extends AbilityType {
-  is_active: boolean;
+  is_active: number; // 0 или 1, как в AbilityType
   effect?: EffectType | null;
 }
 
 // Расширенный тип предмета (с полями из player_items)
 export interface PlayerItemExtended extends ItemType {
   quantity: number;
-  is_equipped: boolean;
+  is_equipped: number; // 0 или 1 (в БД и API используется number)
   active_effect?: EffectType | null;
   passive_effect?: EffectType | null;
 }
@@ -184,4 +184,26 @@ export interface PlayerEffectExtended extends EffectType {
   remaining_turns: number | null;
   remaining_days: number | null;
   applied_at: string;
+}
+
+// Combat types
+export interface CombatSession {
+  id: number;
+  is_active: boolean;
+  created_at: string;
+  ended_at: string | null;
+}
+
+export interface CombatParticipant {
+  id: number;
+  session_id: number;
+  entity_type: "player" | "npc";
+  entity_id: number;
+  order_index: number;
+  is_current_turn: boolean;
+  joined_at: string;
+}
+
+export interface CombatParticipantWithDetails extends CombatParticipant {
+  entity: PlayerType | NpcType;
 }

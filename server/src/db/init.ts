@@ -48,6 +48,28 @@ async function addMissingColumns() {
     console.log("Колонка avatar_url добавлена в таблицу npcs");
   }
 
+  // Добавляем колонку remaining_cooldown_turns в player_abilities
+  const playerAbilitiesColumns = await db
+    .table("player_abilities")
+    .columnInfo();
+  if (!playerAbilitiesColumns.remaining_cooldown_turns) {
+    await db.schema.alterTable("player_abilities", (table) => {
+      table.integer("remaining_cooldown_turns").defaultTo(0);
+    });
+    console.log(
+      "Колонка remaining_cooldown_turns добавлена в player_abilities",
+    );
+  }
+
+  // Добавляем колонку remaining_cooldown_turns в npc_abilities
+  const npcAbilitiesColumns = await db.table("npc_abilities").columnInfo();
+  if (!npcAbilitiesColumns.remaining_cooldown_turns) {
+    await db.schema.alterTable("npc_abilities", (table) => {
+      table.integer("remaining_cooldown_turns").defaultTo(0);
+    });
+    console.log("Колонка remaining_cooldown_turns добавлена в npc_abilities");
+  }
+
   // Проверяем и добавляем race_id в таблицу npcs
   if (!npcsColumns.race_id) {
     await db.schema.alterTable("npcs", (table) => {
@@ -376,6 +398,43 @@ export async function initializeDatabase() {
         table.primary(["race_id", "effect_id"]);
       });
       console.log("Таблица race_effects создана");
+    }
+
+    // Таблица combat_sessions
+    if (!(await db.schema.hasTable("combat_sessions"))) {
+      await db.schema.createTable("combat_sessions", (table) => {
+        table.increments("id").primary();
+        table.boolean("is_active").defaultTo(true);
+        table.timestamp("created_at").defaultTo(db.fn.now());
+        table.timestamp("ended_at").nullable();
+      });
+      console.log("Таблица combat_sessions создана");
+    }
+
+    // Таблица combat_participants (порядок участников в бою)
+    if (!(await db.schema.hasTable("combat_participants"))) {
+      await db.schema.createTable("combat_participants", (table) => {
+        table.increments("id").primary();
+        table
+          .integer("session_id")
+          .notNullable()
+          .references("id")
+          .inTable("combat_sessions")
+          .onDelete("CASCADE");
+        table
+          .string("entity_type", 10)
+          .notNullable()
+          .checkIn(["player", "npc"]);
+        table.integer("entity_id").notNullable();
+        table.integer("order_index").notNullable(); // позиция в очереди (0-based)
+        table.boolean("is_current_turn").defaultTo(false);
+        table.timestamp("joined_at").defaultTo(db.fn.now());
+        // Уникальный индекс для предотвращения дублей (session_id + entity_type + entity_id)
+        table.unique(["session_id", "entity_type", "entity_id"]);
+        // Индекс для сортировки по order_index
+        table.index(["session_id", "order_index"]);
+      });
+      console.log("Таблица combat_participants создана");
     }
 
     await addMissingColumns();

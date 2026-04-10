@@ -226,3 +226,27 @@ export interface RaceEffect {
   race_id: number;
   effect_id: number;
 }
+
+// Combat types
+export interface CombatSession {
+  id: number;
+  is_active: boolean;
+  created_at: string;
+  ended_at: string | null;
+}
+
+export interface CombatParticipant {
+  id: number;
+  session_id: number;
+  entity_type: "player" | "npc";
+  entity_id: number;
+  order_index: number;
+  is_current_turn: boolean;
+  joined_at: string;
+}
+
+// Расширенный участник боя с данными сущности
+export interface CombatParticipantWithDetails extends CombatParticipant {
+  entity: Player | NPC;
+  final_stats?: any;
+}

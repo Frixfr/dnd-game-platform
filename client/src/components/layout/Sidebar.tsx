@@ -103,6 +103,21 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, isMobile }) => {
               🌍 Расы
             </NavLink>
           </li>
+          <li>
+            <NavLink
+              to="/master/combat"
+              onClick={handleLinkClick}
+              className={({ isActive }) =>
+                `block px-4 py-2 rounded transition-colors ${
+                  isActive
+                    ? 'bg-blue-100 text-blue-700 font-medium'
+                    : 'text-slate-700 hover:bg-slate-100'
+                }`
+              }
+            >
+              ⚔️ Бой
+            </NavLink>
+          </li>
         </ul>
       </nav>
     </aside>

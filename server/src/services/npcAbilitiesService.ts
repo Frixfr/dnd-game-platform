@@ -104,4 +104,59 @@ export const npcAbilitiesService = {
     }
     return true;
   },
+
+  async useAbility(
+    npcId: number,
+    abilityId: number,
+  ): Promise<{ success: boolean; message: string; effect?: any }> {
+    const npcAbility = await db("npc_abilities")
+      .where({ npc_id: npcId, ability_id: abilityId })
+      .first();
+    if (!npcAbility) throw new Error("Способность не найдена у NPC");
+    if (!npcAbility.is_active) throw new Error("Способность неактивна");
+
+    const ability = await db("abilities").where({ id: abilityId }).first();
+    if (!ability) throw new Error("Способность не найдена");
+    if (ability.ability_type !== "active")
+      throw new Error("Можно использовать только активные способности");
+
+    // Проверка кулдауна
+    const remainingCooldown = npcAbility.remaining_cooldown_turns || 0;
+    if (remainingCooldown > 0) {
+      throw new Error(
+        `Способность на перезарядке: осталось ${remainingCooldown} ходов`,
+      );
+    }
+
+    // Применяем эффект способности (если есть)
+    let effectResult = null;
+    if (ability.effect_id) {
+      const effect = await db("effects")
+        .where({ id: ability.effect_id })
+        .first();
+      if (effect) {
+        // Добавляем эффект NPC
+        await db("npc_active_effects").insert({
+          npc_id: npcId,
+          effect_id: ability.effect_id,
+          source_type: "ability",
+          source_id: abilityId,
+          remaining_turns: effect.duration_turns,
+          remaining_days: effect.duration_days,
+        });
+        effectResult = effect;
+      }
+    }
+
+    // Устанавливаем кулдаун
+    await db("npc_abilities")
+      .where({ npc_id: npcId, ability_id: abilityId })
+      .update({ remaining_cooldown_turns: ability.cooldown_turns });
+
+    return {
+      success: true,
+      message: "Способность применена",
+      effect: effectResult,
+    };
+  },
 };

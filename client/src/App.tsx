@@ -16,6 +16,7 @@ import { PlayerInventoryPage } from './pages/PlayerInventoryPage';
 import { PlayerAbilitiesPage } from './pages/PlayerAbilitiesPage';
 import { PlayerEffectsPage } from './pages/PlayerEffectsPage';
 import { PlayerMapPage } from './pages/PlayerMapPage';
+import { CombatPage } from './pages/CombatPage';
 
 const App: React.FC = () => {
   return (
@@ -32,8 +33,9 @@ const App: React.FC = () => {
           <Route path="effects" element={<EffectsPage />} />
           <Route path="npcs" element={<NpcsPage />} />
           <Route path="races" element={<RacesPage />} />
+          <Route path="combat" element={<CombatPage />} />
         </Route>
-        <Route path="/player/select" element={<PlayerSelectionPage playerName={''} />} />
+        <Route path="/player/select" element={<PlayerSelectionPage />} />
         <Route path="/player/:playerId" element={<PlayerLayout />}>
           <Route index element={<PlayerCharacterSheetPage />} />
           <Route path="inventory" element={<PlayerInventoryPage />} />
