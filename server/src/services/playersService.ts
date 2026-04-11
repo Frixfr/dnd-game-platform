@@ -2,6 +2,7 @@
 
 import { db } from "../db/index.js";
 import { getFullPlayerData, calculateFinalStats } from "../utils/helpers.js";
+import { getIO } from "../socket/index.js";
 import { playerAbilitiesService } from "./playerAbilitiesService.js";
 import type {
   Player,
@@ -622,6 +623,13 @@ export const playersService = {
         quantity_before: playerItem.quantity,
       }),
     });
+
+    // --- Добавлено: отправка обновления игрока через сокет ---
+    const fullPlayer = await getFullPlayerData(String(playerId));
+    if (fullPlayer) {
+      getIO().emit("player:updated", fullPlayer);
+    }
+    // ------------------------------------------------------
 
     return result;
   },

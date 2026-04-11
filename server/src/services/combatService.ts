@@ -104,14 +104,17 @@ export const combatService = {
           .where("remaining_turns", 0)
           .delete();
 
-        await db.raw(
-          `
-          UPDATE player_abilities
-          SET remaining_cooldown_turns = MAX(0, remaining_cooldown_turns - 1)
-          WHERE player_id = ? AND remaining_cooldown_turns IS NOT NULL AND remaining_cooldown_turns > 0
-        `,
-          [p.entity_id],
-        );
+        // Уменьшаем кулдауны способностей (два запроса для SQLite)
+        await db("player_abilities")
+          .where({ player_id: p.entity_id })
+          .whereNotNull("remaining_cooldown_turns")
+          .where("remaining_cooldown_turns", ">", 0)
+          .decrement("remaining_cooldown_turns", 1);
+
+        await db("player_abilities")
+          .where({ player_id: p.entity_id })
+          .where("remaining_cooldown_turns", "<", 0)
+          .update({ remaining_cooldown_turns: 0 });
       } else {
         await db("npc_active_effects")
           .where({ npc_id: p.entity_id })
@@ -123,14 +126,16 @@ export const combatService = {
           .where("remaining_turns", 0)
           .delete();
 
-        await db.raw(
-          `
-          UPDATE npc_abilities
-          SET remaining_cooldown_turns = MAX(0, remaining_cooldown_turns - 1)
-          WHERE npc_id = ? AND remaining_cooldown_turns IS NOT NULL AND remaining_cooldown_turns > 0
-        `,
-          [p.entity_id],
-        );
+        await db("npc_abilities")
+          .where({ npc_id: p.entity_id })
+          .whereNotNull("remaining_cooldown_turns")
+          .where("remaining_cooldown_turns", ">", 0)
+          .decrement("remaining_cooldown_turns", 1);
+
+        await db("npc_abilities")
+          .where({ npc_id: p.entity_id })
+          .where("remaining_cooldown_turns", "<", 0)
+          .update({ remaining_cooldown_turns: 0 });
       }
     }
     await this.emitCombatUpdate(sessionId);
