@@ -52,6 +52,19 @@ export const playersService = {
     if (data.access_password === "") {
       data.access_password = null;
     }
+
+    // Проверка уникальности пароля, если устанавливается новый пароль (не null)
+    if (data.access_password !== undefined && data.access_password !== null) {
+      const existing = await db("players")
+        .where({ access_password: data.access_password })
+        .whereNotNull("access_password")
+        .whereNot("id", id)
+        .first();
+      if (existing) {
+        throw new Error("Этот пароль уже используется другим игроком");
+      }
+    }
+
     const [updated] = await db("players")
       .where({ id })
       .update(data)
