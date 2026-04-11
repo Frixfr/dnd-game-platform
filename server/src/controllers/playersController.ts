@@ -231,8 +231,10 @@ export const playersController = {
       const updatedPlayer = await playersService.update(id, filteredData);
       if (!updatedPlayer)
         return res.status(404).json({ error: "Игрок не найден" });
-      getIO().emit("player:updated", updatedPlayer);
-      res.json({ success: true, player: updatedPlayer });
+      // --- ИЗМЕНЕНИЕ: получаем полные данные и эмитим их ---
+      const fullPlayer = await playersService.getFullDetails(id);
+      if (fullPlayer) getIO().emit("player:updated", fullPlayer);
+      res.json({ success: true, player: fullPlayer || updatedPlayer });
     } catch (error: unknown) {
       if (error instanceof Error) {
         if (error.message.includes("Health cannot exceed max health")) {
@@ -477,6 +479,9 @@ export const playersController = {
     }
     try {
       const result = await playersService.useItem(playerId, itemId);
+      // --- ИЗМЕНЕНИЕ: после использования предмета эмитим полные данные игрока ---
+      const fullPlayer = await playersService.getFullDetails(playerId);
+      if (fullPlayer) getIO().emit("player:updated", fullPlayer);
       res.json(result);
     } catch (error: any) {
       console.error(error);
@@ -493,8 +498,10 @@ export const playersController = {
       const avatarUrl = `/uploads/avatars/${req.file.filename}`;
       const updated = await playersService.updateAvatar(id, avatarUrl);
       if (!updated) return res.status(404).json({ error: "Игрок не найден" });
-      getIO().emit("player:updated", updated);
-      res.json({ success: true, player: updated, avatarUrl });
+      // --- ИЗМЕНЕНИЕ: эмитим полные данные ---
+      const fullPlayer = await playersService.getFullDetails(id);
+      if (fullPlayer) getIO().emit("player:updated", fullPlayer);
+      res.json({ success: true, player: fullPlayer || updated, avatarUrl });
     } catch (error) {
       console.error(error);
       res.status(500).json({ error: "Ошибка загрузки аватарки" });
@@ -507,8 +514,10 @@ export const playersController = {
     try {
       const updated = await playersService.deleteAvatar(id);
       if (!updated) return res.status(404).json({ error: "Игрок не найден" });
-      getIO().emit("player:updated", updated);
-      res.json({ success: true, player: updated });
+      // --- ИЗМЕНЕНИЕ: эмитим полные данные ---
+      const fullPlayer = await playersService.getFullDetails(id);
+      if (fullPlayer) getIO().emit("player:updated", fullPlayer);
+      res.json({ success: true, player: fullPlayer || updated });
     } catch (error) {
       console.error(error);
       res.status(500).json({ error: "Ошибка удаления аватарки" });

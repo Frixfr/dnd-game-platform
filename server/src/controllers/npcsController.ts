@@ -133,8 +133,10 @@ export const npcsController = {
     try {
       const updated = await npcsService.update(id, updateData);
       if (!updated) return res.status(404).json({ error: "NPC не найден" });
-      getIO().emit("npc:updated", updated);
-      res.json({ success: true, npc: updated });
+      // --- ИЗМЕНЕНИЕ: эмитим полные данные ---
+      const fullNpc = await npcsService.getFullDetails(id);
+      if (fullNpc) getIO().emit("npc:updated", fullNpc);
+      res.json({ success: true, npc: fullNpc || updated });
     } catch (error: unknown) {
       if (
         error instanceof Error &&
@@ -162,8 +164,10 @@ export const npcsController = {
     try {
       const updated = await npcsService.update(id, updateData);
       if (!updated) return res.status(404).json({ error: "NPC не найден" });
-      getIO().emit("npc:updated", updated);
-      res.json({ success: true, npc: updated });
+      // --- ИЗМЕНЕНИЕ: эмитим полные данные ---
+      const fullNpc = await npcsService.getFullDetails(id);
+      if (fullNpc) getIO().emit("npc:updated", fullNpc);
+      res.json({ success: true, npc: fullNpc || updated });
     } catch (error: unknown) {
       if (
         error instanceof Error &&
@@ -201,12 +205,13 @@ export const npcsController = {
     const id = String(req.params.id);
     try {
       const result = await npcsService.intimidate(id);
-      getIO().emit("npc:intimidated", result.npc);
-      getIO().emit("npc:updated", result.npc);
+      // --- ИЗМЕНЕНИЕ: эмитим полные данные NPC ---
+      const fullNpc = await npcsService.getFullDetails(id);
+      if (fullNpc) getIO().emit("npc:updated", fullNpc);
       res.json({
         success: true,
         message: "NPC успешно запуган",
-        npc: result.npc,
+        npc: fullNpc || result.npc,
       });
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -227,9 +232,14 @@ export const npcsController = {
     }
     try {
       const updated = await npcsService.modifyAggression(id, delta);
-      getIO().emit("npc:aggression-changed", updated);
-      getIO().emit("npc:updated", updated);
-      res.json({ success: true, message: "Агрессия изменена", npc: updated });
+      // --- ИЗМЕНЕНИЕ: эмитим полные данные NPC ---
+      const fullNpc = await npcsService.getFullDetails(id);
+      if (fullNpc) getIO().emit("npc:updated", fullNpc);
+      res.json({
+        success: true,
+        message: "Агрессия изменена",
+        npc: fullNpc || updated,
+      });
     } catch (error: unknown) {
       if (error instanceof Error) {
         res.status(400).json({ error: error.message });
@@ -244,9 +254,14 @@ export const npcsController = {
     const { playerId, abilityId } = req.body;
     try {
       const updated = await npcsService.calm(id, playerId, abilityId);
-      getIO().emit("npc:calmed", updated);
-      getIO().emit("npc:updated", updated);
-      res.json({ success: true, message: "NPC успокоен", npc: updated });
+      // --- ИЗМЕНЕНИЕ: эмитим полные данные NPC ---
+      const fullNpc = await npcsService.getFullDetails(id);
+      if (fullNpc) getIO().emit("npc:updated", fullNpc);
+      res.json({
+        success: true,
+        message: "NPC успокоен",
+        npc: fullNpc || updated,
+      });
     } catch (error: unknown) {
       if (error instanceof Error) {
         res.status(400).json({ error: error.message });
@@ -266,9 +281,14 @@ export const npcsController = {
     }
     try {
       const updated = await npcsService.setAggression(id, aggression);
-      getIO().emit("npc:aggression-changed", updated);
-      getIO().emit("npc:updated", updated);
-      res.json({ success: true, message: "Агрессия обновлена", npc: updated });
+      // --- ИЗМЕНЕНИЕ: эмитим полные данные NPC ---
+      const fullNpc = await npcsService.getFullDetails(id);
+      if (fullNpc) getIO().emit("npc:updated", fullNpc);
+      res.json({
+        success: true,
+        message: "Агрессия обновлена",
+        npc: fullNpc || updated,
+      });
     } catch (error: unknown) {
       if (error instanceof Error) {
         res.status(400).json({ error: error.message });
@@ -287,7 +307,9 @@ export const npcsController = {
     }
     try {
       const result = await npcsService.addItemsBatch(Number(id), items);
-      getIO().emit("npc:items-added", { npc_id: Number(id), result });
+      // --- ИЗМЕНЕНИЕ: эмитим полные данные NPC ---
+      const fullNpc = await npcsService.getFullDetails(id);
+      if (fullNpc) getIO().emit("npc:updated", fullNpc);
       res.json(result);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -309,7 +331,9 @@ export const npcsController = {
         Number(id),
         ability_ids,
       );
-      getIO().emit("npc:abilities-added", { npc_id: Number(id), result });
+      // --- ИЗМЕНЕНИЕ: эмитим полные данные NPC ---
+      const fullNpc = await npcsService.getFullDetails(id);
+      if (fullNpc) getIO().emit("npc:updated", fullNpc);
       res.json(result);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -328,7 +352,9 @@ export const npcsController = {
     }
     try {
       const result = await npcsService.addEffectsBatch(Number(id), effect_ids);
-      getIO().emit("npc:effects-added", { npc_id: Number(id), result });
+      // --- ИЗМЕНЕНИЕ: эмитим полные данные NPC ---
+      const fullNpc = await npcsService.getFullDetails(id);
+      if (fullNpc) getIO().emit("npc:updated", fullNpc);
       res.json(result);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -344,7 +370,9 @@ export const npcsController = {
     const itemId = Number(req.params.itemId);
     try {
       await npcsService.removeItem(Number(id), itemId);
-      getIO().emit("npc:item-removed", { npc_id: Number(id), item_id: itemId });
+      // --- ИЗМЕНЕНИЕ: эмитим полные данные NPC ---
+      const fullNpc = await npcsService.getFullDetails(id);
+      if (fullNpc) getIO().emit("npc:updated", fullNpc);
       res.json({ success: true, message: "Предмет удалён" });
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -360,10 +388,9 @@ export const npcsController = {
     const abilityId = Number(req.params.abilityId);
     try {
       await npcsService.removeAbility(Number(id), abilityId);
-      getIO().emit("npc:ability-removed", {
-        npc_id: Number(id),
-        ability_id: abilityId,
-      });
+      // --- ИЗМЕНЕНИЕ: эмитим полные данные NPC ---
+      const fullNpc = await npcsService.getFullDetails(id);
+      if (fullNpc) getIO().emit("npc:updated", fullNpc);
       res.json({ success: true, message: "Способность удалена" });
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -379,10 +406,9 @@ export const npcsController = {
     const effectId = Number(req.params.effectId);
     try {
       await npcsService.removeEffect(Number(id), effectId);
-      getIO().emit("npc:effect-removed", {
-        npc_id: Number(id),
-        effect_id: effectId,
-      });
+      // --- ИЗМЕНЕНИЕ: эмитим полные данные NPC ---
+      const fullNpc = await npcsService.getFullDetails(id);
+      if (fullNpc) getIO().emit("npc:updated", fullNpc);
       res.json({ success: true, message: "Эффект удалён" });
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -406,7 +432,9 @@ export const npcsController = {
         itemId,
         is_equipped,
       );
-      getIO().emit("npc:item-toggled", updated);
+      // --- ИЗМЕНЕНИЕ: эмитим полные данные NPC ---
+      const fullNpc = await npcsService.getFullDetails(id);
+      if (fullNpc) getIO().emit("npc:updated", fullNpc);
       res.json({ success: true, npc_item: updated });
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -430,7 +458,9 @@ export const npcsController = {
         abilityId,
         is_active,
       );
-      getIO().emit("npc:ability-toggled", updated);
+      // --- ИЗМЕНЕНИЕ: эмитим полные данные NPC ---
+      const fullNpc = await npcsService.getFullDetails(id);
+      if (fullNpc) getIO().emit("npc:updated", fullNpc);
       res.json({ success: true, npc_ability: updated });
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -448,8 +478,10 @@ export const npcsController = {
       const avatarUrl = `/uploads/avatars/${req.file.filename}`;
       const updated = await npcsService.updateAvatar(Number(id), avatarUrl);
       if (!updated) return res.status(404).json({ error: "NPC не найден" });
-      getIO().emit("npc:updated", updated);
-      res.json({ success: true, npc: updated, avatarUrl });
+      // --- ИЗМЕНЕНИЕ: эмитим полные данные ---
+      const fullNpc = await npcsService.getFullDetails(id);
+      if (fullNpc) getIO().emit("npc:updated", fullNpc);
+      res.json({ success: true, npc: fullNpc || updated, avatarUrl });
     } catch (error) {
       console.error(error);
       res.status(500).json({ error: "Ошибка загрузки аватарки" });
@@ -461,8 +493,10 @@ export const npcsController = {
     try {
       const updated = await npcsService.deleteAvatar(Number(id));
       if (!updated) return res.status(404).json({ error: "NPC не найден" });
-      getIO().emit("npc:updated", updated);
-      res.json({ success: true, npc: updated });
+      // --- ИЗМЕНЕНИЕ: эмитим полные данные ---
+      const fullNpc = await npcsService.getFullDetails(id);
+      if (fullNpc) getIO().emit("npc:updated", fullNpc);
+      res.json({ success: true, npc: fullNpc || updated });
     } catch (error) {
       console.error(error);
       res.status(500).json({ error: "Ошибка удаления аватарки" });
