@@ -7,12 +7,12 @@ interface PlayerEffectsManagerProps {
   activeEffects: PlayerEffectExtended[];
   raceEffects: EffectType[];
   onDataChanged: () => Promise<void>;
-  setError: (error: string | null) => void;
+  showError: (msg: string) => void;
 }
 
 type EffectsSubTab = 'list' | 'add';
 
-export const PlayerEffectsManager = ({ playerId, activeEffects, raceEffects, onDataChanged, setError }: PlayerEffectsManagerProps) => {
+export const PlayerEffectsManager = ({ playerId, activeEffects, raceEffects, onDataChanged, showError }: PlayerEffectsManagerProps) => {
   const [effectsSubTab, setEffectsSubTab] = useState<EffectsSubTab>('list');
   const [allEffects, setAllEffects] = useState<EffectType[]>([]);
   const [effectsLoading, setEffectsLoading] = useState(false);
@@ -27,11 +27,11 @@ export const PlayerEffectsManager = ({ playerId, activeEffects, raceEffects, onD
       if (!response.ok) throw new Error();
       setAllEffects(await response.json());
     } catch {
-      setError('Не удалось загрузить эффекты');
+      showError('Не удалось загрузить эффекты');
     } finally {
       setEffectsLoading(false);
     }
-  }, [setError]);
+  }, [showError]);
 
   useEffect(() => {
     if (effectsSubTab === 'add') loadAllEffects();
@@ -43,12 +43,12 @@ export const PlayerEffectsManager = ({ playerId, activeEffects, raceEffects, onD
       await fetch(`/api/players/${playerId}/effects/${effectId}`, { method: 'DELETE' });
       await onDataChanged();
     } catch {
-      setError('Ошибка удаления');
+      showError('Ошибка удаления');
     }
   };
 
   const handleAddEffects = async () => {
-    if (selectedEffects.length === 0) { setError('Выберите эффекты'); return; }
+    if (selectedEffects.length === 0) { showError('Выберите эффекты'); return; }
     setLoading(true);
     try {
       const response = await fetch(`/api/players/${playerId}/effects/batch`, {
@@ -61,7 +61,7 @@ export const PlayerEffectsManager = ({ playerId, activeEffects, raceEffects, onD
       await onDataChanged();
       setEffectsSubTab('list');
     } catch {
-      setError('Ошибка добавления');
+      showError('Ошибка добавления');
     } finally {
       setLoading(false);
     }

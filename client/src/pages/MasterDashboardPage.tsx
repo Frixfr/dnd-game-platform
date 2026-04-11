@@ -8,6 +8,7 @@ import { Pagination } from '../components/ui/Pagination';
 import { usePlayerStore } from '../stores/playerStore';
 import type { PlayerType } from '../types';
 import ConfirmModal from '../components/ui/ConfirmModal';
+import { useErrorHandler } from '../hooks/useErrorHandler';
 
 export const MasterDashboardPage = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -16,6 +17,7 @@ export const MasterDashboardPage = () => {
   const [loading, setLoading] = useState(true);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [playerToDelete, setPlayerToDelete] = useState<PlayerType | null>(null);
+  const { showError } = useErrorHandler();
 
   const {
     players,
@@ -73,7 +75,7 @@ export const MasterDashboardPage = () => {
       if (!response.ok) throw new Error('Ошибка удаления');
     } catch (error) {
       console.error(error);
-      alert('Не удалось удалить игрока');
+      showError('Не удалось удалить игрока');
     } finally {
       setShowConfirmModal(false);
       setPlayerToDelete(null);

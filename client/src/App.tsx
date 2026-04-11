@@ -1,4 +1,4 @@
-// Разделяем маршруты: публичные (без Layout) и защищённые (с Layout)
+// client/src/App.tsx
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
@@ -7,7 +7,7 @@ import ItemsPage from './pages/ItemsPage';
 import AbilitiesPage from './pages/AbilitiesPage';
 import EffectsPage from './pages/EffectsPage';
 import { NpcsPage } from "./pages/NpcsPage";
-import MasterLayout from './components/layout/MasterLayout'; // ← Обёртка с сайдбаром
+import MasterLayout from './components/layout/MasterLayout';
 import { RacesPage } from './pages/RacesPage';
 import { PlayerSelectionPage } from './pages/PlayerSelectionPage';
 import PlayerLayout from './components/layout/PlayerLayout';
@@ -17,34 +17,34 @@ import { PlayerAbilitiesPage } from './pages/PlayerAbilitiesPage';
 import { PlayerEffectsPage } from './pages/PlayerEffectsPage';
 import { PlayerMapPage } from './pages/PlayerMapPage';
 import { CombatPage } from './pages/CombatPage';
+import { NotificationProvider } from './contexts/NotificationProvider';
 
 const App: React.FC = () => {
   return (
-    <Router>
-      <Routes>
-        {/* Публичная страница — без Layout */}
-        <Route path="/" element={<LoginPage />} />
-
-        {/* Все страницы мастера внутри одного Layout */}
-        <Route path="/master" element={<MasterLayout />}>
-          <Route index element={<MasterDashboardPage />} />  // /master
-          <Route path="items" element={<ItemsPage />} />     // /master/items
-          <Route path="abilities" element={<AbilitiesPage />} />
-          <Route path="effects" element={<EffectsPage />} />
-          <Route path="npcs" element={<NpcsPage />} />
-          <Route path="races" element={<RacesPage />} />
-          <Route path="combat" element={<CombatPage />} />
-        </Route>
-        <Route path="/player/select" element={<PlayerSelectionPage />} />
-        <Route path="/player/:playerId" element={<PlayerLayout />}>
-          <Route index element={<PlayerCharacterSheetPage />} />
-          <Route path="inventory" element={<PlayerInventoryPage />} />
-          <Route path="abilities" element={<PlayerAbilitiesPage />} />
-          <Route path="effects" element={<PlayerEffectsPage />} />
-          <Route path="map" element={<PlayerMapPage />} />
-        </Route>
-      </Routes>
-    </Router>
+    <NotificationProvider>
+      <Router>
+        <Routes>
+          <Route path="/" element={<LoginPage />} />
+          <Route path="/master" element={<MasterLayout />}>
+            <Route index element={<MasterDashboardPage />} />
+            <Route path="items" element={<ItemsPage />} />
+            <Route path="abilities" element={<AbilitiesPage />} />
+            <Route path="effects" element={<EffectsPage />} />
+            <Route path="npcs" element={<NpcsPage />} />
+            <Route path="races" element={<RacesPage />} />
+            <Route path="combat" element={<CombatPage />} />
+          </Route>
+          <Route path="/player/select" element={<PlayerSelectionPage />} />
+          <Route path="/player/:playerId" element={<PlayerLayout />}>
+            <Route index element={<PlayerCharacterSheetPage />} />
+            <Route path="inventory" element={<PlayerInventoryPage />} />
+            <Route path="abilities" element={<PlayerAbilitiesPage />} />
+            <Route path="effects" element={<PlayerEffectsPage />} />
+            <Route path="map" element={<PlayerMapPage />} />
+          </Route>
+        </Routes>
+      </Router>
+    </NotificationProvider>
   );
 };
 

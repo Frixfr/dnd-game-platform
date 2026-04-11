@@ -6,7 +6,8 @@ import { PlayerStatsForm } from './PlayerStatsForm';
 import { PlayerItemsManager } from './PlayerItemsManager';
 import { PlayerAbilitiesManager } from './PlayerAbilitiesManager';
 import { PlayerEffectsManager } from './PlayerEffectsManager';
-import { useMediaQuery } from './useMediaQuery'; // создадим отдельный хук
+import { useMediaQuery } from './useMediaQuery';
+import { useErrorHandler } from '../../hooks/useErrorHandler';
 
 interface EditPlayerModalProps {
   player: PlayerType;
@@ -18,6 +19,7 @@ type MainTab = 'stats' | 'items' | 'abilities' | 'effects';
 
 export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayerModalProps) => {
   const isMobile = useMediaQuery('(max-width: 768px)');
+  const { showError } = useErrorHandler();
   const [formData, setFormData] = useState<PlayerType>(() => ({
     ...player,
     items: [],
@@ -26,13 +28,12 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
   }));
   const [loading, setLoading] = useState(false);
   const [loadingDetails, setLoadingDetails] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [activeMainTab, setActiveMainTab] = useState<MainTab>('stats');
   const [races, setRaces] = useState<RaceType[]>([]);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [selectedRaceEffects, setSelectedRaceEffects] = useState<EffectType[]>([]); // нужен импорт EffectType
+  const [selectedRaceEffects, setSelectedRaceEffects] = useState<EffectType[]>([]);
   const { fetchPlayers } = usePlayerStore();
 
   // Загрузка списка рас
@@ -71,13 +72,13 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
         });
         if (fullPlayer.avatar_url) setAvatarPreview(fullPlayer.avatar_url);
       } catch {
-        setError('Не удалось загрузить данные игрока');
+        showError('Не удалось загрузить данные игрока');
       } finally {
         setLoadingDetails(false);
       }
     };
     loadFullPlayer();
-  }, [player.id]);
+  }, [player.id, showError]); // добавлена зависимость showError
 
   const updatePlayerData = async () => {
     try {
@@ -91,8 +92,8 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
         active_effects: updated.active_effects || []
       });
       await fetchPlayers();
-    } catch (err) {
-      console.error(err);
+    } catch {
+      showError('Не удалось обновить данные игрока');
     }
   };
 
@@ -109,9 +110,8 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
       const result = await response.json();
       setAvatarPreview(result.avatarUrl);
       await updatePlayerData();
-      setError(null);
     } catch {
-      setError("Не удалось загрузить аватарку");
+      showError("Не удалось загрузить аватарку");
     } finally {
       setUploadingAvatar(false);
     }
@@ -126,9 +126,8 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
       if (!response.ok) throw new Error("Ошибка удаления");
       setAvatarPreview(null);
       await updatePlayerData();
-      setError(null);
     } catch {
-      setError("Не удалось удалить аватарку");
+      showError("Не удалось удалить аватарку");
     }
   };
 
@@ -139,8 +138,8 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name.trim()) { setError('Имя обязательно'); return; }
-    if (formData.health > formData.max_health) { setError('Здоровье не может быть больше максимума'); return; }
+    if (!formData.name.trim()) { showError('Имя обязательно'); return; }
+    if (formData.health > formData.max_health) { showError('Здоровье не может быть больше максимума'); return; }
     setLoading(true);
     try {
       const response = await fetch(`/api/players/${player.id}`, {
@@ -156,7 +155,7 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
         onClose();
       }
     } catch {
-      setError('Ошибка сохранения');
+      showError('Ошибка сохранения');
     } finally {
       setLoading(false);
     }
@@ -171,7 +170,7 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
       await fetchPlayers();
       onClose();
     } catch {
-      setError('Ошибка удаления');
+      showError('Ошибка удаления');
     } finally {
       setDeleting(false);
     }
@@ -193,7 +192,6 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
             onSubmit={handleSubmit}
             onDelete={handleDeletePlayer}
             deleting={deleting}
-            error={error}
           />
         );
       case 'items':
@@ -202,7 +200,7 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
             playerId={player.id}
             items={formData.items}
             onDataChanged={updatePlayerData}
-            setError={setError}
+            showError={showError}
           />
         );
       case 'abilities':
@@ -211,7 +209,7 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
             playerId={player.id}
             abilities={formData.abilities}
             onDataChanged={updatePlayerData}
-            setError={setError}
+            showError={showError}
           />
         );
       case 'effects':
@@ -221,7 +219,7 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
             activeEffects={formData.active_effects}
             raceEffects={selectedRaceEffects}
             onDataChanged={updatePlayerData}
-            setError={setError}
+            showError={showError}
           />
         );
       default:

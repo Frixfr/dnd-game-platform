@@ -6,6 +6,7 @@ import { useAbilityStore } from '../stores/abilityStore';
 import { EditAbilityModal } from '../components/ui/EditAbilityModal';
 import { Pagination } from '../components/ui/Pagination';
 import ConfirmModal from '../components/ui/ConfirmModal';
+import { useErrorHandler } from '../hooks/useErrorHandler';
 
 export const AbilitiesPage = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -15,6 +16,7 @@ export const AbilitiesPage = () => {
   const [loading, setLoading] = useState(true);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [abilityToDelete, setAbilityToDelete] = useState<AbilityType | null>(null);
+  const { showError } = useErrorHandler();
 
   const {
     abilities,
@@ -85,7 +87,7 @@ export const AbilitiesPage = () => {
       if (!response.ok) throw new Error('Ошибка удаления');
     } catch (error) {
       console.error(error);
-      alert('Не удалось удалить способность');
+      showError('Не удалось удалить способность');
     } finally {
       setShowConfirmModal(false);
       setAbilityToDelete(null);

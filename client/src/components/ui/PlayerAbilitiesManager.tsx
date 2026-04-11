@@ -6,12 +6,12 @@ interface PlayerAbilitiesManagerProps {
   playerId: number;
   abilities: PlayerAbilityExtended[];
   onDataChanged: () => Promise<void>;
-  setError: (error: string | null) => void;
+  showError: (msg: string) => void;
 }
 
 type AbilitiesSubTab = 'list' | 'add';
 
-export const PlayerAbilitiesManager = ({ playerId, abilities, onDataChanged, setError }: PlayerAbilitiesManagerProps) => {
+export const PlayerAbilitiesManager = ({ playerId, abilities, onDataChanged, showError }: PlayerAbilitiesManagerProps) => {
   const [abilitiesSubTab, setAbilitiesSubTab] = useState<AbilitiesSubTab>('list');
   const [allAbilities, setAllAbilities] = useState<AbilityType[]>([]);
   const [abilitiesLoading, setAbilitiesLoading] = useState(false);
@@ -26,11 +26,11 @@ export const PlayerAbilitiesManager = ({ playerId, abilities, onDataChanged, set
       if (!response.ok) throw new Error();
       setAllAbilities(await response.json());
     } catch {
-      setError('Не удалось загрузить способности');
+      showError('Не удалось загрузить способности');
     } finally {
       setAbilitiesLoading(false);
     }
-  }, [setError]);
+  }, [showError]);
 
   useEffect(() => {
     if (abilitiesSubTab === 'add') loadAllAbilities();
@@ -47,7 +47,7 @@ export const PlayerAbilitiesManager = ({ playerId, abilities, onDataChanged, set
       });
       await onDataChanged();
     } catch {
-      setError('Ошибка изменения активности');
+      showError('Ошибка изменения активности');
     }
   };
 
@@ -57,12 +57,12 @@ export const PlayerAbilitiesManager = ({ playerId, abilities, onDataChanged, set
       await fetch(`/api/players/${playerId}/abilities/${abilityId}`, { method: 'DELETE' });
       await onDataChanged();
     } catch {
-      setError('Ошибка удаления');
+      showError('Ошибка удаления');
     }
   };
 
   const handleAddAbilities = async () => {
-    if (selectedAbilities.length === 0) { setError('Выберите способности'); return; }
+    if (selectedAbilities.length === 0) { showError('Выберите способности'); return; }
     setLoading(true);
     try {
       const response = await fetch(`/api/players/${playerId}/abilities/batch`, {
@@ -75,7 +75,7 @@ export const PlayerAbilitiesManager = ({ playerId, abilities, onDataChanged, set
       await onDataChanged();
       setAbilitiesSubTab('list');
     } catch {
-      setError('Ошибка добавления');
+      showError('Ошибка добавления');
     } finally {
       setLoading(false);
     }

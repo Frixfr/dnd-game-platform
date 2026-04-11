@@ -13,7 +13,6 @@ interface PlayerStatsFormProps {
   onSubmit: (e: React.FormEvent) => void;
   onDelete: () => void;
   deleting: boolean;
-  error?: string | null;
 }
 
 const statFields = ['strength', 'agility', 'intelligence', 'physique', 'wisdom', 'charisma'] as const;
@@ -30,7 +29,6 @@ export const PlayerStatsForm = ({
   onSubmit,
   onDelete,
   deleting,
-  error,
 }: PlayerStatsFormProps) => {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -46,7 +44,6 @@ export const PlayerStatsForm = ({
 
   return (
     <form onSubmit={onSubmit} className="space-y-4 md:space-y-6">
-      {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">{error}</div>}
 
       <div className="bg-gray-50 rounded-xl p-4 md:p-5 border border-gray-100">
         <h3 className="text-md font-semibold text-gray-700 mb-3 flex items-center gap-2">🧑‍🎤 Персона</h3>

@@ -6,6 +6,7 @@ import { ItemCard } from '../components/ui/ItemCard';
 import { EditItemModal } from '../components/ui/EditItemModal';
 import { Pagination } from '../components/ui/Pagination';
 import ConfirmModal from '../components/ui/ConfirmModal';
+import { useErrorHandler } from '../hooks/useErrorHandler';
 
 export const ItemsPage = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -16,6 +17,7 @@ export const ItemsPage = () => {
   const [loadingFullItem, setLoadingFullItem] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<ItemType | null>(null);
+  const { showError } = useErrorHandler();
 
   const {
     items,
@@ -103,9 +105,9 @@ export const ItemsPage = () => {
         console.error('Ошибка удаления:', error);
         const errorMessage = error instanceof Error ? error.message : String(error);
         if (errorMessage.includes('назначена игрокам')) {
-        alert(`Невозможно удалить предмет "${itemToDelete.name}", так как он назначен игрокам. Сначала удалите его у всех игроков.`);
+        showError(`Невозможно удалить предмет "${itemToDelete.name}", так как он назначен игрокам. Сначала удалите его у всех игроков.`);
         } else {
-        alert('Не удалось удалить предмет');
+        showError('Не удалось удалить предмет');
         }
     } finally {
         setShowConfirmModal(false);

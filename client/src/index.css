@@ -12,4 +12,19 @@ body {
   min-height: 100vh;
 }
 
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slideUp 0.3s ease-out;
+}
+
 /* УДАЛИТЬ ВСЁ ОСТАЛЬНОЕ: :root, a, button, @media и т.д. */

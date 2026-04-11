@@ -7,6 +7,7 @@ import { Pagination } from "../components/ui/Pagination";
 import { useNpcStore } from "../stores/npcStore";
 import type { NpcType } from "../types";
 import ConfirmModal from '../components/ui/ConfirmModal';
+import { useErrorHandler } from '../hooks/useErrorHandler';
 
 export const NpcsPage = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -14,6 +15,7 @@ export const NpcsPage = () => {
   const [loading, setLoading] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [npcToDelete, setNpcToDelete] = useState<NpcType | null>(null);
+  const { showError } = useErrorHandler();
 
   const {
     npcs,
@@ -72,7 +74,7 @@ export const NpcsPage = () => {
       if (!response.ok) throw new Error('Ошибка удаления');
     } catch (error) {
       console.error(error);
-      alert('Не удалось удалить NPC');
+      showError('Не удалось удалить NPC');
     } finally {
       setShowConfirmModal(false);
       setNpcToDelete(null);

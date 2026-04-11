@@ -6,12 +6,12 @@ interface PlayerItemsManagerProps {
   playerId: number;
   items: PlayerItemExtended[];
   onDataChanged: () => Promise<void>;
-  setError: (error: string | null) => void;
+  showError: (msg: string) => void;
 }
 
 type ItemsSubTab = 'list' | 'add';
 
-export const PlayerItemsManager = ({ playerId, items, onDataChanged, setError }: PlayerItemsManagerProps) => {
+export const PlayerItemsManager = ({ playerId, items, onDataChanged, showError }: PlayerItemsManagerProps) => {
   const [itemsSubTab, setItemsSubTab] = useState<ItemsSubTab>('list');
   const [allItems, setAllItems] = useState<ItemType[]>([]);
   const [itemsLoading, setItemsLoading] = useState(false);
@@ -35,11 +35,11 @@ export const PlayerItemsManager = ({ playerId, items, onDataChanged, setError }:
       if (!response.ok) throw new Error();
       setAllItems(await response.json());
     } catch {
-      setError('Не удалось загрузить предметы');
+      showError('Не удалось загрузить предметы');
     } finally {
       setItemsLoading(false);
     }
-  }, [setError]);
+  }, [showError]);
 
   useEffect(() => {
     if (itemsSubTab === 'add') loadAllItems();
@@ -57,7 +57,7 @@ export const PlayerItemsManager = ({ playerId, items, onDataChanged, setError }:
       setEquipStatus(prev => ({ ...prev, [itemId]: newStatus }));
       await onDataChanged();
     } catch {
-      setError('Не удалось изменить экипировку');
+      showError('Не удалось изменить экипировку');
     }
   };
 
@@ -67,13 +67,13 @@ export const PlayerItemsManager = ({ playerId, items, onDataChanged, setError }:
       await fetch(`/api/players/${playerId}/items/${itemId}`, { method: 'DELETE' });
       await onDataChanged();
     } catch {
-      setError('Ошибка удаления');
+      showError('Ошибка удаления');
     }
   };
 
   const handleAddItems = async () => {
     const itemsToAdd = Object.entries(selectedItems).map(([id, qty]) => ({ item_id: parseInt(id), quantity: qty }));
-    if (itemsToAdd.length === 0) { setError('Выберите предметы'); return; }
+    if (itemsToAdd.length === 0) { showError('Выберите предметы'); return; }
     setLoading(true);
     try {
       const response = await fetch(`/api/players/${playerId}/items/batch`, {
@@ -86,7 +86,7 @@ export const PlayerItemsManager = ({ playerId, items, onDataChanged, setError }:
       await onDataChanged();
       setItemsSubTab('list');
     } catch {
-      setError('Ошибка добавления');
+      showError('Ошибка добавления');
     } finally {
       setLoading(false);
     }

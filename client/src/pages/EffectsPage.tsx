@@ -7,6 +7,7 @@ import { Pagination } from '../components/ui/Pagination';
 import { useEffectStore } from '../stores/effectStore';
 import type { EffectType } from '../types';
 import ConfirmModal from '../components/ui/ConfirmModal';
+import { useErrorHandler } from '../hooks/useErrorHandler';
 
 export const EffectsPage = () => {
   const {
@@ -24,6 +25,7 @@ export const EffectsPage = () => {
   const [loading, setLoading] = useState(true);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [effectToDelete, setEffectToDelete] = useState<EffectType | null>(null);
+  const { showError } = useErrorHandler();
 
   useEffect(() => {
     initializeSocket();
@@ -64,7 +66,7 @@ export const EffectsPage = () => {
       if (!response.ok) throw new Error('Ошибка удаления');
     } catch (error) {
       console.error(error);
-      alert('Не удалось удалить эффект');
+      showError('Не удалось удалить эффект');
     } finally {
       setShowConfirmModal(false);
       setEffectToDelete(null);
