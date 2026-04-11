@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { abilitiesService } from "../services/abilitiesService.js";
+import { playerAbilitiesService } from "../services/playerAbilitiesService.js";
 import { getIO } from "../socket/index.js";
 
 export const abilitiesController = {
@@ -155,14 +156,15 @@ export const abilitiesController = {
 
   async useAbility(req: Request, res: Response) {
     const abilityId = Number(req.params.id);
-    const { playerId } = req.body; // ожидаем { playerId: number }
+    const { playerId } = req.body;
 
     if (isNaN(abilityId) || !playerId || isNaN(Number(playerId))) {
       return res.status(400).json({ error: "Invalid abilityId or playerId" });
     }
 
     try {
-      const result = await abilitiesService.useAbility(
+      // Заменяем abilitiesService.useAbility на playerAbilitiesService.useAbility
+      const result = await playerAbilitiesService.useAbility(
         Number(playerId),
         abilityId,
       );
