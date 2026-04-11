@@ -167,6 +167,7 @@ export interface InventoryItem {
 export interface PlayerAbilityExtended extends AbilityType {
   is_active: number; // 0 или 1, как в AbilityType
   effect?: EffectType | null;
+  remaining_cooldown_turns?: number; // количество ходов до окончания перезарядки (0 или null = нет кулдауна)
 }
 
 // Расширенный тип предмета (с полями из player_items)

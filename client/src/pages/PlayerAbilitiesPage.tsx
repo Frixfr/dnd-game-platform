@@ -2,7 +2,23 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { AbilityCard } from '../components/ui/AbilityCard';
-import type { PlayerAbilityExtended, EffectType } from '../types';
+import type { PlayerAbilityExtended } from '../types';
+
+// Тип данных способности, возвращаемых API (поля из ability + доп. поля для игрока)
+interface ApiAbility {
+  id: number;
+  name: string;
+  description: string | null;
+  ability_type: 'active' | 'passive';
+  cooldown_turns: number;
+  cooldown_days: number;
+  effect_id: number | null;
+  created_at: string;
+  updated_at: string;
+  is_active: number | boolean; // из player_abilities
+  effect?: unknown; // эффект, если подгружен
+  remaining_cooldown_turns?: number; // из запроса (опционально)
+}
 
 export const PlayerAbilitiesPage = () => {
   const { playerId } = useParams();
@@ -17,10 +33,11 @@ export const PlayerAbilitiesPage = () => {
       if (!response.ok) throw new Error();
       const data = await response.json();
       // Приводим способности к правильному типу
-      const mappedAbilities: PlayerAbilityExtended[] = (data.abilities || []).map((a: any) => ({
+      const mappedAbilities: PlayerAbilityExtended[] = (data.abilities || []).map((a: ApiAbility) => ({
         ...a,
         is_active: a.is_active === 1 || a.is_active === true,
         effect: a.effect || null,
+        remaining_cooldown_turns: a.remaining_cooldown_turns ?? 0,
       }));
       setAbilities(mappedAbilities);
     } catch (err) {
@@ -70,20 +87,40 @@ export const PlayerAbilitiesPage = () => {
         <p className="text-center text-gray-500 py-12">Нет способностей</p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {abilities.map(ability => (
-            <div key={ability.id} className="relative">
-              <AbilityCard ability={ability} effect={ability.effect || undefined} />
-              {ability.ability_type === 'active' && ability.is_active && (
-                <button
-                  onClick={() => handleUseAbility(ability.id)}
-                  disabled={usingAbilityId === ability.id}
-                  className="mt-2 w-full py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 disabled:opacity-50"
-                >
-                  {usingAbilityId === ability.id ? 'Использование...' : 'Использовать'}
-                </button>
-              )}
-            </div>
-          ))}
+          {abilities.map(ability => {
+            const isOnCooldown = (ability.remaining_cooldown_turns ?? 0) > 0;
+            const cooldownTurns = ability.remaining_cooldown_turns ?? 0;
+
+            return (
+              <div key={ability.id} className="relative">
+                <AbilityCard ability={ability} effect={ability.effect || undefined} />
+                {ability.ability_type === 'active' && ability.is_active && (
+                  <div className="mt-2">
+                    {isOnCooldown && (
+                      <div className="text-sm text-orange-600 mb-1 text-center">
+                        Перезарядка: {cooldownTurns} ходов
+                      </div>
+                    )}
+                    <button
+                      onClick={() => handleUseAbility(ability.id)}
+                      disabled={usingAbilityId === ability.id || isOnCooldown}
+                      className={`w-full py-2 rounded-xl transition ${
+                        isOnCooldown
+                          ? 'bg-gray-400 cursor-not-allowed'
+                          : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                      } disabled:opacity-50`}
+                    >
+                      {usingAbilityId === ability.id
+                        ? 'Использование...'
+                        : isOnCooldown
+                        ? 'На перезарядке'
+                        : 'Использовать'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
