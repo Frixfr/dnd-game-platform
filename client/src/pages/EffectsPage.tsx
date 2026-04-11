@@ -3,20 +3,37 @@ import { useState, useEffect } from 'react';
 import { CreateEffectModal } from '../components/ui/CreateEffectModal';
 import { EditEffectModal } from '../components/ui/EditEffectModal';
 import { EffectCard } from '../components/ui/EffectCard';
+import { Pagination } from '../components/ui/Pagination';
 import { useEffectStore } from '../stores/effectStore';
 import type { EffectType } from '../types';
 
 export const EffectsPage = () => {
-  const { effects, initializeSocket } = useEffectStore();
+  const {
+    effects,
+    effectsTotal,
+    currentPage,
+    limit,
+    fetchEffects,
+    initializeSocket,
+  } = useEffectStore();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedEffect, setSelectedEffect] = useState<EffectType | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(true);
 
-  // Инициализируем сокет один раз при монтировании
   useEffect(() => {
     initializeSocket();
   }, [initializeSocket]);
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      await fetchEffects(currentPage, limit);
+      setLoading(false);
+    };
+    load();
+  }, [currentPage, limit, fetchEffects]);
 
   const handleEffectClick = (effect: EffectType) => {
     setSelectedEffect(effect);
@@ -35,16 +52,18 @@ export const EffectsPage = () => {
   const handleDeleteEffect = async (effect: EffectType) => {
     if (!confirm(`Удалить эффект "${effect.name}"?`)) return;
     try {
-      const response = await fetch(`http://localhost:5000/api/effects/${effect.id}`, {
+      const response = await fetch(`/api/effects/${effect.id}`, {
         method: 'DELETE',
       });
       if (!response.ok) throw new Error('Ошибка удаления');
-      // Стор обновится через сокет (useEffectStore)
+      // Страница перезагрузится через сокет
     } catch (error) {
       console.error(error);
       alert('Не удалось удалить эффект');
     }
   };
+
+  const totalPages = Math.ceil(effectsTotal / limit);
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
@@ -52,41 +71,55 @@ export const EffectsPage = () => {
         <div>
           <h1 className="text-3xl font-bold">Панель эффектов</h1>
           <p className="text-gray-600 mt-1">
-            Всего эффектов: <span className="font-semibold">{effects.length}</span>
+            Всего эффектов: <span className="font-semibold">{effectsTotal}</span>
           </p>
         </div>
-        <div className="mb-4">
+        <div className="flex gap-2">
           <input
             type="text"
             placeholder="Поиск по названию, описанию или тегу..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full md:w-80 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-64 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
+          <button
+            onClick={() => setIsCreateModalOpen(true)}
+            className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+          >
+            + Создать эффект
+          </button>
         </div>
-        <button
-          onClick={() => setIsCreateModalOpen(true)}
-          className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
-        >
-          + Создать эффект
-        </button>
       </div>
 
-      {effects.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
-          Нет созданных эффектов. Нажмите кнопку выше для создания первого.
+      {loading ? (
+        <div className="text-center py-12">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+          <p className="mt-2 text-gray-600">Загрузка эффектов...</p>
+        </div>
+      ) : filteredEffects.length === 0 ? (
+        <div className="text-center py-12 text-gray-500 bg-gray-50 rounded-lg">
+          {effects.length === 0
+            ? "Нет созданных эффектов. Нажмите кнопку выше для создания первого."
+            : "Ничего не найдено по вашему запросу."}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredEffects.map((effect) => (
-            <EffectCard
-              key={effect.id}
-              effect={effect}
-              onClick={() => handleEffectClick(effect)}
-              onDelete={() => handleDeleteEffect(effect)}
-            />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredEffects.map((effect) => (
+              <EffectCard
+                key={effect.id}
+                effect={effect}
+                onClick={() => handleEffectClick(effect)}
+                onDelete={() => handleDeleteEffect(effect)}
+              />
+            ))}
+          </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={(page) => fetchEffects(page, limit)}
+          />
+        </>
       )}
 
       {isCreateModalOpen && (
@@ -101,9 +134,9 @@ export const EffectsPage = () => {
             setSelectedEffect(null);
           }}
           onEffectUpdated={() => {
-            // Стор обновится через сокет, просто закрываем модалку
             setIsEditModalOpen(false);
             setSelectedEffect(null);
+            fetchEffects(currentPage, limit);
           }}
           mode="edit"
         />

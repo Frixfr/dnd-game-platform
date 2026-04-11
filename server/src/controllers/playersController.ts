@@ -29,19 +29,29 @@ export const playersController = {
       const full = req.query.full === "true";
 
       if (full) {
-        // Возвращаем полные данные всех игроков за один запрос
+        // Полные данные без пагинации (как было)
         const fullPlayers = await playersService.getAllFull();
         res.json(fullPlayers);
-      } else {
-        const card_shown_only = req.query.card_shown === "true";
-        const available_for_selection =
-          req.query.available_for_selection === "true";
-        const players = await playersService.getAll(
-          card_shown_only,
-          available_for_selection,
-        );
-        res.json(players);
+        return;
       }
+
+      const card_shown_only = req.query.card_shown === "true";
+      const available_for_selection =
+        req.query.available_for_selection === "true";
+      const page = req.query.page
+        ? parseInt(req.query.page as string, 10)
+        : undefined;
+      const limit = req.query.limit
+        ? parseInt(req.query.limit as string, 10)
+        : undefined;
+
+      const result = await playersService.getAll(
+        card_shown_only,
+        available_for_selection,
+        page,
+        limit,
+      );
+      res.json(result);
     } catch (error) {
       console.error(error);
       res.status(500).json({ error: "Ошибка сервера" });

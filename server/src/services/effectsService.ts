@@ -1,6 +1,6 @@
 // Файл: server/src/services/effectsService.ts (полностью)
 import { db } from "../db/index.js";
-import type { Effect } from "../types/index.js";
+import type { Effect, PaginatedResponse } from "../types/index.js";
 
 function parseTags(effect: any): Effect {
   if (effect && effect.tags) {
@@ -16,9 +16,30 @@ function parseTags(effect: any): Effect {
 }
 
 export const effectsService = {
-  async getAll(): Promise<Effect[]> {
-    const effects = await db("effects").select("*");
-    return effects.map(parseTags);
+  async getAll(
+    page?: number,
+    limit?: number,
+  ): Promise<Effect[] | PaginatedResponse<Effect>> {
+    let query = db("effects").select("*");
+
+    if (page === undefined || limit === undefined) {
+      const effects = await query;
+      return effects.map(parseTags);
+    }
+
+    const offset = (page - 1) * limit;
+    const totalQuery = query
+      .clone()
+      .clearSelect()
+      .clearOrder()
+      .count("id as count")
+      .first();
+    const totalResult = await totalQuery;
+    const total = Number(totalResult?.count) || 0;
+
+    const dataRaw = await query.limit(limit).offset(offset);
+    const data = dataRaw.map(parseTags);
+    return { data, total, page, limit };
   },
 
   async getById(id: string): Promise<Effect | null> {

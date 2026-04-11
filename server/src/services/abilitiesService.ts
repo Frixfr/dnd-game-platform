@@ -1,9 +1,29 @@
 import { db } from "../db/index.js";
-import type { Ability } from "../types/index.js";
+import type { Ability, PaginatedResponse } from "../types/index.js";
 
 export const abilitiesService = {
-  async getAll(): Promise<Ability[]> {
-    return db("abilities").select("*");
+  async getAll(
+    page?: number,
+    limit?: number,
+  ): Promise<Ability[] | PaginatedResponse<Ability>> {
+    let query = db("abilities").select("*");
+
+    if (page === undefined || limit === undefined) {
+      return query;
+    }
+
+    const offset = (page - 1) * limit;
+    const totalQuery = query
+      .clone()
+      .clearSelect()
+      .clearOrder()
+      .count("id as count")
+      .first();
+    const totalResult = await totalQuery;
+    const total = Number(totalResult?.count) || 0;
+
+    const data = await query.limit(limit).offset(offset);
+    return { data, total, page, limit };
   },
 
   async getById(id: string): Promise<Ability | null> {

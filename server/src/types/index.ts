@@ -265,3 +265,10 @@ export interface CombatParticipantWithDetails extends CombatParticipant {
   entity: Player | NPC;
   final_stats?: any;
 }
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+}

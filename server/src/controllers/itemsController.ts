@@ -15,8 +15,14 @@ const allowedRarities = [
 export const itemsController = {
   async getAll(req: Request, res: Response) {
     try {
-      const items = await itemsService.getAll();
-      res.json(items);
+      const page = req.query.page
+        ? parseInt(req.query.page as string, 10)
+        : undefined;
+      const limit = req.query.limit
+        ? parseInt(req.query.limit as string, 10)
+        : undefined;
+      const result = await itemsService.getAll(page, limit);
+      res.json(result);
     } catch (error) {
       console.error(error);
       res.status(500).json({ error: "Ошибка сервера" });
@@ -128,11 +134,9 @@ export const itemsController = {
           updateData.active_effect_id,
         );
         if (!exists) {
-          return res
-            .status(404)
-            .json({
-              error: `Активный эффект с ID ${updateData.active_effect_id} не найден`,
-            });
+          return res.status(404).json({
+            error: `Активный эффект с ID ${updateData.active_effect_id} не найден`,
+          });
         }
       }
     }
@@ -143,11 +147,9 @@ export const itemsController = {
           updateData.passive_effect_id,
         );
         if (!exists) {
-          return res
-            .status(404)
-            .json({
-              error: `Пассивный эффект с ID ${updateData.passive_effect_id} не найден`,
-            });
+          return res.status(404).json({
+            error: `Пассивный эффект с ID ${updateData.passive_effect_id} не найден`,
+          });
         }
       }
     }
@@ -157,11 +159,9 @@ export const itemsController = {
       updateData.passive_effect_id &&
       updateData.active_effect_id === updateData.passive_effect_id
     ) {
-      return res
-        .status(400)
-        .json({
-          error: "Активный и пассивный эффекты не могут быть одинаковыми",
-        });
+      return res.status(400).json({
+        error: "Активный и пассивный эффекты не могут быть одинаковыми",
+      });
     }
 
     try {

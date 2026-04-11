@@ -5,8 +5,14 @@ import { getIO } from "../socket/index.js";
 export const effectsController = {
   async getAll(req: Request, res: Response) {
     try {
-      const effects = await effectsService.getAll();
-      res.json(effects);
+      const page = req.query.page
+        ? parseInt(req.query.page as string, 10)
+        : undefined;
+      const limit = req.query.limit
+        ? parseInt(req.query.limit as string, 10)
+        : undefined;
+      const result = await effectsService.getAll(page, limit);
+      res.json(result);
     } catch (error) {
       console.error(error);
       res.status(500).json({ error: "Ошибка сервера" });

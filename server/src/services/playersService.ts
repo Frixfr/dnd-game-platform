@@ -3,7 +3,11 @@
 import { db } from "../db/index.js";
 import { getFullPlayerData, calculateFinalStats } from "../utils/helpers.js";
 import { playerAbilitiesService } from "./playerAbilitiesService.js";
-import type { Player, FullPlayerData } from "../types/index.js";
+import type {
+  Player,
+  FullPlayerData,
+  PaginatedResponse,
+} from "../types/index.js";
 import { playerItemsService } from "./playerItemsService.js";
 import { logsService } from "./logsService.js";
 
@@ -11,7 +15,9 @@ export const playersService = {
   async getAll(
     card_shown_only?: boolean,
     available_for_selection?: boolean,
-  ): Promise<Player[]> {
+    page?: number,
+    limit?: number,
+  ): Promise<Player[] | PaginatedResponse<Player>> {
     let query = db("players").select("*");
     if (card_shown_only) {
       query = query.where("is_card_shown", true);
@@ -19,7 +25,25 @@ export const playersService = {
     if (available_for_selection) {
       query = query.where("is_card_shown", true).whereNull("access_password");
     }
-    return query;
+
+    // Если page и limit не переданы – возвращаем массив (для обратной совместимости)
+    if (page === undefined || limit === undefined) {
+      return query;
+    }
+
+    // Пагинация
+    const offset = (page - 1) * limit;
+    const totalQuery = query
+      .clone()
+      .clearSelect()
+      .clearOrder()
+      .count("id as count")
+      .first();
+    const totalResult = await totalQuery;
+    const total = Number(totalResult?.count) || 0;
+
+    const data = await query.limit(limit).offset(offset);
+    return { data, total, page, limit };
   },
 
   async getAllFull(): Promise<FullPlayerData[]> {

@@ -6,8 +6,14 @@ import { getIO } from "../socket/index.js";
 export const abilitiesController = {
   async getAll(req: Request, res: Response) {
     try {
-      const abilities = await abilitiesService.getAll();
-      res.json(abilities);
+      const page = req.query.page
+        ? parseInt(req.query.page as string, 10)
+        : undefined;
+      const limit = req.query.limit
+        ? parseInt(req.query.limit as string, 10)
+        : undefined;
+      const result = await abilitiesService.getAll(page, limit);
+      res.json(result);
     } catch (error) {
       console.error(error);
       res.status(500).json({ error: "Ошибка сервера" });

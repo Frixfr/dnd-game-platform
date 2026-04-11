@@ -1,11 +1,31 @@
 import { db } from "../db/index.js";
 import { getFullNpcData, ensureFrightenedEffect } from "../utils/helpers.js";
-import type { NPC, FullNPCData } from "../types/index.js";
+import type { NPC, FullNPCData, PaginatedResponse } from "../types/index.js";
 import { npcAbilitiesService } from "./npcAbilitiesService.js";
 
 export const npcsService = {
-  async getAll(): Promise<NPC[]> {
-    return db("npcs").select("*");
+  async getAll(
+    page?: number,
+    limit?: number,
+  ): Promise<NPC[] | PaginatedResponse<NPC>> {
+    let query = db("npcs").select("*");
+
+    if (page === undefined || limit === undefined) {
+      return query;
+    }
+
+    const offset = (page - 1) * limit;
+    const totalQuery = query
+      .clone()
+      .clearSelect()
+      .clearOrder()
+      .count("id as count")
+      .first();
+    const totalResult = await totalQuery;
+    const total = Number(totalResult?.count) || 0;
+
+    const data = await query.limit(limit).offset(offset);
+    return { data, total, page, limit };
   },
 
   async getById(id: string): Promise<NPC | null> {
