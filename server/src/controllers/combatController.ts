@@ -164,4 +164,17 @@ export const combatController = {
       res.status(400).json({ error: error.message });
     }
   },
+
+  async advanceDay(req: Request, res: Response) {
+    try {
+      await combatService.advanceDay();
+      res.json({
+        success: true,
+        message: "День завершён, эффекты и кулдауны обновлены",
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Ошибка при завершении дня" });
+    }
+  },
 };

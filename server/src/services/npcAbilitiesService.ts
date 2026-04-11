@@ -195,7 +195,10 @@ export const npcAbilitiesService = {
     // Устанавливаем кулдаун
     await db("npc_abilities")
       .where({ npc_id: npcId, ability_id: abilityId })
-      .update({ remaining_cooldown_turns: ability.cooldown_turns });
+      .update({
+        remaining_cooldown_turns: ability.cooldown_turns,
+        remaining_cooldown_days: ability.cooldown_days,
+      });
 
     return {
       success: true,

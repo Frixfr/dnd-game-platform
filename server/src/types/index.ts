@@ -106,6 +106,8 @@ export interface PlayerAbility {
   ability_id: number;
   obtained_at: string;
   is_active: boolean;
+  remaining_cooldown_turns?: number | null;
+  remaining_cooldown_days?: number | null;
 }
 
 export interface PlayerItem {
@@ -133,6 +135,8 @@ export interface NpcAbility {
   ability_id: number;
   obtained_at: string;
   is_active: boolean;
+  remaining_cooldown_turns?: number | null;
+  remaining_cooldown_days?: number | null;
 }
 
 export interface NpcItem {

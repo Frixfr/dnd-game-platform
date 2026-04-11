@@ -201,7 +201,10 @@ export const playerAbilitiesService = {
     // Устанавливаем кулдаун
     await db("player_abilities")
       .where({ player_id: playerId, ability_id: abilityId })
-      .update({ remaining_cooldown_turns: ability.cooldown_turns });
+      .update({
+        remaining_cooldown_turns: ability.cooldown_turns,
+        remaining_cooldown_days: ability.cooldown_days,
+      });
 
     // Логирование
     const player = await db("players").where({ id: playerId }).first();

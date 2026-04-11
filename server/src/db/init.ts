@@ -90,6 +90,26 @@ async function addMissingColumns() {
     });
     console.log("Колонка tags добавлена в таблицу effects");
   }
+
+  // Добавляем колонку remaining_cooldown_days в player_abilities
+  const playerAbilitiesColumns2 = await db
+    .table("player_abilities")
+    .columnInfo();
+  if (!playerAbilitiesColumns2.remaining_cooldown_days) {
+    await db.schema.alterTable("player_abilities", (table) => {
+      table.integer("remaining_cooldown_days").defaultTo(0);
+    });
+    console.log("Колонка remaining_cooldown_days добавлена в player_abilities");
+  }
+
+  // Добавляем колонку remaining_cooldown_days в npc_abilities
+  const npcAbilitiesColumns2 = await db.table("npc_abilities").columnInfo();
+  if (!npcAbilitiesColumns2.remaining_cooldown_days) {
+    await db.schema.alterTable("npc_abilities", (table) => {
+      table.integer("remaining_cooldown_days").defaultTo(0);
+    });
+    console.log("Колонка remaining_cooldown_days добавлена в npc_abilities");
+  }
 }
 
 export async function initializeDatabase() {
@@ -190,6 +210,8 @@ export async function initializeDatabase() {
           .onDelete("CASCADE");
         table.timestamp("obtained_at").defaultTo(db.fn.now());
         table.boolean("is_active").defaultTo(true);
+        table.integer("remaining_cooldown_turns").defaultTo(0);
+        table.integer("remaining_cooldown_days").defaultTo(0);
         table.primary(["player_id", "ability_id"]);
       });
       console.log("Таблица player_abilities создана");
@@ -321,6 +343,8 @@ export async function initializeDatabase() {
           .onDelete("CASCADE");
         table.timestamp("obtained_at").defaultTo(db.fn.now());
         table.boolean("is_active").defaultTo(true);
+        table.integer("remaining_cooldown_turns").defaultTo(0);
+        table.integer("remaining_cooldown_days").defaultTo(0);
         table.primary(["npc_id", "ability_id"]);
       });
       console.log("Таблица npc_abilities создана");

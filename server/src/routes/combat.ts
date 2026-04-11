@@ -16,5 +16,6 @@ router.post("/health", combatController.updateHealth);
 router.post("/effect", combatController.addEffect);
 router.post("/next-turn", combatController.nextTurn);
 router.post("/use-ability", combatController.useAbility);
+router.post("/advance-day", combatController.advanceDay);
 
 export default router;

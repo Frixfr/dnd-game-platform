@@ -5,6 +5,7 @@ import { playersService } from "./playersService.js";
 import { npcsService } from "./npcsService.js";
 import { playerAbilitiesService } from "./playerAbilitiesService.js";
 import { npcAbilitiesService } from "./npcAbilitiesService.js";
+import { getFullPlayerData, getFullNpcData } from "../utils/helpers.js";
 
 export const combatService = {
   async getActiveSession(): Promise<CombatSession | null> {
@@ -133,6 +134,92 @@ export const combatService = {
       }
     }
     await this.emitCombatUpdate(sessionId);
+  },
+
+  async advanceDay(): Promise<void> {
+    // 1. Уменьшаем remaining_days у активных эффектов игроков
+    const playersWithEffects = await db("player_active_effects")
+      .whereNotNull("remaining_days")
+      .where("remaining_days", ">", 0)
+      .select("player_id")
+      .groupBy("player_id");
+
+    await db("player_active_effects")
+      .whereNotNull("remaining_days")
+      .where("remaining_days", ">", 0)
+      .decrement("remaining_days", 1);
+
+    await db("player_active_effects").where("remaining_days", 0).delete();
+
+    // 2. Уменьшаем remaining_days у активных эффектов NPC
+    const npcsWithEffects = await db("npc_active_effects")
+      .whereNotNull("remaining_days")
+      .where("remaining_days", ">", 0)
+      .select("npc_id")
+      .groupBy("npc_id");
+
+    await db("npc_active_effects")
+      .whereNotNull("remaining_days")
+      .where("remaining_days", ">", 0)
+      .decrement("remaining_days", 1);
+
+    await db("npc_active_effects").where("remaining_days", 0).delete();
+
+    // 3. Уменьшаем remaining_cooldown_days у способностей игроков
+    const playersWithCooldown = await db("player_abilities")
+      .whereNotNull("remaining_cooldown_days")
+      .where("remaining_cooldown_days", ">", 0)
+      .select("player_id")
+      .groupBy("player_id");
+
+    await db("player_abilities")
+      .whereNotNull("remaining_cooldown_days")
+      .where("remaining_cooldown_days", ">", 0)
+      .decrement("remaining_cooldown_days", 1);
+
+    await db("player_abilities")
+      .where("remaining_cooldown_days", "<", 0)
+      .update({ remaining_cooldown_days: 0 });
+
+    // 4. Уменьшаем remaining_cooldown_days у способностей NPC
+    const npcsWithCooldown = await db("npc_abilities")
+      .whereNotNull("remaining_cooldown_days")
+      .where("remaining_cooldown_days", ">", 0)
+      .select("npc_id")
+      .groupBy("npc_id");
+
+    await db("npc_abilities")
+      .whereNotNull("remaining_cooldown_days")
+      .where("remaining_cooldown_days", ">", 0)
+      .decrement("remaining_cooldown_days", 1);
+
+    await db("npc_abilities")
+      .where("remaining_cooldown_days", "<", 0)
+      .update({ remaining_cooldown_days: 0 });
+
+    // 5. Отправляем обновления для всех затронутых сущностей
+    const io = getIO();
+
+    const allPlayerIds = new Set<number>();
+    playersWithEffects.forEach((p) => allPlayerIds.add(p.player_id));
+    playersWithCooldown.forEach((p) => allPlayerIds.add(p.player_id));
+    for (const playerId of allPlayerIds) {
+      const fullData = await getFullPlayerData(String(playerId));
+      if (fullData) io.emit("player:updated", fullData);
+    }
+
+    const allNpcIds = new Set<number>();
+    npcsWithEffects.forEach((n) => allNpcIds.add(n.npc_id));
+    npcsWithCooldown.forEach((n) => allNpcIds.add(n.npc_id));
+    for (const npcId of allNpcIds) {
+      const fullData = await getFullNpcData(String(npcId));
+      if (fullData) io.emit("npc:updated", fullData);
+    }
+
+    const activeSession = await this.getActiveSession();
+    if (activeSession) {
+      await this.emitCombatUpdate(activeSession.id);
+    }
   },
 
   async updateHealth(
