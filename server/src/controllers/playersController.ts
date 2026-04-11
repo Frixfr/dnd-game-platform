@@ -26,14 +26,22 @@ const ALLOWED_UPDATE_FIELDS = new Set([
 export const playersController = {
   async getAll(req: Request, res: Response) {
     try {
-      const card_shown_only = req.query.card_shown === "true";
-      const available_for_selection =
-        req.query.available_for_selection === "true";
-      const players = await playersService.getAll(
-        card_shown_only,
-        available_for_selection,
-      );
-      res.json(players);
+      const full = req.query.full === "true";
+
+      if (full) {
+        // Возвращаем полные данные всех игроков за один запрос
+        const fullPlayers = await playersService.getAllFull();
+        res.json(fullPlayers);
+      } else {
+        const card_shown_only = req.query.card_shown === "true";
+        const available_for_selection =
+          req.query.available_for_selection === "true";
+        const players = await playersService.getAll(
+          card_shown_only,
+          available_for_selection,
+        );
+        res.json(players);
+      }
     } catch (error) {
       console.error(error);
       res.status(500).json({ error: "Ошибка сервера" });

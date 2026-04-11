@@ -1,4 +1,5 @@
-// client/src/stores/playerStore.ts
+// Файл: client/src/stores/playerStore.ts
+
 import { create } from "zustand";
 import { io, Socket } from "socket.io-client";
 import type { PlayerType } from "../types";
@@ -12,7 +13,7 @@ interface PlayerStore {
   deletePlayer: (playerId: number) => void;
   setPlayers: (players: PlayerType[]) => void;
   fetchPlayers: () => Promise<void>;
-  updatePlayerFull: (fullPlayer: PlayerType) => void;
+  // updatePlayerFull больше не нужен, так как теперь все данные полные
 }
 
 export const usePlayerStore = create<PlayerStore>((set, get) => ({
@@ -21,7 +22,6 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
 
   initializeSocket: () => {
     const socket = io({
-      // без указания URL
       withCredentials: true,
       transports: ["websocket", "polling"],
       autoConnect: true,
@@ -29,7 +29,6 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
       reconnectionAttempts: 5,
     });
 
-    // Исправлено: событие сервера "player:created"
     socket.on("player:created", (player: PlayerType) => {
       console.log("Игрок создан (сокет):", player);
       set((state) => ({
@@ -37,7 +36,6 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
       }));
     });
 
-    // Исправлено: "player:updated"
     socket.on("player:updated", (player: PlayerType) => {
       console.log("Игрок обновлён (сокет):", player);
       set((state) => ({
@@ -45,7 +43,6 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
       }));
     });
 
-    // Исправлено: "player:deleted"
     socket.on("player:deleted", (playerId: number) => {
       console.log("Игрок удалён (сокет):", playerId);
       set((state) => ({
@@ -63,10 +60,13 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
 
   fetchPlayers: async () => {
     try {
-      const response = await fetch("/api/players");
+      // Используем новый эндпоинт для получения полных данных всех игроков за один запрос
+      const response = await fetch("/api/players?full=true");
       if (response.ok) {
-        const players = await response.json();
+        const players: PlayerType[] = await response.json();
         set({ players });
+      } else {
+        console.error("Ошибка загрузки игроков:", response.status);
       }
     } catch (error) {
       console.error("Ошибка загрузки игроков:", error);
@@ -96,14 +96,4 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
   setPlayers: (players) => {
     set({ players });
   },
-
-  updatePlayerFull: (fullPlayer) => {
-    set((state) => ({
-      players: state.players.map((p) =>
-        p.id === fullPlayer.id ? fullPlayer : p,
-      ),
-    }));
-  },
 }));
-
-// ВАЖНО: вызовите usePlayerStore.getState().initializeSocket() в вашем App.tsx или аналогичном корневом компоненте

@@ -1,4 +1,5 @@
-// client/src/pages/MasterDashboardPage.tsx
+// Файл: client/src/pages/MasterDashboardPage.tsx
+
 import { useState, useEffect } from 'react';
 import { PlayerCard } from '../components/ui/PlayerCard';
 import { CreatePlayerModal } from '../components/ui/CreatePlayerModal';
@@ -11,49 +12,31 @@ export const MasterDashboardPage = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerType | null>(null);
   const [loading, setLoading] = useState(true);
-  const [loadingFullPlayer, setLoadingFullPlayer] = useState(false);
 
-  // Берём всё из стора
-  const { players, setPlayers, updatePlayer, updatePlayerFull, socket, initializeSocket } = usePlayerStore();
+  const { players, updatePlayer, socket, initializeSocket } = usePlayerStore();
 
   // Инициализация сокетов при монтировании
   useEffect(() => {
     initializeSocket();
   }, [initializeSocket]);
 
-  // Загрузка начальных данных
+  // Загрузка начальных данных через стор (используется эндпоинт ?full=true)
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await fetch('/api/players');
-        if (!response.ok) throw new Error('Ошибка загрузки');
-        const data = await response.json();
-        setPlayers(data); // базовые данные
-
-        // Загружаем полные данные для каждого игрока
-        const fullPlayers = await Promise.all(
-          data.map(async (player: PlayerType) => {
-            const detailsRes = await fetch(`/api/players/${player.id}/details`);
-            if (detailsRes.ok) {
-              const full = await detailsRes.json();
-              // Возвращаем игрока с final_stats и race
-              return { ...player, final_stats: full.final_stats, race: full.race };
-            }
-            return player;
-          })
-        );
-        // Обновляем стор полными данными
-        fullPlayers.forEach((fp) => updatePlayerFull(fp));
-      } catch (error) {
-        console.error('Ошибка:', error);
-      } finally {
-        setLoading(false);
+    const loadPlayers = async () => {
+      setLoading(true);
+      // fetchPlayers уже вызывается при connect сокета, но для уверенности делаем вызов,
+      // если сокет ещё не подключён или fetch не сработал.
+      const { players: currentPlayers, fetchPlayers } = usePlayerStore.getState();
+      if (currentPlayers.length === 0) {
+        await fetchPlayers();
       }
+      setLoading(false);
     };
+    loadPlayers();
+  }, []);
 
-    fetchData();
-
-    // Очистка сокет-событий при размонтировании (исправленные имена)
+  // Очистка сокет-событий при размонтировании
+  useEffect(() => {
     return () => {
       if (socket) {
         socket.off('player:created');
@@ -61,27 +44,15 @@ export const MasterDashboardPage = () => {
         socket.off('player:deleted');
       }
     };
-  }, [socket, setPlayers]);
+  }, [socket]);
 
-  // Обработчик клика по карточке игрока – загружаем полные данные
-  const handlePlayerClick = async (player: PlayerType) => {
-    setLoadingFullPlayer(true);
-    try {
-      const response = await fetch(`/api/players/${player.id}/details`);
-      if (!response.ok) throw new Error('Ошибка загрузки полных данных игрока');
-      const fullPlayer = await response.json();
-      setSelectedPlayer(fullPlayer);
-      setIsEditModalOpen(true);
-    } catch (error) {
-      console.error('Ошибка загрузки полных данных:', error);
-      setSelectedPlayer(player);
-      setIsEditModalOpen(true);
-    } finally {
-      setLoadingFullPlayer(false);
-    }
+  // Обработчик клика по карточке игрока – теперь у нас уже есть полные данные,
+  // не нужно делать дополнительный запрос /details
+  const handlePlayerClick = (player: PlayerType) => {
+    setSelectedPlayer(player);
+    setIsEditModalOpen(true);
   };
 
-  // Обработчик обновления игрока (вызывается из EditPlayerModal)
   const handlePlayerUpdated = (updatedPlayer: PlayerType) => {
     updatePlayer(updatedPlayer);
     setIsEditModalOpen(false);
@@ -94,7 +65,7 @@ export const MasterDashboardPage = () => {
         method: 'DELETE',
       });
       if (!response.ok) throw new Error('Ошибка удаления');
-      // стор обновится через сокет или можно вызвать fetchPlayers снова
+      // стор обновится через сокет (player:deleted)
     } catch (error) {
       console.error(error);
       alert('Не удалось удалить игрока');
@@ -135,29 +106,15 @@ export const MasterDashboardPage = () => {
               key={player.id}
               player={player}
               onClick={() => handlePlayerClick(player)}
-              disabled={loadingFullPlayer}
               onDelete={() => handleDeletePlayer(player)}
             />
           ))}
         </div>
       )}
 
-      {/* Индикатор загрузки полных данных */}
-      {loadingFullPlayer && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-xl">
-            <div className="text-center">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mb-4"></div>
-              <p className="text-gray-700">Загрузка данных игрока...</p>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Модальное окно создания игрока */}
       {isCreateModalOpen && <CreatePlayerModal onClose={() => setIsCreateModalOpen(false)} />}
 
-      {/* Модальное окно редактирования игрока */}
       {isEditModalOpen && selectedPlayer && (
         <EditPlayerModal
           player={selectedPlayer}
