@@ -400,6 +400,22 @@ export async function initializeDatabase() {
       console.log("Таблица race_effects создана");
     }
 
+    // Таблица logs
+    if (!(await db.schema.hasTable("logs"))) {
+      await db.schema.createTable("logs", (table) => {
+        table.increments("id").primary();
+        table.string("action_type", 20).notNullable(); // ability_use, item_use, effect_gain
+        table.integer("player_id").nullable();
+        table.integer("npc_id").nullable();
+        table.string("entity_name", 100).notNullable();
+        table.string("action_name", 100).notNullable();
+        table.text("details").nullable(); // JSON строка
+        table.timestamp("created_at").defaultTo(db.fn.now());
+        table.index(["created_at"]);
+      });
+      console.log("Таблица logs создана");
+    }
+
     // Таблица combat_sessions
     if (!(await db.schema.hasTable("combat_sessions"))) {
       await db.schema.createTable("combat_sessions", (table) => {

@@ -4,6 +4,8 @@ import { db } from "../db/index.js";
 import { getFullPlayerData } from "../utils/helpers.js";
 import { playerAbilitiesService } from "./playerAbilitiesService.js";
 import type { Player, FullPlayerData } from "../types/index.js";
+import { playerItemsService } from "./playerItemsService.js";
+import { logsService } from "./logsService.js";
 
 export const playersService = {
   async getAll(
@@ -297,5 +299,33 @@ export const playersService = {
       .update({ avatar_url: null })
       .returning("*");
     return updated || null;
+  },
+
+  async useItem(playerId: number, playerItemId: number) {
+    const player = await db("players").where({ id: playerId }).first();
+    if (!player) throw new Error("Игрок не найден");
+
+    const playerItem = await db("player_items")
+      .where({ id: playerItemId, player_id: playerId })
+      .first();
+    if (!playerItem) throw new Error("Предмет не найден");
+    const item = await db("items").where({ id: playerItem.item_id }).first();
+    if (!item) throw new Error("Предмет не найден");
+
+    const result = await playerItemsService.useItem(playerId, playerItemId);
+
+    await logsService.create({
+      action_type: "item_use",
+      player_id: playerId,
+      npc_id: null,
+      entity_name: player.name,
+      action_name: item.name,
+      details: JSON.stringify({
+        item_id: item.id,
+        quantity_before: playerItem.quantity,
+      }),
+    });
+
+    return result;
   },
 };

@@ -245,6 +245,17 @@ export interface CombatParticipant {
   joined_at: string;
 }
 
+export interface Log {
+  id: number;
+  action_type: "ability_use" | "item_use" | "effect_gain";
+  player_id: number | null;
+  npc_id: number | null;
+  entity_name: string; // имя игрока или NPC
+  action_name: string; // название способности/предмета/эффекта
+  details: string | null; // дополнительные данные (JSON)
+  created_at: string;
+}
+
 // Расширенный участник боя с данными сущности
 export interface CombatParticipantWithDetails extends CombatParticipant {
   entity: Player | NPC;

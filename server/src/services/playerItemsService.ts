@@ -77,4 +77,50 @@ export const playerItemsService = {
     if (!updated) throw new Error("Not found");
     return updated;
   },
+
+  async useItem(
+    playerId: number,
+    playerItemId: number,
+  ): Promise<{ success: boolean; message: string; effect_applied?: boolean }> {
+    const playerItem = await db("player_items")
+      .where({ id: playerItemId, player_id: playerId })
+      .first();
+    if (!playerItem) throw new Error("Предмет не найден у игрока");
+
+    const item = await db("items").where({ id: playerItem.item_id }).first();
+    if (!item) throw new Error("Предмет не найден");
+
+    let effect_applied = false;
+    if (item.active_effect_id) {
+      const effect = await db("effects")
+        .where({ id: item.active_effect_id })
+        .first();
+      if (effect) {
+        await db("player_active_effects").insert({
+          player_id: playerId,
+          effect_id: item.active_effect_id,
+          source_type: "item",
+          source_id: item.id,
+          remaining_turns: effect.duration_turns,
+          remaining_days: effect.duration_days,
+          applied_at: db.fn.now(),
+        });
+        effect_applied = true;
+      }
+    }
+
+    if (playerItem.quantity > 1) {
+      await db("player_items")
+        .where({ id: playerItemId })
+        .update({ quantity: playerItem.quantity - 1 });
+    } else {
+      await db("player_items").where({ id: playerItemId }).delete();
+    }
+
+    return {
+      success: true,
+      message: "Предмет использован",
+      effect_applied,
+    };
+  },
 };

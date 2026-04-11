@@ -38,6 +38,7 @@ router.delete("/:playerId/effects/:effectId", playersController.removeEffect);
 
 // Переключение состояний
 router.put("/:playerId/items/:itemId/equip", playersController.toggleEquip);
+router.post("/:playerId/items/:itemId/use", playersController.useItem);
 router.put(
   "/:playerId/abilities/:abilityId/toggle",
   playersController.toggleAbility,

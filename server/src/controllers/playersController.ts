@@ -469,6 +469,21 @@ export const playersController = {
     }
   },
 
+  async useItem(req: Request, res: Response) {
+    const playerId = Number(req.params.playerId);
+    const itemId = Number(req.params.itemId);
+    if (isNaN(playerId) || isNaN(itemId)) {
+      return res.status(400).json({ error: "Некорректные ID" });
+    }
+    try {
+      const result = await playersService.useItem(playerId, itemId);
+      res.json(result);
+    } catch (error: any) {
+      console.error(error);
+      res.status(400).json({ error: error.message });
+    }
+  },
+
   async uploadAvatar(req: Request, res: Response) {
     const id = Number(req.params.id);
     if (isNaN(id)) return res.status(400).json({ error: "Некорректный ID" });

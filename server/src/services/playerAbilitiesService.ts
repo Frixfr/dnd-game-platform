@@ -1,4 +1,5 @@
 import { db } from "../db/index.js";
+import { logsService } from "./logsService.js";
 
 export const playerAbilitiesService = {
   async getAll(filters: {
@@ -199,6 +200,21 @@ export const playerAbilitiesService = {
     await db("player_abilities")
       .where({ player_id: playerId, ability_id: abilityId })
       .update({ remaining_cooldown_turns: ability.cooldown_turns });
+
+    const player = await db("players").where({ id: playerId }).first();
+    if (player) {
+      await logsService.create({
+        action_type: "ability_use",
+        player_id: playerId,
+        npc_id: null,
+        entity_name: player.name,
+        action_name: ability.name,
+        details: JSON.stringify({
+          ability_id: abilityId,
+          cooldown: ability.cooldown_turns,
+        }),
+      });
+    }
 
     return {
       success: true,
