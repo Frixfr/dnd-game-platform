@@ -10,6 +10,73 @@ import type {
   FullNPCData,
 } from "../types/index.js";
 
+export function calculateFinalStatsGeneric<
+  T extends {
+    health: number;
+    max_health: number;
+    armor: number;
+    strength: number;
+    agility: number;
+    intelligence: number;
+    physique: number;
+    wisdom: number;
+    charisma: number;
+  },
+>(
+  entity: T,
+  activeEffects: Effect[],
+  items: (Item & { is_equipped: boolean; passive_effect?: Effect | null })[],
+): Pick<
+  T,
+  | "health"
+  | "max_health"
+  | "armor"
+  | "strength"
+  | "agility"
+  | "intelligence"
+  | "physique"
+  | "wisdom"
+  | "charisma"
+> {
+  // Инициализация финальных статов копией базовых
+  const finalStats = {
+    health: entity.health,
+    max_health: entity.max_health,
+    armor: entity.armor,
+    strength: entity.strength,
+    agility: entity.agility,
+    intelligence: entity.intelligence,
+    physique: entity.physique,
+    wisdom: entity.wisdom,
+    charisma: entity.charisma,
+  };
+
+  // Применяем активные эффекты
+  activeEffects.forEach((effect) => {
+    if (effect.attribute && effect.modifier) {
+      const attr = effect.attribute as keyof typeof finalStats;
+      if (finalStats[attr] !== undefined) {
+        finalStats[attr] += effect.modifier;
+      }
+    }
+  });
+
+  // Применяем пассивные эффекты от экипированных предметов
+  items
+    .filter((item) => item.is_equipped && item.passive_effect)
+    .forEach((item) => {
+      const effect = item.passive_effect!;
+      if (effect.attribute && effect.modifier) {
+        const attr = effect.attribute as keyof typeof finalStats;
+        if (finalStats[attr] !== undefined) {
+          finalStats[attr] += effect.modifier;
+        }
+      }
+    });
+
+  return finalStats;
+}
+
 // Расчет финальных характеристик игрока
 export function calculateFinalStats(
   basePlayer: Player,
@@ -27,40 +94,7 @@ export function calculateFinalStats(
   | "created_at"
   | "race_id"
 > {
-  const finalStats = {
-    health: basePlayer.health,
-    max_health: basePlayer.max_health,
-    armor: basePlayer.armor,
-    strength: basePlayer.strength,
-    agility: basePlayer.agility,
-    intelligence: basePlayer.intelligence,
-    physique: basePlayer.physique,
-    wisdom: basePlayer.wisdom,
-    charisma: basePlayer.charisma,
-  };
-
-  activeEffects.forEach((effect) => {
-    if (effect.attribute && effect.modifier) {
-      const attr = effect.attribute as keyof typeof finalStats;
-      if (finalStats[attr] !== undefined) {
-        finalStats[attr] += effect.modifier;
-      }
-    }
-  });
-
-  items
-    .filter((item) => item.is_equipped && item.passive_effect)
-    .forEach((item) => {
-      const effect = item.passive_effect!;
-      if (effect.attribute && effect.modifier) {
-        const attr = effect.attribute as keyof typeof finalStats;
-        if (finalStats[attr] !== undefined) {
-          finalStats[attr] += effect.modifier;
-        }
-      }
-    });
-
-  return finalStats;
+  return calculateFinalStatsGeneric(basePlayer, activeEffects, items);
 }
 
 // Расчет финальных характеристик NPC
@@ -81,40 +115,7 @@ export function calculateNpcFinalStats(
   | "created_at"
   | "race_id"
 > {
-  const finalStats = {
-    health: baseNpc.health,
-    max_health: baseNpc.max_health,
-    armor: baseNpc.armor,
-    strength: baseNpc.strength,
-    agility: baseNpc.agility,
-    intelligence: baseNpc.intelligence,
-    physique: baseNpc.physique,
-    wisdom: baseNpc.wisdom,
-    charisma: baseNpc.charisma,
-  };
-
-  activeEffects.forEach((effect) => {
-    if (effect.attribute && effect.modifier) {
-      const attr = effect.attribute as keyof typeof finalStats;
-      if (finalStats[attr] !== undefined) {
-        finalStats[attr] += effect.modifier;
-      }
-    }
-  });
-
-  items
-    .filter((item) => item.is_equipped && item.passive_effect)
-    .forEach((item) => {
-      const effect = item.passive_effect!;
-      if (effect.attribute && effect.modifier) {
-        const attr = effect.attribute as keyof typeof finalStats;
-        if (finalStats[attr] !== undefined) {
-          finalStats[attr] += effect.modifier;
-        }
-      }
-    });
-
-  return finalStats;
+  return calculateFinalStatsGeneric(baseNpc, activeEffects, items);
 }
 
 // Получение полных данных игрока (способности, предметы, активные эффекты)
