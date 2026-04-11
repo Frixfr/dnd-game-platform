@@ -146,15 +146,17 @@ export const combatService = {
     if (entityType === "player") {
       const player = await db("players").where({ id: entityId }).first();
       if (!player) throw new Error("Игрок не найден");
+      const clampedHealth = Math.max(0, Math.min(newHealth, player.max_health));
       await db("players")
         .where({ id: entityId })
-        .update({ health: Math.min(newHealth, player.max_health) });
+        .update({ health: clampedHealth });
     } else {
       const npc = await db("npcs").where({ id: entityId }).first();
       if (!npc) throw new Error("NPC не найден");
+      const clampedHealth = Math.max(0, Math.min(newHealth, npc.max_health));
       await db("npcs")
         .where({ id: entityId })
-        .update({ health: Math.min(newHealth, npc.max_health) });
+        .update({ health: clampedHealth });
     }
     await this.emitCombatUpdate(sessionId);
   },
