@@ -30,16 +30,6 @@ export const npcsService = {
   },
 
   async delete(id: string): Promise<boolean> {
-    // Проверка связей
-    const hasAbilities = await db("npc_abilities").where("npc_id", id).first();
-    if (hasAbilities) throw new Error("NPC has relations");
-    const hasItems = await db("npc_items").where("npc_id", id).first();
-    if (hasItems) throw new Error("NPC has relations");
-    const hasEffects = await db("npc_active_effects")
-      .where("npc_id", id)
-      .first();
-    if (hasEffects) throw new Error("NPC has relations");
-
     const deleted = await db("npcs").where({ id }).delete();
     return deleted > 0;
   },
