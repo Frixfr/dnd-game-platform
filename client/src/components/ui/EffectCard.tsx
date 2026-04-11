@@ -42,9 +42,7 @@ export const EffectCard = ({ effect, onClick, showDescription = true, compact = 
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (onDelete && confirm(`Удалить эффект "${effect.name}"?`)) {
-      onDelete();
-    }
+    if (onDelete) onDelete();
   };
 
   if (compact) {

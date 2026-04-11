@@ -6,11 +6,14 @@ import { NpcCard } from "../components/ui/NpcCard";
 import { Pagination } from "../components/ui/Pagination";
 import { useNpcStore } from "../stores/npcStore";
 import type { NpcType } from "../types";
+import ConfirmModal from '../components/ui/ConfirmModal';
 
 export const NpcsPage = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedNpc, setSelectedNpc] = useState<NpcType | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [npcToDelete, setNpcToDelete] = useState<NpcType | null>(null);
 
   const {
     npcs,
@@ -57,17 +60,22 @@ export const NpcsPage = () => {
     }
   };
 
-  const handleDeleteNpc = async (npc: NpcType) => {
-    if (!confirm(`Удалить NPC "${npc.name}"?`)) return;
+  const handleDeleteNpc = (npc: NpcType) => {
+    setNpcToDelete(npc);
+    setShowConfirmModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!npcToDelete) return;
     try {
-      const response = await fetch(`/api/npcs/${npc.id}`, {
-        method: 'DELETE',
-      });
+      const response = await fetch(`/api/npcs/${npcToDelete.id}`, { method: 'DELETE' });
       if (!response.ok) throw new Error('Ошибка удаления');
-      // Страница перезагрузится через сокет
     } catch (error) {
       console.error(error);
       alert('Не удалось удалить NPC');
+    } finally {
+      setShowConfirmModal(false);
+      setNpcToDelete(null);
     }
   };
 
@@ -128,6 +136,16 @@ export const NpcsPage = () => {
           }}
         />
       )}
+
+      <ConfirmModal
+        isOpen={showConfirmModal}
+        message={`Удалить NPC "${npcToDelete?.name}"?`}
+        onConfirm={confirmDelete}
+        onCancel={() => {
+          setShowConfirmModal(false);
+          setNpcToDelete(null);
+        }}
+      />
     </div>
   );
 };

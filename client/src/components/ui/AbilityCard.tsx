@@ -23,9 +23,7 @@ export const AbilityCard = ({ ability, effect, onClick, disabled = false, onDele
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (onDelete && confirm(`Удалить способность "${ability.name}"?`)) {
-      onDelete();
-    }
+    if (onDelete) onDelete();
   };
 
   return (

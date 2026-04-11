@@ -6,6 +6,7 @@ import { EffectCard } from '../components/ui/EffectCard';
 import { Pagination } from '../components/ui/Pagination';
 import { useEffectStore } from '../stores/effectStore';
 import type { EffectType } from '../types';
+import ConfirmModal from '../components/ui/ConfirmModal';
 
 export const EffectsPage = () => {
   const {
@@ -21,6 +22,8 @@ export const EffectsPage = () => {
   const [selectedEffect, setSelectedEffect] = useState<EffectType | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [effectToDelete, setEffectToDelete] = useState<EffectType | null>(null);
 
   useEffect(() => {
     initializeSocket();
@@ -49,17 +52,22 @@ export const EffectsPage = () => {
     );
   });
 
-  const handleDeleteEffect = async (effect: EffectType) => {
-    if (!confirm(`Удалить эффект "${effect.name}"?`)) return;
+  const handleDeleteEffect = (effect: EffectType) => {
+    setEffectToDelete(effect);
+    setShowConfirmModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!effectToDelete) return;
     try {
-      const response = await fetch(`/api/effects/${effect.id}`, {
-        method: 'DELETE',
-      });
+      const response = await fetch(`/api/effects/${effectToDelete.id}`, { method: 'DELETE' });
       if (!response.ok) throw new Error('Ошибка удаления');
-      // Страница перезагрузится через сокет
     } catch (error) {
       console.error(error);
       alert('Не удалось удалить эффект');
+    } finally {
+      setShowConfirmModal(false);
+      setEffectToDelete(null);
     }
   };
 
@@ -141,6 +149,16 @@ export const EffectsPage = () => {
           mode="edit"
         />
       )}
+
+      <ConfirmModal
+        isOpen={showConfirmModal}
+        message={`Удалить эффект "${effectToDelete?.name}"?`}
+        onConfirm={confirmDelete}
+        onCancel={() => {
+          setShowConfirmModal(false);
+          setEffectToDelete(null);
+        }}
+      />
     </div>
   );
 };

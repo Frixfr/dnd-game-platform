@@ -39,9 +39,7 @@ export const NpcCard = ({ npc, onClick, disabled = false, onDelete }: NpcCardPro
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (onDelete && confirm(`Удалить NPC "${npc.name}"?`)) {
-      onDelete();
-    }
+    if (onDelete) onDelete();
   };
 
   return (

@@ -5,6 +5,7 @@ import { useItemStore } from '../stores/itemStore';
 import { ItemCard } from '../components/ui/ItemCard';
 import { EditItemModal } from '../components/ui/EditItemModal';
 import { Pagination } from '../components/ui/Pagination';
+import ConfirmModal from '../components/ui/ConfirmModal';
 
 export const ItemsPage = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -13,6 +14,8 @@ export const ItemsPage = () => {
   const [effects, setEffects] = useState<EffectType[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingFullItem, setLoadingFullItem] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<ItemType | null>(null);
 
   const {
     items,
@@ -85,24 +88,30 @@ export const ItemsPage = () => {
     setIsCreateModalOpen(false);
   };
 
-  const handleDeleteItemFromCard = async (item: ItemType) => {
-    if (!confirm(`Вы уверены, что хотите удалить предмет "${item.name}"?`)) return;
+  const handleDeleteItemFromCard = (item: ItemType) => {
+    setItemToDelete(item);
+    setShowConfirmModal(true);
+    };
+
+    const confirmDelete = async () => {
+    if (!itemToDelete) return;
     try {
-      const response = await fetch(`/api/items/${item.id}`, {
-        method: 'DELETE',
-      });
-      if (!response.ok) throw new Error('Ошибка удаления предмета');
-      alert(`Предмет "${item.name}" удален`);
+        const response = await fetch(`/api/items/${itemToDelete.id}`, { method: 'DELETE' });
+        if (!response.ok) throw new Error('Ошибка удаления предмета');
+        alert(`Предмет "${itemToDelete.name}" удален`);
     } catch (error: unknown) {
-      console.error('Ошибка удаления:', error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      if (errorMessage.includes('назначена игрокам')) {
-        alert(`Невозможно удалить предмет "${item.name}", так как он назначен игрокам. Сначала удалите его у всех игроков.`);
-      } else {
+        console.error('Ошибка удаления:', error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (errorMessage.includes('назначена игрокам')) {
+        alert(`Невозможно удалить предмет "${itemToDelete.name}", так как он назначен игрокам. Сначала удалите его у всех игроков.`);
+        } else {
         alert('Не удалось удалить предмет');
-      }
+        }
+    } finally {
+        setShowConfirmModal(false);
+        setItemToDelete(null);
     }
-  };
+    };
 
   const totalPages = Math.ceil(itemsTotal / limit);
 
@@ -184,6 +193,16 @@ export const ItemsPage = () => {
           mode="edit"
         />
       )}
+
+      <ConfirmModal
+        isOpen={showConfirmModal}
+        message={`Вы уверены, что хотите удалить предмет "${itemToDelete?.name}"?`}
+        onConfirm={confirmDelete}
+        onCancel={() => {
+            setShowConfirmModal(false);
+            setItemToDelete(null);
+        }}
+        />
     </div>
   );
 };

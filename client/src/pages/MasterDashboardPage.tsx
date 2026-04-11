@@ -7,12 +7,15 @@ import { EditPlayerModal } from '../components/ui/EditPlayerModal';
 import { Pagination } from '../components/ui/Pagination';
 import { usePlayerStore } from '../stores/playerStore';
 import type { PlayerType } from '../types';
+import ConfirmModal from '../components/ui/ConfirmModal';
 
 export const MasterDashboardPage = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerType | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [playerToDelete, setPlayerToDelete] = useState<PlayerType | null>(null);
 
   const {
     players,
@@ -59,15 +62,21 @@ export const MasterDashboardPage = () => {
   };
 
   const handleDeletePlayer = async (player: PlayerType) => {
+    setPlayerToDelete(player);
+    setShowConfirmModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!playerToDelete) return;
     try {
-      const response = await fetch(`/api/players/${player.id}`, {
-        method: 'DELETE',
-      });
+      const response = await fetch(`/api/players/${playerToDelete.id}`, { method: 'DELETE' });
       if (!response.ok) throw new Error('Ошибка удаления');
-      // Стор перезагрузит страницу через сокет
     } catch (error) {
       console.error(error);
       alert('Не удалось удалить игрока');
+    } finally {
+      setShowConfirmModal(false);
+      setPlayerToDelete(null);
     }
   };
 
@@ -132,6 +141,16 @@ export const MasterDashboardPage = () => {
           onPlayerUpdated={handlePlayerUpdated}
         />
       )}
+
+      <ConfirmModal
+        isOpen={showConfirmModal}
+        message={`Удалить игрока "${playerToDelete?.name}"?`}
+        onConfirm={confirmDelete}
+        onCancel={() => {
+          setShowConfirmModal(false);
+          setPlayerToDelete(null);
+        }}
+      />
     </div>
   );
 };

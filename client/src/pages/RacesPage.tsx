@@ -4,12 +4,15 @@ import { RaceCard } from '../components/ui/RaceCard';
 import { useRaceStore } from '../stores/raceStore';
 import { CreateRaceModal } from '../components/ui/CreateRaceModal';
 import type { RaceType } from '../types';
+import ConfirmModal from '../components/ui/ConfirmModal';
 
 export const RacesPage = () => {
   const { races, initializeSocket, fetchRaces } = useRaceStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedRace, setSelectedRace] = useState<RaceType | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [raceToDelete, setRaceToDelete] = useState<RaceType | null>(null);
 
   useEffect(() => {
     initializeSocket();
@@ -21,18 +24,25 @@ export const RacesPage = () => {
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (race: RaceType) => {
-    if (!confirm(`Удалить расу "${race.name}"?`)) return;
+  const handleDelete = (race: RaceType) => {
+    setRaceToDelete(race);
+    setShowConfirmModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!raceToDelete) return;
     try {
-      const response = await fetch(`/api/races/${race.id}`, { method: 'DELETE' });
+      const response = await fetch(`/api/races/${raceToDelete.id}`, { method: 'DELETE' });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || `Ошибка ${response.status}: не удалось удалить расу`);
       }
-      // стор обновится через сокет
     } catch (error) {
       console.error(error);
       alert(error instanceof Error ? error.message : 'Не удалось удалить расу');
+    } finally {
+      setShowConfirmModal(false);
+      setRaceToDelete(null);
     }
   };
 
@@ -68,6 +78,16 @@ export const RacesPage = () => {
       )}
 
       {isCreateOpen && <CreateRaceModal onClose={() => setIsCreateOpen(false)} />}
+      
+      <ConfirmModal
+        isOpen={showConfirmModal}
+        message={`Удалить расу "${raceToDelete?.name}"?`}
+        onConfirm={confirmDelete}
+        onCancel={() => {
+          setShowConfirmModal(false);
+          setRaceToDelete(null);
+        }}
+      />
     </div>
   );
 };

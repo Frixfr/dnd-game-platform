@@ -5,6 +5,7 @@ import type { AbilityType, EffectType } from '../types';
 import { useAbilityStore } from '../stores/abilityStore';
 import { EditAbilityModal } from '../components/ui/EditAbilityModal';
 import { Pagination } from '../components/ui/Pagination';
+import ConfirmModal from '../components/ui/ConfirmModal';
 
 export const AbilitiesPage = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -12,6 +13,8 @@ export const AbilitiesPage = () => {
   const [selectedAbility, setSelectedAbility] = useState<AbilityType | null>(null);
   const [effects, setEffects] = useState<EffectType[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [abilityToDelete, setAbilityToDelete] = useState<AbilityType | null>(null);
 
   const {
     abilities,
@@ -70,17 +73,22 @@ export const AbilitiesPage = () => {
     fetchAbilities(currentPage, limit);
   };
 
-  const handleDeleteAbility = async (ability: AbilityType) => {
-    if (!confirm(`Удалить способность "${ability.name}"?`)) return;
+  const handleDeleteAbility = (ability: AbilityType) => {
+    setAbilityToDelete(ability);
+    setShowConfirmModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!abilityToDelete) return;
     try {
-      const response = await fetch(`/api/abilities/${ability.id}`, {
-        method: 'DELETE',
-      });
+      const response = await fetch(`/api/abilities/${abilityToDelete.id}`, { method: 'DELETE' });
       if (!response.ok) throw new Error('Ошибка удаления');
-      // Страница перезагрузится через сокет
     } catch (error) {
       console.error(error);
       alert('Не удалось удалить способность');
+    } finally {
+      setShowConfirmModal(false);
+      setAbilityToDelete(null);
     }
   };
 
@@ -153,6 +161,16 @@ export const AbilitiesPage = () => {
           effects={effects}
         />
       )}
+
+      <ConfirmModal
+        isOpen={showConfirmModal}
+        message={`Удалить способность "${abilityToDelete?.name}"?`}
+        onConfirm={confirmDelete}
+        onCancel={() => {
+          setShowConfirmModal(false);
+          setAbilityToDelete(null);
+        }}
+      />
     </div>
   );
 };

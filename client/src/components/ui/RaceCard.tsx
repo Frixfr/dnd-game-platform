@@ -10,9 +10,7 @@ interface RaceCardProps {
 export const RaceCard = ({ race, onClick, onDelete }: RaceCardProps) => {
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirm(`Удалить расу "${race.name}"?`)) {
-      onDelete();
-    }
+    if (onDelete) onDelete();
   };
 
   // Вспомогательная функция для отображения эффектов

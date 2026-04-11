@@ -25,9 +25,7 @@ export const ItemCard = ({ item, effects = [], onClick, onDelete }: ItemCardProp
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (onDelete && confirm(`Удалить предмет "${item.name}"?`)) {
-      onDelete();
-    }
+    if (onDelete) onDelete();
   };
 
   return (

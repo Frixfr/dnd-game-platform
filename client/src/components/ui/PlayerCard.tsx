@@ -34,9 +34,7 @@ export const PlayerCard = ({ player, onClick, disabled = false, onDelete }: Play
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (onDelete && confirm(`Удалить игрока "${player.name}"?`)) {
-      onDelete();
-    }
+    if (onDelete) onDelete();  // confirm теперь в родителе
   };
 
   return (
