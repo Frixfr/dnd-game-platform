@@ -25,9 +25,9 @@ export interface PlayerType {
   is_online: boolean;
   is_card_shown: boolean;
   created_at?: string;
-  abilities: AbilityType[];
-  items: ItemType[];
-  active_effects: EffectType[];
+  abilities: PlayerAbilityExtended[]; // изменено с AbilityType[]
+  items: PlayerItemExtended[]; // изменено с ItemType[]
+  active_effects: PlayerEffectExtended[]; // изменено с EffectType[]
   race_id: number | null;
   access_password?: string;
   final_stats?: {
@@ -64,9 +64,9 @@ export interface NpcType {
   is_card_shown: boolean;
   aggression: 0 | 1 | 2;
   created_at?: string;
-  abilities?: AbilityType[];
-  items?: ItemType[];
-  active_effects?: EffectType[];
+  abilities: PlayerAbilityExtended[]; // изменено с optional AbilityType[] на обязательный расширенный
+  items: PlayerItemExtended[]; // изменено с optional ItemType[] на обязательный расширенный
+  active_effects: PlayerEffectExtended[]; // изменено с optional EffectType[] на обязательный расширенный
   race_id: number | null;
   final_stats?: {
     health: number;
