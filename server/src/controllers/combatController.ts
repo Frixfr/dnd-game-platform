@@ -19,6 +19,8 @@ export const combatController = {
   async startNewSession(req: Request, res: Response) {
     try {
       const session = await combatService.startNewSession();
+      // FIX: added emitCombatUpdate
+      if (session) await combatService.emitCombatUpdate(session.id);
       res.json({ success: true, session });
     } catch (error) {
       console.error(error);
@@ -65,6 +67,8 @@ export const combatController = {
     }
     try {
       await combatService.reorderParticipants(sessionId, participantIds);
+      // FIX: added emitCombatUpdate
+      await combatService.emitCombatUpdate(sessionId);
       res.json({ success: true });
     } catch (error) {
       console.error(error);
@@ -78,6 +82,8 @@ export const combatController = {
       return res.status(400).json({ error: "sessionId обязателен" });
     try {
       await combatService.endRound(sessionId);
+      // FIX: added emitCombatUpdate
+      await combatService.emitCombatUpdate(sessionId);
       res.json({ success: true });
     } catch (error) {
       console.error(error);
@@ -92,6 +98,8 @@ export const combatController = {
     }
     try {
       await combatService.updateHealth(sessionId, entityType, entityId, health);
+      // FIX: added emitCombatUpdate
+      await combatService.emitCombatUpdate(sessionId);
       res.json({ success: true });
     } catch (error) {
       console.error(error);
@@ -105,6 +113,8 @@ export const combatController = {
       return res.status(400).json({ error: "sessionId обязателен" });
     try {
       await combatService.nextTurn(sessionId);
+      // FIX: added emitCombatUpdate
+      await combatService.emitCombatUpdate(sessionId);
       res.json({ success: true });
     } catch (error) {
       console.error(error);
@@ -126,6 +136,8 @@ export const combatController = {
         effectId,
         durationTurns,
       );
+      // FIX: added emitCombatUpdate
+      await combatService.emitCombatUpdate(sessionId);
       res.json({ success: true });
     } catch (error) {
       console.error(error);
@@ -145,6 +157,8 @@ export const combatController = {
         entityId,
         abilityId,
       );
+      // FIX: added emitCombatUpdate
+      await combatService.emitCombatUpdate(sessionId);
       res.json({ success: true });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
