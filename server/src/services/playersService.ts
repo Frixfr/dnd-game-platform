@@ -258,17 +258,12 @@ export const playersService = {
   },
 
   async toggleAbility(playerId: number, abilityId: number, is_active: boolean) {
-    // Используем сервис для обновления активности (он сам обновит эффект)
-    const [updated] = await db("player_abilities")
-      .where({ player_id: playerId, ability_id: abilityId })
-      .update({ is_active })
-      .returning("*");
-    if (!updated) throw new Error("Способность не найдена");
-
-    // Дополнительно: если способность пассивная, нужно обновить активный эффект
-    // Вызовем playerAbilitiesService.create с новым is_active, чтобы он создал/удалил эффект
-    await playerAbilitiesService.create(playerId, abilityId, is_active);
-
+    // Используем единый метод toggleActive из playerAbilitiesService
+    const updated = await playerAbilitiesService.toggleActive(
+      playerId,
+      abilityId,
+      is_active,
+    );
     return updated;
   },
 

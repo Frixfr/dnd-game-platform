@@ -314,12 +314,12 @@ export const npcsService = {
   },
 
   async toggleAbility(npcId: number, abilityId: number, is_active: boolean) {
-    const [updated] = await db("npc_abilities")
-      .where({ npc_id: npcId, ability_id: abilityId })
-      .update({ is_active })
-      .returning("*");
-    if (!updated) throw new Error("Способность не найдена");
-    await npcAbilitiesService.create(npcId, abilityId, is_active);
+    // Используем единый метод toggleActive из npcAbilitiesService
+    const updated = await npcAbilitiesService.toggleActive(
+      npcId,
+      abilityId,
+      is_active,
+    );
     return updated;
   },
 

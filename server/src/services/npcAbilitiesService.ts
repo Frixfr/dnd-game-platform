@@ -105,6 +105,50 @@ export const npcAbilitiesService = {
     return true;
   },
 
+  async toggleActive(npc_id: number, ability_id: number, is_active: boolean) {
+    const ability = await db("abilities").where("id", ability_id).first();
+    if (!ability) throw new Error("Ability not found");
+    const [updated] = await db("npc_abilities")
+      .where({ npc_id, ability_id })
+      .update({ is_active })
+      .returning("*");
+    if (!updated) throw new Error("NPC ability not found");
+
+    // Обновляем пассивный эффект при переключении активности
+    if (ability.ability_type === "passive" && ability.effect_id) {
+      if (is_active) {
+        const effect = await db("effects")
+          .where("id", ability.effect_id)
+          .first();
+        if (effect) {
+          const existing = await db("npc_active_effects")
+            .where({
+              npc_id,
+              effect_id: ability.effect_id,
+              source_type: "ability",
+              source_id: ability_id,
+            })
+            .first();
+          if (!existing) {
+            await db("npc_active_effects").insert({
+              npc_id,
+              effect_id: ability.effect_id,
+              source_type: "ability",
+              source_id: ability_id,
+              remaining_turns: effect.duration_turns,
+              remaining_days: effect.duration_days,
+            });
+          }
+        }
+      } else {
+        await db("npc_active_effects")
+          .where({ npc_id, source_type: "ability", source_id: ability_id })
+          .delete();
+      }
+    }
+    return updated;
+  },
+
   async useAbility(
     npcId: number,
     abilityId: number,
