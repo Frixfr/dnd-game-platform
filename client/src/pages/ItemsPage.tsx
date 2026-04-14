@@ -1,6 +1,7 @@
+// client/src/pages/ItemsPage.tsx
 import { useState, useEffect } from 'react';
 import { CreateItemModal } from '../components/ui/CreateItemModal';
-import type { EffectType, ItemType } from '../types';
+import type { ItemType } from '../types';
 import { useItemStore } from '../stores/itemStore';
 import { ItemCard } from '../components/ui/ItemCard';
 import { EditItemModal } from '../components/ui/EditItemModal';
@@ -12,7 +13,6 @@ export const ItemsPage = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<ItemType | null>(null);
-  const [effects, setEffects] = useState<EffectType[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingFullItem, setLoadingFullItem] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -31,9 +31,7 @@ export const ItemsPage = () => {
 
   useEffect(() => {
     initializeSocket();
-    return () => {
-      disconnectSocket();
-    };
+    return () => disconnectSocket?.();
   }, [initializeSocket, disconnectSocket]);
 
   useEffect(() => {
@@ -44,21 +42,6 @@ export const ItemsPage = () => {
     };
     load();
   }, [currentPage, limit, fetchItems]);
-
-  useEffect(() => {
-    const fetchEffects = async () => {
-      try {
-        const response = await fetch('/api/effects?limit=9999');
-        if (!response.ok) throw new Error('Ошибка загрузки эффектов');
-        const result = await response.json();
-        const effectsData = Array.isArray(result) ? result : result.data;
-        setEffects(effectsData);
-      } catch (error) {
-        console.error('Ошибка загрузки эффектов:', error);
-      }
-    };
-    fetchEffects();
-  }, []);
 
   const handleItemClick = async (item: ItemType) => {
     setLoadingFullItem(true);
@@ -72,7 +55,7 @@ export const ItemsPage = () => {
       }
       setIsEditModalOpen(true);
     } catch (error) {
-      console.error('Ошибка загрузки данных предмета:', error);
+      console.error(error);
       setSelectedItem(item);
       setIsEditModalOpen(true);
     } finally {
@@ -88,32 +71,33 @@ export const ItemsPage = () => {
 
   const handleItemCreated = () => {
     setIsCreateModalOpen(false);
+    fetchItems(currentPage, limit);
   };
 
   const handleDeleteItemFromCard = (item: ItemType) => {
     setItemToDelete(item);
     setShowConfirmModal(true);
-    };
+  };
 
-    const confirmDelete = async () => {
+  const confirmDelete = async () => {
     if (!itemToDelete) return;
     try {
-        const response = await fetch(`/api/items/${itemToDelete.id}`, { method: 'DELETE' });
-        if (!response.ok) throw new Error('Ошибка удаления предмета');
-        alert(`Предмет "${itemToDelete.name}" удален`);
+      const response = await fetch(`/api/items/${itemToDelete.id}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('Ошибка удаления');
+      alert(`Предмет "${itemToDelete.name}" удален`);
+      fetchItems(currentPage, limit);
     } catch (error: unknown) {
-        console.error('Ошибка удаления:', error);
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        if (errorMessage.includes('назначена игрокам')) {
-        showError(`Невозможно удалить предмет "${itemToDelete.name}", так как он назначен игрокам. Сначала удалите его у всех игроков.`);
-        } else {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('используется')) {
+        showError(`Невозможно удалить предмет "${itemToDelete.name}", так как он используется игроками или NPC.`);
+      } else {
         showError('Не удалось удалить предмет');
-        }
+      }
     } finally {
-        setShowConfirmModal(false);
-        setItemToDelete(null);
+      setShowConfirmModal(false);
+      setItemToDelete(null);
     }
-    };
+  };
 
   const totalPages = Math.ceil(itemsTotal / limit);
 
@@ -122,28 +106,15 @@ export const ItemsPage = () => {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold">Панель предметов</h1>
-          <p className="text-gray-600 mt-1">
-            Всего предметов: <span className="font-semibold">{itemsTotal}</span>
-          </p>
+          <p className="text-gray-600 mt-1">Всего предметов: <span className="font-semibold">{itemsTotal}</span></p>
         </div>
-        <button
-          onClick={() => setIsCreateModalOpen(true)}
-          className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
-        >
-          + Создать предмет
-        </button>
+        <button onClick={() => setIsCreateModalOpen(true)} className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">+ Создать предмет</button>
       </div>
 
       {loading ? (
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-          <p className="mt-2 text-gray-600">Загрузка предметов...</p>
-        </div>
+        <div className="text-center py-12">Загрузка...</div>
       ) : items.length === 0 ? (
-        <div className="text-center py-12 text-gray-500 bg-gray-50 rounded-lg">
-          <p className="text-lg mb-2">Нет созданных предметов</p>
-          <p className="mb-4">Нажмите кнопку выше для создания первого предмета</p>
-        </div>
+        <div className="text-center py-12 text-gray-500">Нет созданных предметов</div>
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -151,60 +122,19 @@ export const ItemsPage = () => {
               <ItemCard
                 key={item.id}
                 item={item}
-                effects={effects}
                 onClick={() => handleItemClick(item)}
                 onDelete={() => handleDeleteItemFromCard(item)}
               />
             ))}
           </div>
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={(page) => fetchItems(page, limit)}
-          />
+          <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={(page) => fetchItems(page, limit)} />
         </>
       )}
 
-      {loadingFullItem && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-xl">
-            <div className="text-center">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mb-4"></div>
-              <p className="text-gray-700">Загрузка данных предмета...</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {isCreateModalOpen && (
-        <CreateItemModal
-          onClose={() => setIsCreateModalOpen(false)}
-          effects={effects}
-          onItemCreated={handleItemCreated}
-        />
-      )}
-
-      {isEditModalOpen && selectedItem && (
-        <EditItemModal
-          item={selectedItem}
-          onClose={() => {
-            setIsEditModalOpen(false);
-            setSelectedItem(null);
-          }}
-          onItemUpdated={handleItemUpdated}
-          mode="edit"
-        />
-      )}
-
-      <ConfirmModal
-        isOpen={showConfirmModal}
-        message={`Вы уверены, что хотите удалить предмет "${itemToDelete?.name}"?`}
-        onConfirm={confirmDelete}
-        onCancel={() => {
-            setShowConfirmModal(false);
-            setItemToDelete(null);
-        }}
-        />
+      {loadingFullItem && <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"><div className="bg-white p-6 rounded">Загрузка...</div></div>}
+      {isCreateModalOpen && <CreateItemModal onClose={() => setIsCreateModalOpen(false)} onItemCreated={handleItemCreated} />}
+      {isEditModalOpen && selectedItem && <EditItemModal item={selectedItem} onClose={() => { setIsEditModalOpen(false); setSelectedItem(null); }} onItemUpdated={handleItemUpdated} mode="edit" />}
+      <ConfirmModal isOpen={showConfirmModal} message={`Удалить "${itemToDelete?.name}"?`} onConfirm={confirmDelete} onCancel={() => { setShowConfirmModal(false); setItemToDelete(null); }} />
     </div>
   );
 };

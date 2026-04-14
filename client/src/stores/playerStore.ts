@@ -1,5 +1,4 @@
 // client/src/stores/playerStore.ts
-
 import { create } from "zustand";
 import type { PlayerType } from "../types";
 import { socket } from "../lib/socket";
@@ -28,6 +27,14 @@ interface PlayerStore {
   updatePlayer: (updatedPlayer: PlayerType) => void;
   deletePlayer: (playerId: number) => void;
   fetchAllPlayers: () => Promise<PlayerType[]>;
+  // Переименованные методы
+  executeUseItem: (playerId: number, playerItemId: number) => Promise<void>;
+  executeDiscardItem: (playerId: number, playerItemId: number) => Promise<void>;
+  executeTransferItem: (
+    playerId: number,
+    playerItemId: number,
+    targetPlayerId: number,
+  ) => Promise<void>;
 }
 
 let playerSocketInitialized = false;
@@ -123,5 +130,46 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
 
   setPlayers: (players, total, page, limit) => {
     set({ players, playersTotal: total, currentPage: page, limit });
+  },
+
+  executeUseItem: async (playerId: number, playerItemId: number) => {
+    const response = await fetch(
+      `/api/player-items/${playerId}/items/${playerItemId}/use`,
+      { method: "POST" },
+    );
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text);
+    }
+  },
+
+  executeDiscardItem: async (playerId: number, playerItemId: number) => {
+    const response = await fetch(
+      `/api/player-items/${playerId}/items/${playerItemId}/discard`,
+      { method: "DELETE" },
+    );
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text);
+    }
+  },
+
+  executeTransferItem: async (
+    playerId: number,
+    playerItemId: number,
+    targetPlayerId: number,
+  ) => {
+    const response = await fetch(
+      `/api/player-items/${playerId}/items/${playerItemId}/transfer`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetPlayerId }),
+      },
+    );
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text);
+    }
   },
 }));

@@ -1,461 +1,170 @@
 // client/src/components/ui/EditItemModal.tsx
 import { useState, useEffect } from 'react';
 import type { ItemType, EffectType } from '../../types';
+import { useNotification } from '../../hooks/useNotification';
 
 interface EditItemModalProps {
   item: ItemType | null;
   onClose: () => void;
   onItemUpdated: (updatedItem: ItemType) => void;
-  onItemCreated?: (newItem: ItemType) => void;
   mode: 'edit' | 'create';
 }
 
-// Конфигурация редкостей
 const rarityConfig = {
-  common: { label: 'Обычный', color: 'text-gray-700' },
-  uncommon: { label: 'Необычный', color: 'text-green-700' },
-  rare: { label: 'Редкий', color: 'text-blue-700' },
-  epic: { label: 'Эпический', color: 'text-purple-700' },
-  legendary: { label: 'Легендарный', color: 'text-yellow-700' },
-  mythical: { label: 'Мифический', color: 'text-red-700' },
-  story: { label: 'Сюжетный', color: 'text-orange-700' }
+  common: 'Обычный', uncommon: 'Необычный', rare: 'Редкий',
+  epic: 'Эпический', legendary: 'Легендарный', mythical: 'Мифический', story: 'Сюжетный'
 } as const;
-
 type RarityType = keyof typeof rarityConfig;
 
-export const EditItemModal = ({ 
-  item, 
-  onClose, 
-  onItemUpdated,
-  onItemCreated,
-  mode = 'edit' 
-}: EditItemModalProps) => {
+export const EditItemModal = ({ item, onClose, onItemUpdated, mode = 'edit' }: EditItemModalProps) => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     rarity: 'common' as RarityType,
     base_quantity: 1,
-    active_effect_id: null as number | null,
-    passive_effect_id: null as number | null
+    is_deletable: true,
+    is_usable: true,
+    infinite_uses: false,
+    active_effect_ids: [] as number[],
+    passive_effect_ids: [] as number[],
   });
-  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [allEffects, setAllEffects] = useState<EffectType[]>([]);
-  const [effectsLoading, setEffectsLoading] = useState(false);
-  
-  // Загрузка всех эффектов для выпадающих списков
+  const { showError } = useNotification();
+
   useEffect(() => {
-    const loadEffects = async () => {
-      setEffectsLoading(true);
-      try {
-        const response = await fetch('/api/effects');
-        if (!response.ok) throw new Error('Ошибка загрузки эффектов');
-        const data = await response.json();
-        setAllEffects(data || []);
-      } catch (err) {
-        console.error('Ошибка загрузки эффектов:', err);
-      } finally {
-        setEffectsLoading(false);
-      }
-    };
-    
-    loadEffects();
+    fetch('/api/effects?limit=9999')
+      .then(res => res.json())
+      .then(data => setAllEffects(Array.isArray(data) ? data : data.data || []))
+      .catch(console.error);
   }, []);
-  
-  // Инициализация формы при открытии модального окна
+
   useEffect(() => {
     if (mode === 'edit' && item) {
       setFormData({
         name: item.name || '',
         description: item.description || '',
-        rarity: item.rarity || 'common',
+        rarity: item.rarity as RarityType,
         base_quantity: item.base_quantity || 1,
-        active_effect_id: item.active_effect_id || null,
-        passive_effect_id: item.passive_effect_id || null
+        is_deletable: item.is_deletable ?? true,
+        is_usable: item.is_usable ?? true,
+        infinite_uses: item.infinite_uses ?? false,
+        active_effect_ids: (item.active_effects || []).map(e => e.id),
+        passive_effect_ids: (item.passive_effects || []).map(e => e.id),
       });
     } else if (mode === 'create') {
       setFormData({
-        name: '',
-        description: '',
-        rarity: 'common',
-        base_quantity: 1,
-        active_effect_id: null,
-        passive_effect_id: null
+        name: '', description: '', rarity: 'common', base_quantity: 1,
+        is_deletable: true, is_usable: true, infinite_uses: false,
+        active_effect_ids: [], passive_effect_ids: [],
       });
     }
   }, [item, mode]);
-  
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target;
-    
-    if (type === 'number') {
-      setFormData({
-        ...formData,
-        [name]: value === '' ? 0 : parseInt(value, 10) || 0
-      });
-    } else if (name === 'active_effect_id' || name === 'passive_effect_id') {
-      setFormData({
-        ...formData,
-        [name]: value === '' ? null : parseInt(value, 10)
-      });
-    } else {
-      setFormData({
-        ...formData,
-        [name]: value
-      });
-    }
+
+  const handleMultiSelect = (field: 'active_effect_ids' | 'passive_effect_ids', e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selected = Array.from(e.target.selectedOptions, opt => Number(opt.value));
+    setFormData(prev => ({ ...prev, [field]: selected }));
   };
-  
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    
-    // Валидация
     if (!formData.name.trim()) {
-      setError('Название предмета обязательно');
+      setError('Название обязательно');
       setLoading(false);
       return;
     }
-    
-    if (formData.name.length > 100) {
-      setError('Название не должно превышать 100 символов');
-      setLoading(false);
-      return;
-    }
-    
-    if (formData.base_quantity < 1) {
-      setError('Базовое количество должно быть не менее 1');
-      setLoading(false);
-      return;
-    }
-    
-    if (formData.base_quantity > 999) {
-      setError('Базовое количество не должно превышать 999');
-      setLoading(false);
-      return;
-    }
-    
-    // Проверка уникальности эффектов (не обязательно, но хорошая практика)
-    if (formData.active_effect_id && formData.passive_effect_id && 
-        formData.active_effect_id === formData.passive_effect_id) {
-      setError('Активный и пассивный эффекты не могут быть одинаковыми');
-      setLoading(false);
-      return;
-    }
-    
     try {
       let url = '/api/items';
       let method = 'POST';
-      
       if (mode === 'edit' && item) {
         url = `/api/items/${item.id}`;
         method = 'PUT';
       }
-      
       const response = await fetch(url, {
         method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
-      
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Ошибка сохранения предмета');
+        const errData = await response.json();
+        throw new Error(errData.error || 'Ошибка сохранения');
       }
-      
       const result = await response.json();
-      
-      if (mode === 'edit' && item) {
-        onItemUpdated(result.item || result);
-      } else if (mode === 'create' && onItemCreated) {
-        onItemCreated(result.item || result);
-      }
-      
+      onItemUpdated(result.item || result);
       onClose();
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Произошла ошибка при сохранении предмета';
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Неизвестная ошибка';
       setError(message);
-      console.error('Ошибка сохранения:', err);
+      showError(message);
     } finally {
       setLoading(false);
     }
   };
-  
+
   const handleDelete = async () => {
     if (mode !== 'edit' || !item) return;
-    
-    if (!confirm(`Вы уверены, что хотите удалить предмет "${item.name}"? Это действие нельзя отменить.`)) {
-      return;
-    }
-    
+    if (!confirm(`Удалить "${item.name}"?`)) return;
     setLoading(true);
-    setError(null);
-    
     try {
-      const response = await fetch(`/api/items/${item.id}`, {
-        method: 'DELETE',
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Ошибка удаления предмета');
+      const res = await fetch(`/api/items/${item.id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Ошибка удаления');
       }
-      
       onClose();
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Произошла ошибка при удалении предмета';
-      setError(message);
-      console.error('Ошибка удаления:', err);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Неизвестная ошибка';
+      showError(message);
     } finally {
       setLoading(false);
     }
-  };
-  
-  const modalTitle = mode === 'edit' 
-    ? `Редактирование предмета` 
-    : 'Создание нового предмета';
-  
-  // Функция для получения информации об эффекте
-  const getEffectInfo = (effectId: number | null) => {
-    if (!effectId || allEffects.length === 0) return null;
-    const effect = allEffects.find(e => e.id === effectId);
-    if (!effect) return <p className="text-sm text-gray-600">Эффект не найден</p>;
-    
-    return (
-      <div className="text-sm space-y-1">
-        <p><span className="font-medium">Название:</span> {effect.name}</p>
-        <p><span className="font-medium">Описание:</span> {effect.description}</p>
-        <p><span className="font-medium">Атрибут:</span> {effect.attribute || 'нет'}</p>
-        <p><span className="font-medium">Модификатор:</span> {effect.modifier > 0 ? '+' : ''}{effect.modifier}</p>
-        {effect.is_permanent ? (
-          <p><span className="font-medium">Тип:</span> Постоянный</p>
-        ) : (
-          <>
-            {effect.duration_turns && (
-              <p><span className="font-medium">Длительность:</span> {effect.duration_turns} ход(ов)</p>
-            )}
-            {effect.duration_days && (
-              <p><span className="font-medium">Длительность:</span> {effect.duration_days} дней</p>
-            )}
-          </>
-        )}
-      </div>
-    );
   };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 md:p-4">
-      <div className="bg-white rounded-lg shadow-xl w-[calc(100%-1rem)] md:w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold">{modalTitle}</h2>
-            <button
-              onClick={onClose}
-              className="text-gray-500 hover:text-gray-700 text-2xl"
-              disabled={loading}
-            >
-              &times;
-            </button>
-          </div>
-          
-          {error && (
-            <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-              {error}
-            </div>
-          )}
-          
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Название */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Название предмета *
-              </label>
-              <input
-                type="text"
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-                maxLength={100}
-                disabled={loading}
-                placeholder="Введите название предмета"
-              />
-            </div>
-            
-            {/* Описание */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Описание
-              </label>
-              <textarea
-                name="description"
-                value={formData.description}
-                onChange={handleInputChange}
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                disabled={loading}
-                placeholder="Введите описание предмета"
-              />
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              {/* Редкость */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Редкость *
-                </label>
-                <select
-                  name="rarity"
-                  value={formData.rarity}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  disabled={loading}
-                >
-                  {Object.entries(rarityConfig).map(([key, config]) => (
-                    <option key={key} value={key}>
-                      {config.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              
-              {/* Базовое количество */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Базовое количество *
-                </label>
-                <input
-                  type="number"
-                  name="base_quantity"
-                  value={formData.base_quantity}
-                  onChange={handleInputChange}
-                  min="1"
-                  max="999"
-                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                  disabled={loading}
-                />
-                <p className="text-xs text-gray-500 mt-1">Минимум 1, максимум 999</p>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              {/* Активный эффект */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Активный эффект
-                </label>
-                <select
-                  name="active_effect_id"
-                  value={formData.active_effect_id || ''}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  disabled={loading || effectsLoading}
-                >
-                  <option value="">Без активного эффекта</option>
-                  {effectsLoading ? (
-                    <option disabled>Загрузка эффектов...</option>
-                  ) : (
-                    allEffects.filter(effect => !effect.is_permanent).map(effect => (
-                      <option key={`active-${effect.id}`} value={effect.id}>
-                        {effect.name} (ID: {effect.id})
-                      </option>
-                    ))
-                  )}
-                </select>
-              </div>
-              
-              {/* Пассивный эффект */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Пассивный эффект
-                </label>
-                <select
-                  name="passive_effect_id"
-                  value={formData.passive_effect_id || ''}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  disabled={loading || effectsLoading}
-                >
-                  <option value="">Без пассивного эффекта</option>
-                  {effectsLoading ? (
-                    <option disabled>Загрузка эффектов...</option>
-                  ) : (
-                    allEffects.filter(effect => effect.is_permanent).map(effect => (
-                      <option key={`passive-${effect.id}`} value={effect.id}>
-                        {effect.name} (ID: {effect.id})
-                      </option>
-                    ))
-                  )}
-                </select>
-              </div>
-            </div>
-            
-            {/* Информация о выбранных эффектах */}
-            {(formData.active_effect_id || formData.passive_effect_id) && (
-              <div className="space-y-3">
-                {/* Активный эффект информация */}
-                {formData.active_effect_id && (
-                  <div className="p-3 bg-blue-50 rounded border border-blue-200">
-                    <h4 className="font-medium text-blue-800 mb-2">Активный эффект:</h4>
-                    {getEffectInfo(formData.active_effect_id)}
-                  </div>
-                )}
-                
-                {/* Пассивный эффект информация */}
-                {formData.passive_effect_id && (
-                  <div className="p-3 bg-green-50 rounded border border-green-200">
-                    <h4 className="font-medium text-green-800 mb-2">Пассивный эффект:</h4>
-                    {getEffectInfo(formData.passive_effect_id)}
-                  </div>
-                )}
-              </div>
-            )}        
-            
-            {/* Кнопки действий */}
-            <div className="flex justify-between pt-6 border-t">
-              <div>
-                {mode === 'edit' && item && (
-                  <button
-                    type="button"
-                    onClick={handleDelete}
-                    className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled={loading}
-                  >
-                    {loading ? 'Удаление...' : 'Удалить'}
-                  </button>
-                )}
-              </div>
-              
-              <div className="flex space-x-3">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500"
-                  disabled={loading}
-                >
-                  Отмена
-                </button>
-                
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={loading}
-                >
-                  {loading 
-                    ? (mode === 'edit' ? 'Сохранение...' : 'Создание...') 
-                    : (mode === 'edit' ? 'Сохранить изменения' : 'Создать предмет')
-                  }
-                </button>
-              </div>
-            </div>
-          </form>
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold">{mode === 'edit' ? 'Редактировать предмет' : 'Создать предмет'}</h2>
+          <button onClick={onClose} className="text-gray-500 text-2xl">&times;</button>
         </div>
+        {error && <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">{error}</div>}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input type="text" name="name" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="Название" className="w-full p-2 border rounded" required />
+          <textarea name="description" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} placeholder="Описание" rows={3} className="w-full p-2 border rounded" />
+          <div className="grid grid-cols-2 gap-4">
+            <select value={formData.rarity} onChange={e => setFormData({...formData, rarity: e.target.value as RarityType})} className="p-2 border rounded">
+              {Object.entries(rarityConfig).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+            <input type="number" min="1" value={formData.base_quantity} onChange={e => setFormData({...formData, base_quantity: Number(e.target.value)})} className="p-2 border rounded" />
+          </div>
+          <div className="flex gap-4">
+            <label><input type="checkbox" checked={formData.is_deletable} onChange={e => setFormData({...formData, is_deletable: e.target.checked})} /> Выбрасываемый</label>
+            <label><input type="checkbox" checked={formData.is_usable} onChange={e => setFormData({...formData, is_usable: e.target.checked})} /> Используемый</label>
+            <label><input type="checkbox" checked={formData.infinite_uses} onChange={e => setFormData({...formData, infinite_uses: e.target.checked})} /> Бесконечный</label>
+          </div>
+          <div>
+            <label className="block text-sm font-medium">Активные эффекты (Ctrl+клик)</label>
+            <select multiple value={formData.active_effect_ids.map(String)} onChange={e => handleMultiSelect('active_effect_ids', e)} className="w-full p-2 border rounded h-32">
+              {allEffects.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium">Пассивные эффекты (Ctrl+клик)</label>
+            <select multiple value={formData.passive_effect_ids.map(String)} onChange={e => handleMultiSelect('passive_effect_ids', e)} className="w-full p-2 border rounded h-32">
+              {allEffects.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+            </select>
+          </div>
+          <div className="flex justify-between pt-4 border-t">
+            {mode === 'edit' && <button type="button" onClick={handleDelete} className="px-4 py-2 bg-red-500 text-white rounded">Удалить</button>}
+            <div className="flex gap-2 ml-auto">
+              <button type="button" onClick={onClose} className="px-4 py-2 border rounded">Отмена</button>
+              <button type="submit" disabled={loading} className="px-4 py-2 bg-blue-500 text-white rounded">Сохранить</button>
+            </div>
+          </div>
+        </form>
       </div>
     </div>
   );

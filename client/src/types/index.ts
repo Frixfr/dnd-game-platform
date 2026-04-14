@@ -25,9 +25,9 @@ export interface PlayerType {
   is_online: boolean;
   is_card_shown: boolean;
   created_at?: string;
-  abilities: PlayerAbilityExtended[]; // изменено с AbilityType[]
-  items: PlayerItemExtended[]; // изменено с ItemType[]
-  active_effects: PlayerEffectExtended[]; // изменено с EffectType[]
+  abilities: PlayerAbilityExtended[];
+  items: PlayerItemExtended[];
+  active_effects: PlayerEffectExtended[];
   race_id: number | null;
   access_password?: string;
   final_stats?: {
@@ -64,9 +64,9 @@ export interface NpcType {
   is_card_shown: boolean;
   aggression: 0 | 1 | 2;
   created_at?: string;
-  abilities: PlayerAbilityExtended[]; // изменено с optional AbilityType[] на обязательный расширенный
-  items: PlayerItemExtended[]; // изменено с optional ItemType[] на обязательный расширенный
-  active_effects: PlayerEffectExtended[]; // изменено с optional EffectType[] на обязательный расширенный
+  abilities: PlayerAbilityExtended[];
+  items: PlayerItemExtended[];
+  active_effects: PlayerEffectExtended[];
   race_id: number | null;
   final_stats?: {
     health: number;
@@ -117,7 +117,6 @@ export interface EffectType {
   tags: string[];
 }
 
-// Добавляем тип для редкости предметов
 export type RarityType =
   | "common"
   | "uncommon"
@@ -127,35 +126,32 @@ export type RarityType =
   | "mythical"
   | "story";
 
-// Основной интерфейс предмета
 export interface ItemType {
   id: number;
   name: string;
   description: string | null;
   rarity: RarityType;
   base_quantity: number;
-  active_effect_id: number | null;
-  passive_effect_id: number | null;
   created_at?: string;
   updated_at?: string;
   quantity?: number;
   is_equipped?: number;
-  active_effect_name?: string | null;
-  passive_effect_name?: string | null;
+  is_deletable: boolean;
+  is_usable: boolean;
+  infinite_uses: boolean;
+  active_effects?: EffectType[];
+  passive_effects?: EffectType[];
 }
 
-// Расширенный тип предмета с загруженными эффектами
 export type ItemWithEffects = ItemType & {
   active_effect?: EffectType | null;
   passive_effect?: EffectType | null;
 };
 
-// Тип для способности с загруженным эффектом
 export type AbilityWithEffect = AbilityType & {
   effect?: EffectType | null;
 };
 
-// Дополнительные типы для будущего расширения
 export interface InventoryItem {
   id: number;
   name: string;
@@ -163,22 +159,19 @@ export interface InventoryItem {
   description?: string;
 }
 
-// Расширенный тип способности (с полями из player_abilities)
 export interface PlayerAbilityExtended extends AbilityType {
-  is_active: number; // 0 или 1, как в AbilityType
+  is_active: number;
   effect?: EffectType | null;
-  remaining_cooldown_turns?: number; // количество ходов до окончания перезарядки (0 или null = нет кулдауна)
+  remaining_cooldown_turns?: number;
 }
 
-// Расширенный тип предмета (с полями из player_items)
 export interface PlayerItemExtended extends ItemType {
   quantity: number;
-  is_equipped: number; // 0 или 1 (в БД и API используется number)
+  is_equipped: number;
   active_effect?: EffectType | null;
   passive_effect?: EffectType | null;
 }
 
-// Расширенный тип активного эффекта
 export interface PlayerEffectExtended extends EffectType {
   source_type: "ability" | "item" | "admin";
   source_id: number | null;
@@ -187,7 +180,6 @@ export interface PlayerEffectExtended extends EffectType {
   applied_at: string;
 }
 
-// Combat types
 export interface CombatSession {
   id: number;
   is_active: boolean;

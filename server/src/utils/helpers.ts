@@ -1,15 +1,26 @@
 // server/src/utils/helpers.ts
 
 import { db } from "../db/index.js";
+import { itemsService } from "../services/itemsService.js";
 import type {
   Player,
   Effect,
-  Item,
   NPC,
   FullPlayerData,
   FullNPCData,
 } from "../types/index.js";
 
+// Безопасный парсинг JSON
+function safeJsonParse(str: string | null, defaultValue: any = []) {
+  if (!str) return defaultValue;
+  try {
+    return JSON.parse(str);
+  } catch {
+    return defaultValue;
+  }
+}
+
+// Обобщённая функция расчёта финальных характеристик
 export function calculateFinalStatsGeneric<
   T extends {
     health: number;
@@ -25,7 +36,7 @@ export function calculateFinalStatsGeneric<
 >(
   entity: T,
   activeEffects: Effect[],
-  items: (Item & { is_equipped: boolean; passive_effect?: Effect | null })[],
+  passiveEffectsFromItems: Effect[],
 ): Pick<
   T,
   | "health"
@@ -38,50 +49,36 @@ export function calculateFinalStatsGeneric<
   | "wisdom"
   | "charisma"
 > {
-  // Инициализация финальных статов копией базовых
-  const finalStats = {
-    health: entity.health,
-    max_health: entity.max_health,
-    armor: entity.armor,
-    strength: entity.strength,
-    agility: entity.agility,
-    intelligence: entity.intelligence,
-    physique: entity.physique,
-    wisdom: entity.wisdom,
-    charisma: entity.charisma,
-  };
+  const finalStats = { ...entity };
 
-  // Применяем активные эффекты
   activeEffects.forEach((effect) => {
-    if (effect.attribute && effect.modifier) {
+    if (effect.attribute && typeof effect.modifier === "number") {
       const attr = effect.attribute as keyof typeof finalStats;
-      if (finalStats[attr] !== undefined) {
-        finalStats[attr] += effect.modifier;
+      const current = finalStats[attr];
+      // Убеждаемся, что текущее значение - число
+      if (typeof current === "number") {
+        finalStats[attr] = (current + effect.modifier) as T[keyof T];
       }
     }
   });
 
-  // Применяем пассивные эффекты от экипированных предметов
-  items
-    .filter((item) => item.is_equipped && item.passive_effect)
-    .forEach((item) => {
-      const effect = item.passive_effect!;
-      if (effect.attribute && effect.modifier) {
-        const attr = effect.attribute as keyof typeof finalStats;
-        if (finalStats[attr] !== undefined) {
-          finalStats[attr] += effect.modifier;
-        }
+  passiveEffectsFromItems.forEach((effect) => {
+    if (effect.attribute && typeof effect.modifier === "number") {
+      const attr = effect.attribute as keyof typeof finalStats;
+      const current = finalStats[attr];
+      if (typeof current === "number") {
+        finalStats[attr] = (current + effect.modifier) as T[keyof T];
       }
-    });
+    }
+  });
 
   return finalStats;
 }
 
-// Расчет финальных характеристик игрока
 export function calculateFinalStats(
   basePlayer: Player,
   activeEffects: Effect[],
-  items: (Item & { is_equipped: boolean; passive_effect?: Effect | null })[],
+  passiveEffectsFromItems: Effect[],
 ): Omit<
   Player,
   | "id"
@@ -94,14 +91,17 @@ export function calculateFinalStats(
   | "created_at"
   | "race_id"
 > {
-  return calculateFinalStatsGeneric(basePlayer, activeEffects, items);
+  return calculateFinalStatsGeneric(
+    basePlayer,
+    activeEffects,
+    passiveEffectsFromItems,
+  );
 }
 
-// Расчет финальных характеристик NPC
 export function calculateNpcFinalStats(
   baseNpc: NPC,
   activeEffects: Effect[],
-  items: (Item & { is_equipped: boolean; passive_effect?: Effect | null })[],
+  passiveEffectsFromItems: Effect[],
 ): Omit<
   NPC,
   | "id"
@@ -115,18 +115,21 @@ export function calculateNpcFinalStats(
   | "created_at"
   | "race_id"
 > {
-  return calculateFinalStatsGeneric(baseNpc, activeEffects, items);
+  return calculateFinalStatsGeneric(
+    baseNpc,
+    activeEffects,
+    passiveEffectsFromItems,
+  );
 }
 
-// Получение полных данных игрока (способности, предметы, активные эффекты)
 export async function getFullPlayerData(
-  playerId: string,
+  playerId: string | number,
 ): Promise<FullPlayerData | null> {
   try {
     const player = await db("players").where("id", playerId).first();
     if (!player) return null;
 
-    // 1. Способности с эффектами (исправлено для SQLite)
+    // Способности
     const abilitiesRaw = await db("player_abilities")
       .where("player_id", playerId)
       .where("is_active", true)
@@ -145,6 +148,7 @@ export async function getFullPlayerData(
         "player_abilities.obtained_at",
         "player_abilities.is_active",
         "player_abilities.remaining_cooldown_turns",
+        "player_abilities.remaining_cooldown_days",
         "effects.id as effect_id",
         "effects.name as effect_name",
         "effects.description as effect_description",
@@ -153,6 +157,7 @@ export async function getFullPlayerData(
         "effects.duration_turns as effect_duration_turns",
         "effects.duration_days as effect_duration_days",
         "effects.is_permanent as effect_is_permanent",
+        "effects.tags as effect_tags",
       );
 
     const abilities = abilitiesRaw.map((row: any) => {
@@ -165,6 +170,7 @@ export async function getFullPlayerData(
         effect_duration_turns,
         effect_duration_days,
         effect_is_permanent,
+        effect_tags,
         ...ability
       } = row;
       const effect = effect_id
@@ -177,96 +183,44 @@ export async function getFullPlayerData(
             duration_turns: effect_duration_turns,
             duration_days: effect_duration_days,
             is_permanent: effect_is_permanent,
+            tags: safeJsonParse(effect_tags, []),
           }
         : null;
       return { ...ability, effect };
     });
 
-    // 2. Предметы с активными и пассивными эффектами
+    // Предметы
     const itemsRaw = await db("player_items")
       .where("player_id", playerId)
       .join("items", "player_items.item_id", "items.id")
-      .leftJoin(
-        "effects as active_effect",
-        "items.active_effect_id",
-        "active_effect.id",
-      )
-      .leftJoin(
-        "effects as passive_effect",
-        "items.passive_effect_id",
-        "passive_effect.id",
-      )
       .select(
         "items.id",
         "items.name",
         "items.description",
         "items.rarity",
         "items.base_quantity",
-        "items.active_effect_id",
-        "items.passive_effect_id",
+        "items.is_deletable",
+        "items.is_usable",
+        "items.infinite_uses",
         "items.created_at",
         "items.updated_at",
         "player_items.quantity",
         "player_items.is_equipped",
         "player_items.obtained_at",
-        "active_effect.name as active_effect_name",
-        "active_effect.modifier as active_effect_modifier",
-        "active_effect.attribute as active_effect_attribute",
-        "active_effect.duration_turns as active_effect_duration_turns",
-        "active_effect.duration_days as active_effect_duration_days",
-        "active_effect.is_permanent as active_effect_is_permanent",
-        "passive_effect.name as passive_effect_name",
-        "passive_effect.modifier as passive_effect_modifier",
-        "passive_effect.attribute as passive_effect_attribute",
-        "passive_effect.duration_turns as passive_effect_duration_turns",
-        "passive_effect.duration_days as passive_effect_duration_days",
-        "passive_effect.is_permanent as passive_effect_is_permanent",
       );
 
-    const items = itemsRaw.map((row: any) => {
-      const {
-        active_effect_name,
-        active_effect_modifier,
-        active_effect_attribute,
-        active_effect_duration_turns,
-        active_effect_duration_days,
-        active_effect_is_permanent,
-        passive_effect_name,
-        passive_effect_modifier,
-        passive_effect_attribute,
-        passive_effect_duration_turns,
-        passive_effect_duration_days,
-        passive_effect_is_permanent,
-        ...item
-      } = row;
-      const activeEffect = active_effect_name
-        ? {
-            name: active_effect_name,
-            modifier: active_effect_modifier,
-            attribute: active_effect_attribute,
-            duration_turns: active_effect_duration_turns,
-            duration_days: active_effect_duration_days,
-            is_permanent: active_effect_is_permanent,
-          }
-        : null;
-      const passiveEffect = passive_effect_name
-        ? {
-            name: passive_effect_name,
-            modifier: passive_effect_modifier,
-            attribute: passive_effect_attribute,
-            duration_turns: passive_effect_duration_turns,
-            duration_days: passive_effect_duration_days,
-            is_permanent: passive_effect_is_permanent,
-          }
-        : null;
-      return {
-        ...item,
-        active_effect: activeEffect,
-        passive_effect: passiveEffect,
-      };
-    });
+    const items = await Promise.all(
+      itemsRaw.map(async (item: any) => {
+        const effects = await itemsService.getItemEffects(item.id);
+        return {
+          ...item,
+          active_effects: effects.filter((e) => e.effect_type === "active"),
+          passive_effects: effects.filter((e) => e.effect_type === "passive"),
+        };
+      }),
+    );
 
-    // 3. Активные эффекты (исправлено для SQLite)
+    // Активные эффекты
     const activeEffectsRaw = await db("player_active_effects")
       .where("player_id", playerId)
       .where(function () {
@@ -285,6 +239,7 @@ export async function getFullPlayerData(
         "effects.duration_turns",
         "effects.duration_days",
         "effects.is_permanent",
+        "effects.tags",
         "player_active_effects.source_type",
         "player_active_effects.source_id",
         "player_active_effects.remaining_turns",
@@ -292,9 +247,12 @@ export async function getFullPlayerData(
         "player_active_effects.applied_at",
       );
 
-    const activeEffects = activeEffectsRaw.map((row: any) => ({ ...row }));
+    const activeEffects = activeEffectsRaw.map((row: any) => ({
+      ...row,
+      tags: safeJsonParse(row.tags, []),
+    }));
 
-    // 4. Эффекты расы (если есть)
+    // Эффекты расы
     let raceEffects: Effect[] = [];
     let raceData: {
       id: number;
@@ -314,15 +272,22 @@ export async function getFullPlayerData(
           .where("race_id", player.race_id)
           .join("effects", "race_effects.effect_id", "effects.id")
           .select("effects.*");
-        raceEffects = raceEffectsRaw;
+        raceEffects = raceEffectsRaw.map((e: any) => ({
+          ...e,
+          tags: safeJsonParse(e.tags, []),
+        }));
       }
     }
 
     const allActiveEffects = [...activeEffects, ...raceEffects];
+    const equippedPassiveEffects = items
+      .filter((item) => item.is_equipped)
+      .flatMap((item) => item.passive_effects);
+
     const finalStats = calculateFinalStats(
       player,
       allActiveEffects,
-      items as any,
+      equippedPassiveEffects,
     );
 
     return {
@@ -331,12 +296,7 @@ export async function getFullPlayerData(
       abilities,
       items,
       active_effects: activeEffects,
-      race: raceData
-        ? {
-            ...raceData,
-            effects: raceEffects,
-          }
-        : null,
+      race: raceData ? { ...raceData, effects: raceEffects } : null,
     };
   } catch (error) {
     console.error("Ошибка в getFullPlayerData:", error);
@@ -344,15 +304,14 @@ export async function getFullPlayerData(
   }
 }
 
-// Получение полных данных NPC (аналогичные исправления)
 export async function getFullNpcData(
-  npcId: string,
+  npcId: string | number,
 ): Promise<FullNPCData | null> {
   try {
     const npc = await db("npcs").where("id", npcId).first();
     if (!npc) return null;
 
-    // Способности NPC с эффектами
+    // Способности
     const abilitiesRaw = await db("npc_abilities")
       .where("npc_id", npcId)
       .where("is_active", true)
@@ -371,6 +330,7 @@ export async function getFullNpcData(
         "npc_abilities.obtained_at",
         "npc_abilities.is_active",
         "npc_abilities.remaining_cooldown_turns",
+        "npc_abilities.remaining_cooldown_days",
         "effects.id as effect_id",
         "effects.name as effect_name",
         "effects.description as effect_description",
@@ -379,6 +339,7 @@ export async function getFullNpcData(
         "effects.duration_turns as effect_duration_turns",
         "effects.duration_days as effect_duration_days",
         "effects.is_permanent as effect_is_permanent",
+        "effects.tags as effect_tags",
       );
 
     const abilities = abilitiesRaw.map((row: any) => {
@@ -391,6 +352,7 @@ export async function getFullNpcData(
         effect_duration_turns,
         effect_duration_days,
         effect_is_permanent,
+        effect_tags,
         ...ability
       } = row;
       const effect = effect_id
@@ -403,96 +365,44 @@ export async function getFullNpcData(
             duration_turns: effect_duration_turns,
             duration_days: effect_duration_days,
             is_permanent: effect_is_permanent,
+            tags: safeJsonParse(effect_tags, []),
           }
         : null;
       return { ...ability, effect };
     });
 
-    // Предметы NPC
+    // Предметы
     const itemsRaw = await db("npc_items")
       .where("npc_id", npcId)
       .join("items", "npc_items.item_id", "items.id")
-      .leftJoin(
-        "effects as active_effect",
-        "items.active_effect_id",
-        "active_effect.id",
-      )
-      .leftJoin(
-        "effects as passive_effect",
-        "items.passive_effect_id",
-        "passive_effect.id",
-      )
       .select(
         "items.id",
         "items.name",
         "items.description",
         "items.rarity",
         "items.base_quantity",
-        "items.active_effect_id",
-        "items.passive_effect_id",
+        "items.is_deletable",
+        "items.is_usable",
+        "items.infinite_uses",
         "items.created_at",
         "items.updated_at",
         "npc_items.quantity",
         "npc_items.is_equipped",
         "npc_items.obtained_at",
-        "active_effect.name as active_effect_name",
-        "active_effect.modifier as active_effect_modifier",
-        "active_effect.attribute as active_effect_attribute",
-        "active_effect.duration_turns as active_effect_duration_turns",
-        "active_effect.duration_days as active_effect_duration_days",
-        "active_effect.is_permanent as active_effect_is_permanent",
-        "passive_effect.name as passive_effect_name",
-        "passive_effect.modifier as passive_effect_modifier",
-        "passive_effect.attribute as passive_effect_attribute",
-        "passive_effect.duration_turns as passive_effect_duration_turns",
-        "passive_effect.duration_days as passive_effect_duration_days",
-        "passive_effect.is_permanent as passive_effect_is_permanent",
       );
 
-    const items = itemsRaw.map((row: any) => {
-      const {
-        active_effect_name,
-        active_effect_modifier,
-        active_effect_attribute,
-        active_effect_duration_turns,
-        active_effect_duration_days,
-        active_effect_is_permanent,
-        passive_effect_name,
-        passive_effect_modifier,
-        passive_effect_attribute,
-        passive_effect_duration_turns,
-        passive_effect_duration_days,
-        passive_effect_is_permanent,
-        ...item
-      } = row;
-      const activeEffect = active_effect_name
-        ? {
-            name: active_effect_name,
-            modifier: active_effect_modifier,
-            attribute: active_effect_attribute,
-            duration_turns: active_effect_duration_turns,
-            duration_days: active_effect_duration_days,
-            is_permanent: active_effect_is_permanent,
-          }
-        : null;
-      const passiveEffect = passive_effect_name
-        ? {
-            name: passive_effect_name,
-            modifier: passive_effect_modifier,
-            attribute: passive_effect_attribute,
-            duration_turns: passive_effect_duration_turns,
-            duration_days: passive_effect_duration_days,
-            is_permanent: passive_effect_is_permanent,
-          }
-        : null;
-      return {
-        ...item,
-        active_effect: activeEffect,
-        passive_effect: passiveEffect,
-      };
-    });
+    const items = await Promise.all(
+      itemsRaw.map(async (item: any) => {
+        const effects = await itemsService.getItemEffects(item.id);
+        return {
+          ...item,
+          active_effects: effects.filter((e) => e.effect_type === "active"),
+          passive_effects: effects.filter((e) => e.effect_type === "passive"),
+        };
+      }),
+    );
 
-    // Активные эффекты NPC
+    // Активные эффекты
     const activeEffectsRaw = await db("npc_active_effects")
       .where("npc_id", npcId)
       .where(function () {
@@ -511,6 +421,7 @@ export async function getFullNpcData(
         "effects.duration_turns",
         "effects.duration_days",
         "effects.is_permanent",
+        "effects.tags",
         "npc_active_effects.source_type",
         "npc_active_effects.source_id",
         "npc_active_effects.remaining_turns",
@@ -518,8 +429,12 @@ export async function getFullNpcData(
         "npc_active_effects.applied_at",
       );
 
-    const activeEffects = activeEffectsRaw.map((row: any) => ({ ...row }));
+    const activeEffects = activeEffectsRaw.map((row: any) => ({
+      ...row,
+      tags: safeJsonParse(row.tags, []),
+    }));
 
+    // Эффекты расы
     let raceEffects: Effect[] = [];
     let raceData: {
       id: number;
@@ -539,15 +454,22 @@ export async function getFullNpcData(
           .where("race_id", npc.race_id)
           .join("effects", "race_effects.effect_id", "effects.id")
           .select("effects.*");
-        raceEffects = raceEffectsRaw;
+        raceEffects = raceEffectsRaw.map((e: any) => ({
+          ...e,
+          tags: safeJsonParse(e.tags, []),
+        }));
       }
     }
 
     const allActiveEffects = [...activeEffects, ...raceEffects];
+    const equippedPassiveEffects = items
+      .filter((item) => item.is_equipped)
+      .flatMap((item) => item.passive_effects);
+
     const finalStats = calculateNpcFinalStats(
       npc,
       allActiveEffects,
-      items as any,
+      equippedPassiveEffects,
     );
 
     return {
@@ -556,12 +478,7 @@ export async function getFullNpcData(
       abilities,
       items,
       active_effects: activeEffects,
-      race: raceData
-        ? {
-            ...raceData,
-            effects: raceEffects,
-          }
-        : null,
+      race: raceData ? { ...raceData, effects: raceEffects } : null,
     };
   } catch (error) {
     console.error("Ошибка в getFullNpcData:", error);
@@ -569,7 +486,6 @@ export async function getFullNpcData(
   }
 }
 
-// Проверка/создание эффекта "Испуг"
 export async function ensureFrightenedEffect(): Promise<Effect> {
   let effect = await db("effects").where("name", "Испуг").first();
   if (!effect) {
@@ -582,6 +498,7 @@ export async function ensureFrightenedEffect(): Promise<Effect> {
         duration_turns: 3,
         duration_days: null,
         is_permanent: false,
+        tags: JSON.stringify([]),
       })
       .returning("*");
     effect = newEffect;

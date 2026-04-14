@@ -10,6 +10,14 @@ interface PaginatedResponse<T> {
   limit: number;
 }
 
+// Тип для хэндлеров сокетов
+interface SocketHandlers {
+  onItemCreated: () => Promise<void>;
+  onItemUpdated: () => Promise<void>;
+  onItemDeleted: () => Promise<void>;
+  onConnect: () => Promise<void>;
+}
+
 interface ItemState {
   items: ItemType[];
   itemsTotal: number;
@@ -23,10 +31,13 @@ interface ItemState {
     limit: number,
   ) => void;
   initializeSocket: () => void;
+  disconnectSocket: () => void;
   fetchItems: (page?: number, limit?: number) => Promise<void>;
   fetchAllItems: () => Promise<ItemType[]>;
   updateItem: (item: ItemType) => void;
   removeItem: (id: number) => void;
+  // внутреннее хранилище хэндлеров (не для внешнего использования)
+  __socketHandlers?: SocketHandlers;
 }
 
 let itemSocketInitialized = false;
@@ -41,29 +52,54 @@ export const useItemStore = create<ItemState>((set, get) => ({
     if (itemSocketInitialized) return;
     itemSocketInitialized = true;
 
-    socket.on("item:created", async () => {
+    const onItemCreated = async () => {
       console.log("Предмет создан (сокет)");
       const { currentPage, limit, fetchItems } = get();
       await fetchItems(currentPage, limit);
-    });
-
-    socket.on("item:updated", async () => {
+    };
+    const onItemUpdated = async () => {
       console.log("Предмет обновлён (сокет)");
       const { currentPage, limit, fetchItems } = get();
       await fetchItems(currentPage, limit);
-    });
-
-    socket.on("item:deleted", async () => {
+    };
+    const onItemDeleted = async () => {
       console.log("Предмет удалён (сокет)");
       const { currentPage, limit, fetchItems } = get();
       await fetchItems(currentPage, limit);
-    });
-
-    socket.on("connect", async () => {
+    };
+    const onConnect = async () => {
       console.log("Socket connected (items)");
       const { currentPage, limit, fetchItems } = get();
       await fetchItems(currentPage, limit);
+    };
+
+    socket.on("item:created", onItemCreated);
+    socket.on("item:updated", onItemUpdated);
+    socket.on("item:deleted", onItemDeleted);
+    socket.on("connect", onConnect);
+
+    set({
+      __socketHandlers: {
+        onItemCreated,
+        onItemUpdated,
+        onItemDeleted,
+        onConnect,
+      },
     });
+  },
+
+  disconnectSocket: () => {
+    if (!itemSocketInitialized) return;
+    const handlers = get().__socketHandlers;
+    if (handlers) {
+      socket.off("item:created", handlers.onItemCreated);
+      socket.off("item:updated", handlers.onItemUpdated);
+      socket.off("item:deleted", handlers.onItemDeleted);
+      socket.off("connect", handlers.onConnect);
+      set({ __socketHandlers: undefined });
+    }
+    itemSocketInitialized = false;
+    console.log("Item socket disconnected");
   },
 
   fetchItems: async (page = 1, limit = 20) => {

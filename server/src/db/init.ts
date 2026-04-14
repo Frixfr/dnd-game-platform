@@ -110,6 +110,95 @@ async function addMissingColumns() {
     });
     console.log("Колонка remaining_cooldown_days добавлена в npc_abilities");
   }
+
+  // === НОВАЯ МИГРАЦИЯ ДЛЯ ПРЕДМЕТОВ (без удаления старых колонок) ===
+  const itemsColumns = await db.table("items").columnInfo();
+
+  // Добавляем is_deletable, is_usable, infinite_uses, если их нет
+  if (!itemsColumns.is_deletable) {
+    await db.schema.alterTable("items", (table) => {
+      table.boolean("is_deletable").notNullable().defaultTo(1);
+    });
+    console.log("Колонка is_deletable добавлена в таблицу items");
+  }
+  if (!itemsColumns.is_usable) {
+    await db.schema.alterTable("items", (table) => {
+      table.boolean("is_usable").notNullable().defaultTo(1);
+    });
+    console.log("Колонка is_usable добавлена в таблицу items");
+  }
+  if (!itemsColumns.infinite_uses) {
+    await db.schema.alterTable("items", (table) => {
+      table.boolean("infinite_uses").notNullable().defaultTo(0);
+    });
+    console.log("Колонка infinite_uses добавлена в таблицу items");
+  }
+
+  // Создаём таблицу item_effects, если её нет
+  if (!(await db.schema.hasTable("item_effects"))) {
+    await db.schema.createTable("item_effects", (table) => {
+      table.increments("id").primary();
+      table
+        .integer("item_id")
+        .notNullable()
+        .references("id")
+        .inTable("items")
+        .onDelete("CASCADE");
+      table
+        .integer("effect_id")
+        .notNullable()
+        .references("id")
+        .inTable("effects")
+        .onDelete("CASCADE");
+      table
+        .string("effect_type", 10)
+        .notNullable()
+        .checkIn(["active", "passive"]);
+      table.timestamp("created_at").defaultTo(db.fn.now());
+      table.unique(["item_id", "effect_id", "effect_type"]);
+    });
+    console.log("Таблица item_effects создана (миграция)");
+  }
+
+  // Перенос данных из старых колонок active_effect_id / passive_effect_id в item_effects
+  const itemEffectsCount = await db("item_effects")
+    .count("id as count")
+    .first();
+  if (Number(itemEffectsCount?.count) === 0) {
+    const itemsWithOldEffects = await db("items")
+      .select("id", "active_effect_id", "passive_effect_id")
+      .whereNotNull("active_effect_id")
+      .orWhereNotNull("passive_effect_id");
+    for (const item of itemsWithOldEffects) {
+      if (item.active_effect_id) {
+        await db("item_effects")
+          .insert({
+            item_id: item.id,
+            effect_id: item.active_effect_id,
+            effect_type: "active",
+            created_at: db.fn.now(),
+          })
+          .onConflict(["item_id", "effect_id", "effect_type"])
+          .ignore();
+      }
+      if (item.passive_effect_id) {
+        await db("item_effects")
+          .insert({
+            item_id: item.id,
+            effect_id: item.passive_effect_id,
+            effect_type: "passive",
+            created_at: db.fn.now(),
+          })
+          .onConflict(["item_id", "effect_id", "effect_type"])
+          .ignore();
+      }
+    }
+    if (itemsWithOldEffects.length > 0) {
+      console.log(
+        `Перенесено ${itemsWithOldEffects.length} предметов из старых колонок в item_effects`,
+      );
+    }
+  }
 }
 
 export async function initializeDatabase() {
@@ -236,6 +325,7 @@ export async function initializeDatabase() {
           ])
           .defaultTo("common");
         table.integer("base_quantity").defaultTo(1);
+        // Старые колонки (оставляем, но не используем)
         table
           .integer("active_effect_id")
           .references("id")
@@ -246,9 +336,40 @@ export async function initializeDatabase() {
           .references("id")
           .inTable("effects")
           .onDelete("SET NULL");
+        // НОВЫЕ ПОЛЯ
+        table.boolean("is_deletable").notNullable().defaultTo(1);
+        table.boolean("is_usable").notNullable().defaultTo(1);
+        table.boolean("infinite_uses").notNullable().defaultTo(0);
+        // ---
         table.timestamps(true, true);
       });
       console.log("Таблица items создана");
+    }
+
+    // Таблица item_effects (связь предметов с множественными эффектами)
+    if (!(await db.schema.hasTable("item_effects"))) {
+      await db.schema.createTable("item_effects", (table) => {
+        table.increments("id").primary();
+        table
+          .integer("item_id")
+          .notNullable()
+          .references("id")
+          .inTable("items")
+          .onDelete("CASCADE");
+        table
+          .integer("effect_id")
+          .notNullable()
+          .references("id")
+          .inTable("effects")
+          .onDelete("CASCADE");
+        table
+          .string("effect_type", 10)
+          .notNullable()
+          .checkIn(["active", "passive"]);
+        table.timestamp("created_at").defaultTo(db.fn.now());
+        table.unique(["item_id", "effect_id", "effect_type"]);
+      });
+      console.log("Таблица item_effects создана");
     }
 
     // Таблица player_items

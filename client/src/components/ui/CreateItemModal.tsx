@@ -1,403 +1,125 @@
 // client/src/components/ui/CreateItemModal.tsx
 import { useState, useEffect } from 'react';
-import type { ItemType, EffectType, RarityType } from '../../types';
+import type { EffectType, RarityType } from '../../types';
 
 interface CreateItemModalProps {
   onClose: () => void;
-  effects?: EffectType[];
-  onItemCreated?: (newItem: ItemType) => void;
+  onItemCreated?: () => void;
 }
 
-// Форма создания предмета с валидацией
-export const CreateItemModal = ({ onClose, effects = [], onItemCreated }: CreateItemModalProps) => {
-  const [formData, setFormData] = useState<{
-    name: string;
-    description: string;          // ← строка, не null
-    rarity: RarityType;
-    base_quantity: number;
-    active_effect_id: number | null;
-    passive_effect_id: number | null;
-  }>({
+export const CreateItemModal = ({ onClose, onItemCreated }: CreateItemModalProps) => {
+  const [formData, setFormData] = useState({
     name: '',
-    description: '',              // ← пустая строка
-    rarity: 'common',
+    description: '',
+    rarity: 'common' as RarityType,
     base_quantity: 1,
-    active_effect_id: null,
-    passive_effect_id: null,
+    is_deletable: true,
+    is_usable: true,
+    infinite_uses: false,
+    active_effect_ids: [] as number[],
+    passive_effect_ids: [] as number[],
   });
-  
+  const [allEffects, setAllEffects] = useState<EffectType[]>([]);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [localEffects, setLocalEffects] = useState<EffectType[]>(effects);
-  const [effectsLoading, setEffectsLoading] = useState(false);
-  
-  // Загрузка эффектов при монтировании
+
   useEffect(() => {
-    if (effects.length === 0) {
-      fetchEffects();
-    } else {
-      setLocalEffects(effects);
-    }
-  }, [effects]);
-  
-  const fetchEffects = async () => {
-    setEffectsLoading(true);
-    try {
-      const response = await fetch('http://localhost:5000/api/effects');
-      if (!response.ok) throw new Error('Ошибка загрузки эффектов');
-      const data = await response.json();
-      setLocalEffects(data || []);
-    } catch (error) {
-      console.error('Ошибка загрузки эффектов:', error);
-    } finally {
-      setEffectsLoading(false);
-    }
-  };
-  
+    fetch('/api/effects?limit=9999')
+      .then(res => res.json())
+      .then(data => setAllEffects(Array.isArray(data) ? data : data.data || []))
+      .catch(console.error);
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    setLoading(true);
     setError('');
-    
-    // Базовая валидация
-    if (!formData.name.trim()) {
-      setError('Название обязательно');
-      setIsLoading(false);
-      return;
-    }
-    
-    if (formData.name.length > 100) {
-      setError('Название не должно превышать 100 символов');
-      setIsLoading(false);
-      return;
-    }
-    
-    if (formData.base_quantity < 1) {
-      setError('Количество должно быть положительным числом');
-      setIsLoading(false);
-      return;
-    }
-    
     try {
-      // Подготавливаем данные для отправки
-      const dataToSend = {
-        ...formData,
-        // Преобразуем пустые строки в null для числовых полей
-        active_effect_id: formData.active_effect_id || null,
-        passive_effect_id: formData.passive_effect_id || null,
-        description: formData.description === '' ? null : formData.description,
-      };
-      
-      const response = await fetch('http://localhost:5000/api/items', {
+      const res = await fetch('/api/items', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dataToSend)
+        body: JSON.stringify(formData),
       });
-      
-      const responseData = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(responseData.error || 'Ошибка сервера');
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Ошибка создания');
       }
-
-      if (onItemCreated && responseData.item) {
-        onItemCreated(responseData.item);
-      }
-      // Сервер сам обновит состояние через сокеты
+      onItemCreated?.();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Неизвестная ошибка');
+      const message = err instanceof Error ? err.message : 'Неизвестная ошибка';
+      setError(message);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
-  
-  // Универсальная функция для строковых полей
-  const handleInputChange = (field: keyof typeof formData, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+
+  const handleMultiSelect = (field: 'active_effect_ids' | 'passive_effect_ids', e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selected = Array.from(e.target.selectedOptions, opt => Number(opt.value));
+    setFormData(prev => ({ ...prev, [field]: selected }));
   };
 
-  // Для числовых полей (base_quantity и т.п.)
-  const handleNumberChange = (field: keyof typeof formData, value: string) => {
-    const numValue = value === '' ? 0 : Number(value);
-    setFormData(prev => ({
-      ...prev,
-      [field]: numValue
-    }));
-  };
-  
-  // Для полей effect_id (могут быть number | null)
-  const handleEffectChange = (field: 'active_effect_id' | 'passive_effect_id', value: string) => {
-    const numValue = value === '' ? null : Number(value);
-    setFormData(prev => ({
-      ...prev,
-      [field]: numValue
-    }));
-  };
-
-  const rarityOptions = [
-    { value: 'common', label: 'Обычный', color: 'bg-gray-100' },
-    { value: 'uncommon', label: 'Необычный', color: 'bg-green-100' },
-    { value: 'rare', label: 'Редкий', color: 'bg-blue-100' },
-    { value: 'epic', label: 'Эпический', color: 'bg-purple-100' },
-    { value: 'legendary', label: 'Легендарный', color: 'bg-yellow-100' },
-    { value: 'mythical', label: 'Мифический', color: 'bg-red-100' },
-    { value: 'story', label: 'Сюжетный', color: 'bg-orange-100' }
-  ];
-  
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-2xl font-bold">Создать предмет</h2>
-            <button
-              onClick={onClose}
-              className="text-gray-500 hover:text-gray-700 text-2xl"
-            >
-              &times;
-            </button>
+            <button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
           </div>
-          
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm">
-              {error}
-            </div>
-          )}
-          
+          {error && <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm">{error}</div>}
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Основные поля */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium mb-1">
-                  Название <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => handleInputChange('name', e.target.value)}
-                  className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Введите название предмета"
-                  maxLength={100}
-                  required
-                />
-                <div className="text-xs text-gray-500 mt-1">
-                  {formData.name.length}/100 символов
-                </div>
+                <label className="block text-sm font-medium mb-1">Название *</label>
+                <input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full p-2 border rounded" required maxLength={100} />
               </div>
-              
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium mb-1">Описание</label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => handleInputChange('description', e.target.value)}
-                  className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Описание предмета и его особенностей"
-                  rows={3}
-                />
+                <textarea value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} rows={3} className="w-full p-2 border rounded" />
               </div>
-              
               <div>
-                <label className="block text-sm font-medium mb-1">
-                  Редкость <span className="text-red-500">*</span>
-                </label>
-                <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
-                  {rarityOptions.map((rarity) => (
-                    <label
-                      key={rarity.value}
-                      className={`
-                        flex flex-col items-center justify-center p-2 border rounded cursor-pointer
-                        transition-all duration-200
-                        ${formData.rarity === rarity.value 
-                          ? 'ring-2 ring-blue-500 border-blue-500' 
-                          : 'border-gray-300 hover:border-gray-400'
-                        }
-                      `}
-                    >
-                      <input
-                        type="radio"
-                        name="rarity"
-                        value={rarity.value}
-                        checked={formData.rarity === rarity.value}
-                        onChange={(e) => handleInputChange('rarity', e.target.value)}
-                        className="sr-only"
-                      />
-                      <div className={`w-4 h-4 rounded-full ${rarity.color} mb-1`}></div>
-                      <span className="text-xs text-center">{rarity.label}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Базовое количество <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    min="1"
-                    max="999"
-                    value={formData.base_quantity}
-                    onChange={(e) => handleNumberChange('base_quantity', e.target.value)}
-                    className="w-full p-2 border rounded..."
-                    required
-                  />
-                  <div className="absolute right-3 top-2 text-gray-500">
-                    шт.
-                  </div>
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-1">Активный эффект</label>
-                <select
-                  value={formData.active_effect_id ?? ''}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    handleEffectChange('active_effect_id', value);
-                  }}
-                  className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  disabled={effectsLoading}
-                >
-                  <option value="">Без активного эффекта</option>
-                  {effectsLoading ? (
-                    <option disabled>Загрузка эффектов...</option>
-                  ) : (
-                    localEffects.filter(effect => !effect.is_permanent).map(effect => (
-                      <option key={`active-${effect.id}`} value={effect.id}>
-                        {effect.name} (ID: {effect.id})
-                      </option>
-                    ))
-                  )}
+                <label className="block text-sm font-medium mb-1">Редкость</label>
+                <select value={formData.rarity} onChange={e => setFormData({...formData, rarity: e.target.value as RarityType})} className="w-full p-2 border rounded">
+                  <option value="common">Обычный</option><option value="uncommon">Необычный</option>
+                  <option value="rare">Редкий</option><option value="epic">Эпический</option>
+                  <option value="legendary">Легендарный</option><option value="mythical">Мифический</option>
+                  <option value="story">Сюжетный</option>
                 </select>
               </div>
-              
               <div>
-                <label className="block text-sm font-medium mb-1">Пассивный эффект</label>
-                <select
-                  value={formData.passive_effect_id ?? ''}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    handleEffectChange('passive_effect_id', value);
-                  }}
-                  className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  disabled={effectsLoading}
-                >
-                  <option value="">Без пассивного эффекта</option>
-                  {effectsLoading ? (
-                    <option disabled>Загрузка эффектов...</option>
-                  ) : (
-                    localEffects.filter(effect => effect.is_permanent).map(effect => (
-                      <option key={`passive-${effect.id}`} value={effect.id}>
-                        {effect.name} (ID: {effect.id})
-                      </option>
-                    ))
-                  )}
-                </select>
+                <label className="block text-sm font-medium mb-1">Базовое количество</label>
+                <input type="number" min="1" value={formData.base_quantity} onChange={e => setFormData({...formData, base_quantity: Number(e.target.value)})} className="w-full p-2 border rounded" />
               </div>
             </div>
-            
-            {/* Информация о выбранных эффектах */}
-            {(formData.active_effect_id || formData.passive_effect_id) && (
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h3 className="font-medium mb-2">Информация о выбранных эффектах:</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {formData.active_effect_id && (
-                    <div className="border-l-4 border-blue-500 pl-3">
-                      <div className="text-sm font-medium text-blue-700">Активный эффект</div>
-                      {(() => {
-                        const effect = localEffects.find(e => e.id === formData.active_effect_id);
-                        if (!effect) return (
-                          <div className="text-xs text-gray-600">
-                            ID: {formData.active_effect_id}
-                          </div>
-                        );
-                        return (
-                          <div className="text-xs space-y-1">
-                            <div className="font-medium">{effect.name}</div>
-                            <div>{effect.description}</div>
-                            <div className="text-gray-600">
-                              {effect.attribute && `Атрибут: ${effect.attribute}`}
-                              {effect.modifier && ` | Модификатор: ${effect.modifier > 0 ? '+' : ''}${effect.modifier}`}
-                            </div>
-                            {effect.duration_turns && (
-                              <div className="text-gray-500">
-                                Длительность: {effect.duration_turns} ходов
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  )}
-                  {formData.passive_effect_id && (
-                    <div className="border-l-4 border-green-500 pl-3">
-                      <div className="text-sm font-medium text-green-700">Пассивный эффект</div>
-                      {(() => {
-                        const effect = localEffects.find(e => e.id === formData.passive_effect_id);
-                        if (!effect) return (
-                          <div className="text-xs text-gray-600">
-                            ID: {formData.passive_effect_id}
-                          </div>
-                        );
-                        return (
-                          <div className="text-xs space-y-1">
-                            <div className="font-medium">{effect.name}</div>
-                            <div>{effect.description}</div>
-                            <div className="text-gray-600">
-                              {effect.attribute && `Атрибут: ${effect.attribute}`}
-                              {effect.modifier && ` | Модификатор: ${effect.modifier > 0 ? '+' : ''}${effect.modifier}`}
-                            </div>
-                            {effect.is_permanent && (
-                              <div className="text-green-600 font-medium">Постоянный эффект</div>
-                            )}
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-            
-            {/* Подсказка */}
-            <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
-              <strong>Совет:</strong> Активный эффект применяется при использовании предмета.<br />
-              Пассивный эффект постоянно действует при наличии предмета в инвентаре.<br />
-              Постоянные эффекты (is_permanent) рекомендуется использовать для пассивных эффектов.
+
+            <div className="flex gap-6">
+              <label className="flex items-center gap-2"><input type="checkbox" checked={formData.is_deletable} onChange={e => setFormData({...formData, is_deletable: e.target.checked})} /> Можно выбросить/передать</label>
+              <label className="flex items-center gap-2"><input type="checkbox" checked={formData.is_usable} onChange={e => setFormData({...formData, is_usable: e.target.checked})} /> Можно использовать</label>
+              <label className="flex items-center gap-2"><input type="checkbox" checked={formData.infinite_uses} onChange={e => setFormData({...formData, infinite_uses: e.target.checked})} /> Бесконечное количество</label>
             </div>
-            
-            {/* Кнопки */}
+
+            <div>
+              <label className="block text-sm font-medium mb-1">Активные эффекты (Ctrl+клик для выбора нескольких)</label>
+              <select multiple value={formData.active_effect_ids.map(String)} onChange={(e) => handleMultiSelect('active_effect_ids', e)} className="w-full p-2 border rounded h-32">
+                {allEffects.map(effect => (
+                  <option key={effect.id} value={effect.id}>{effect.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">Пассивные эффекты (Ctrl+клик для выбора нескольких)</label>
+              <select multiple value={formData.passive_effect_ids.map(String)} onChange={(e) => handleMultiSelect('passive_effect_ids', e)} className="w-full p-2 border rounded h-32">
+                {allEffects.map(effect => (
+                  <option key={effect.id} value={effect.id}>{effect.name}</option>
+                ))}
+              </select>
+            </div>
+
             <div className="flex justify-end space-x-3 pt-4 border-t">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                disabled={isLoading}
-              >
-                Отмена
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <span className="flex items-center">
-                    <svg className="animate-spin h-4 w-4 mr-2" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                    Создание...
-                  </span>
-                ) : (
-                  'Создать предмет'
-                )}
-              </button>
+              <button type="button" onClick={onClose} className="px-4 py-2 border rounded">Отмена</button>
+              <button type="submit" disabled={loading} className="px-4 py-2 bg-blue-500 text-white rounded disabled:opacity-50">Создать</button>
             </div>
           </form>
         </div>

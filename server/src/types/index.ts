@@ -76,6 +76,10 @@ export interface Item {
   passive_effect_id: number | null;
   created_at: string;
   updated_at: string;
+  is_deletable: boolean;
+  is_usable: boolean;
+  infinite_uses: boolean;
+  effects?: (Effect & { effect_type: "active" | "passive" })[];
 }
 
 export interface NPC {
@@ -251,12 +255,17 @@ export interface CombatParticipant {
 
 export interface Log {
   id: number;
-  action_type: "ability_use" | "item_use" | "effect_gain";
+  action_type:
+    | "ability_use"
+    | "item_use"
+    | "effect_gain"
+    | "item_discard"
+    | "item_transfer";
   player_id: number | null;
   npc_id: number | null;
-  entity_name: string; // имя игрока или NPC
-  action_name: string; // название способности/предмета/эффекта
-  details: string | null; // дополнительные данные (JSON)
+  entity_name: string;
+  action_name: string;
+  details: string | null;
   created_at: string;
 }
 
@@ -271,4 +280,12 @@ export interface PaginatedResponse<T> {
   total: number;
   page: number;
   limit: number;
+}
+
+export interface ItemEffectLink {
+  id: number;
+  item_id: number;
+  effect_id: number;
+  effect_type: "active" | "passive";
+  created_at: string;
 }

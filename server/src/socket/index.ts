@@ -48,10 +48,7 @@ export const emitToAll = (event: string, data: any) => {
   getIO().emit(event, data);
 };
 
-export const emitToPlayer = (
-  playerId: string | number,
-  event: string,
-  data: any,
-) => {
-  getIO().to(`player:${playerId}`).emit(event, data);
-};
+export function emitToPlayer(playerId: number, event: string, data: any) {
+  const io = getIO();
+  io.to(`player:${playerId}`).emit(event, data);
+}
