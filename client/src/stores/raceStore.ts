@@ -1,10 +1,10 @@
+// client/src/stores/raceStore.ts
 import { create } from "zustand";
-import { io, Socket } from "socket.io-client";
 import type { RaceType } from "../types";
+import { socket } from "../lib/socket";
 
 interface RaceState {
   races: RaceType[];
-  socket: Socket | null;
   setRaces: (races: RaceType[]) => void;
   initializeSocket: () => void;
   fetchRaces: () => Promise<void>;
@@ -13,17 +13,15 @@ interface RaceState {
   removeRace: (id: number) => void;
 }
 
+let raceSocketInitialized = false;
+
 export const useRaceStore = create<RaceState>((set, get) => ({
   races: [],
-  socket: null,
 
   initializeSocket: () => {
-    if (get().socket?.connected) return;
-    if (typeof window === "undefined") return;
-    const socket = io({
-      withCredentials: true,
-      transports: ["websocket", "polling"],
-    });
+    if (raceSocketInitialized) return;
+    raceSocketInitialized = true;
+
     socket.on("race:created", (race: RaceType) => {
       set((state) => {
         if (state.races.some((r) => r.id === race.id)) return state;
@@ -43,7 +41,6 @@ export const useRaceStore = create<RaceState>((set, get) => ({
     socket.on("connect", async () => {
       await get().fetchRaces();
     });
-    set({ socket });
   },
 
   fetchRaces: async () => {

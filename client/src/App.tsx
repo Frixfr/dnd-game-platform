@@ -1,5 +1,5 @@
 // client/src/App.tsx
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
 import MasterDashboardPage from './pages/MasterDashboardPage';
@@ -18,8 +18,39 @@ import { PlayerEffectsPage } from './pages/PlayerEffectsPage';
 import { PlayerMapPage } from './pages/PlayerMapPage';
 import { CombatPage } from './pages/CombatPage';
 import { NotificationProvider } from './contexts/NotificationProvider';
+import { getSocket } from './lib/socket';
+import { usePlayerStore } from './stores/playerStore';
+import { useNpcStore } from './stores/npcStore';
+import { useCombatStore } from './stores/combatStore';
+import { useLogStore } from './stores/logStore';
+import { useAbilityStore } from './stores/abilityStore';
+import { useEffectStore } from './stores/effectStore';
+import { useItemStore } from './stores/itemStore';
+import { useRaceStore } from './stores/raceStore';
 
 const App: React.FC = () => {
+  // Инициализируем сокет один раз при старте приложения
+  useEffect(() => {
+    // Создаём соединение
+    const socket = getSocket();
+    // Инициализируем подписки во всех сторах
+    usePlayerStore.getState().initializeSocket();
+    useNpcStore.getState().initializeSocket();
+    useCombatStore.getState().initializeSocket();
+    useLogStore.getState().initializeSocket();
+    useAbilityStore.getState().initializeSocket();
+    useEffectStore.getState().initializeSocket();
+    useItemStore.getState().initializeSocket();
+    useRaceStore.getState().initializeSocket();
+
+    // Опционально: закрываем соединение при размонтировании (но приложение обычно не размонтируется)
+    return () => {
+      if (socket.connected) {
+        socket.disconnect();
+      }
+    };
+  }, []);
+
   return (
     <NotificationProvider>
       <Router>

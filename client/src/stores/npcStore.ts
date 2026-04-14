@@ -1,8 +1,8 @@
 // client/src/stores/npcStore.ts
 
 import { create } from "zustand";
-import { io, Socket } from "socket.io-client";
 import type { NpcType } from "../types";
+import { socket } from "../lib/socket";
 
 interface PaginatedResponse<T> {
   data: T[];
@@ -16,7 +16,6 @@ interface NpcStore {
   npcsTotal: number;
   currentPage: number;
   limit: number;
-  socket: Socket | null;
   initializeSocket: () => void;
   fetchNpcs: (page?: number, limit?: number) => Promise<void>;
   fetchAllNpcs: () => Promise<NpcType[]>;
@@ -31,47 +30,38 @@ interface NpcStore {
   ) => void;
 }
 
+let npcSocketInitialized = false;
+
 export const useNpcStore = create<NpcStore>((set, get) => ({
   npcs: [],
   npcsTotal: 0,
   currentPage: 1,
   limit: 20,
-  socket: null,
 
   initializeSocket: () => {
-    const { socket } = get();
-    if (socket && socket.connected) return;
+    if (npcSocketInitialized) return;
+    npcSocketInitialized = true;
 
-    const newSocket = io({
-      withCredentials: true,
-      transports: ["websocket", "polling"],
-      autoConnect: true,
-      reconnection: true,
-    });
-
-    newSocket.on("npc:created", async () => {
+    socket.on("npc:created", async () => {
       console.log("NPC создан (сокет)");
       const { currentPage, limit, fetchNpcs } = get();
       await fetchNpcs(currentPage, limit);
     });
-    newSocket.on("npc:updated", async () => {
+    socket.on("npc:updated", async () => {
       console.log("NPC обновлён (сокет)");
       const { currentPage, limit, fetchNpcs } = get();
       await fetchNpcs(currentPage, limit);
     });
-    newSocket.on("npc:deleted", async () => {
+    socket.on("npc:deleted", async () => {
       console.log("NPC удалён (сокет)");
       const { currentPage, limit, fetchNpcs } = get();
       await fetchNpcs(currentPage, limit);
     });
-
-    newSocket.on("connect", async () => {
+    socket.on("connect", async () => {
       console.log("Socket connected (npcs)");
       const { currentPage, limit, fetchNpcs } = get();
       await fetchNpcs(currentPage, limit);
     });
-
-    set({ socket: newSocket });
   },
 
   fetchNpcs: async (page = 1, limit = 20) => {

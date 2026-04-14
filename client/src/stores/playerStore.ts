@@ -1,8 +1,8 @@
 // client/src/stores/playerStore.ts
 
 import { create } from "zustand";
-import { io, Socket } from "socket.io-client";
 import type { PlayerType } from "../types";
+import { socket } from "../lib/socket";
 
 interface PaginatedResponse<T> {
   data: T[];
@@ -16,7 +16,6 @@ interface PlayerStore {
   playersTotal: number;
   currentPage: number;
   limit: number;
-  socket: Socket | null;
   initializeSocket: () => void;
   setPlayers: (
     players: PlayerType[],
@@ -28,41 +27,35 @@ interface PlayerStore {
   addPlayer: (player: PlayerType) => void;
   updatePlayer: (updatedPlayer: PlayerType) => void;
   deletePlayer: (playerId: number) => void;
-  // Для случаев, когда нужны все игроки (например, для выбора в модалке)
   fetchAllPlayers: () => Promise<PlayerType[]>;
 }
+
+let playerSocketInitialized = false;
 
 export const usePlayerStore = create<PlayerStore>((set, get) => ({
   players: [],
   playersTotal: 0,
   currentPage: 1,
   limit: 20,
-  socket: null,
 
   initializeSocket: () => {
-    const socket = io({
-      withCredentials: true,
-      transports: ["websocket", "polling"],
-      autoConnect: true,
-      reconnection: true,
-      reconnectionAttempts: 5,
-    });
+    if (playerSocketInitialized) return;
+    playerSocketInitialized = true;
 
-    socket.on("player:created", async (player: PlayerType) => {
-      console.log("Игрок создан (сокет):", player);
-      // Перезагружаем текущую страницу
+    socket.on("player:created", async () => {
+      console.log("Игрок создан (сокет)");
       const { currentPage, limit, fetchPlayers } = get();
       await fetchPlayers(currentPage, limit);
     });
 
-    socket.on("player:updated", async (player: PlayerType) => {
-      console.log("Игрок обновлён (сокет):", player);
+    socket.on("player:updated", async () => {
+      console.log("Игрок обновлён (сокет)");
       const { currentPage, limit, fetchPlayers } = get();
       await fetchPlayers(currentPage, limit);
     });
 
-    socket.on("player:deleted", async (playerId: number) => {
-      console.log("Игрок удалён (сокет):", playerId);
+    socket.on("player:deleted", async () => {
+      console.log("Игрок удалён (сокет)");
       const { currentPage, limit, fetchPlayers } = get();
       await fetchPlayers(currentPage, limit);
     });
@@ -72,8 +65,6 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
       const { currentPage, limit, fetchPlayers } = get();
       await fetchPlayers(currentPage, limit);
     });
-
-    set({ socket });
   },
 
   fetchPlayers: async (page = 1, limit = 20) => {
@@ -97,11 +88,9 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
 
   fetchAllPlayers: async () => {
     try {
-      // Используем эндпоинт без пагинации (либо с большим лимитом)
       const response = await fetch("/api/players?limit=9999");
       if (response.ok) {
         const result = await response.json();
-        // Если сервер вернул пагинированный ответ, извлекаем data, иначе массив
         const players = Array.isArray(result) ? result : result.data;
         return players;
       }

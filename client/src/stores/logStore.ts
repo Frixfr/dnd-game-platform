@@ -1,24 +1,22 @@
 import { create } from "zustand";
-import { io, Socket } from "socket.io-client";
 import type { Log } from "../types";
+import { socket } from "../lib/socket";
 
 interface LogStore {
   logs: Log[];
-  socket: Socket | null;
   initializeSocket: () => void;
   fetchLogs: () => Promise<void>;
   addLog: (log: Log) => void;
 }
 
+let logSocketInitialized = false;
+
 export const useLogStore = create<LogStore>((set, get) => ({
   logs: [],
-  socket: null,
 
   initializeSocket: () => {
-    const socket = io({
-      withCredentials: true,
-      transports: ["websocket", "polling"],
-    });
+    if (logSocketInitialized) return;
+    logSocketInitialized = true;
 
     socket.on("log:new", (log: Log) => {
       set((state) => ({
@@ -30,8 +28,6 @@ export const useLogStore = create<LogStore>((set, get) => ({
       console.log("Socket connected (logs)");
       get().fetchLogs();
     });
-
-    set({ socket });
   },
 
   fetchLogs: async () => {

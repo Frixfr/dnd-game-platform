@@ -1,7 +1,7 @@
 // client/src/stores/itemStore.ts
 import { create } from "zustand";
-import { io, Socket } from "socket.io-client";
 import type { ItemType } from "../types";
+import { socket } from "../lib/socket";
 
 interface PaginatedResponse<T> {
   data: T[];
@@ -15,7 +15,6 @@ interface ItemState {
   itemsTotal: number;
   currentPage: number;
   limit: number;
-  socket: Socket | null;
   addItem: (item: ItemType) => void;
   setItems: (
     items: ItemType[],
@@ -24,31 +23,23 @@ interface ItemState {
     limit: number,
   ) => void;
   initializeSocket: () => void;
-  disconnectSocket: () => void;
   fetchItems: (page?: number, limit?: number) => Promise<void>;
   fetchAllItems: () => Promise<ItemType[]>;
   updateItem: (item: ItemType) => void;
   removeItem: (id: number) => void;
 }
 
+let itemSocketInitialized = false;
+
 export const useItemStore = create<ItemState>((set, get) => ({
   items: [],
   itemsTotal: 0,
   currentPage: 1,
   limit: 20,
-  socket: null,
 
   initializeSocket: () => {
-    if (typeof window === "undefined") return;
-    if (get().socket) return;
-
-    const socket = io({
-      withCredentials: true,
-      transports: ["websocket", "polling"],
-      autoConnect: true,
-      reconnection: true,
-      reconnectionAttempts: 5,
-    });
+    if (itemSocketInitialized) return;
+    itemSocketInitialized = true;
 
     socket.on("item:created", async () => {
       console.log("Предмет создан (сокет)");
@@ -73,16 +64,6 @@ export const useItemStore = create<ItemState>((set, get) => ({
       const { currentPage, limit, fetchItems } = get();
       await fetchItems(currentPage, limit);
     });
-
-    set({ socket });
-  },
-
-  disconnectSocket: () => {
-    const { socket } = get();
-    if (socket) {
-      socket.disconnect();
-      set({ socket: null });
-    }
   },
 
   fetchItems: async (page = 1, limit = 20) => {

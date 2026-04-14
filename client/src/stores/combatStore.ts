@@ -1,11 +1,10 @@
 import { create } from "zustand";
-import { io, Socket } from "socket.io-client";
 import type { CombatSession, CombatParticipantWithDetails } from "../types";
+import { socket } from "../lib/socket";
 
 interface CombatStore {
   session: CombatSession | null;
   participants: CombatParticipantWithDetails[];
-  socket: Socket | null;
   loading: boolean;
   initializeSocket: () => void;
   fetchActiveSession: () => Promise<void>;
@@ -36,17 +35,16 @@ interface CombatStore {
   ) => Promise<void>;
 }
 
+let combatSocketInitialized = false;
+
 export const useCombatStore = create<CombatStore>((set, get) => ({
   session: null,
   participants: [],
-  socket: null,
   loading: false,
 
   initializeSocket: () => {
-    const socket = io({
-      withCredentials: true,
-      transports: ["websocket", "polling"],
-    });
+    if (combatSocketInitialized) return;
+    combatSocketInitialized = true;
 
     socket.on(
       "combat:updated",
@@ -58,8 +56,6 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
         set({ session: data.session, participants: data.participants });
       },
     );
-
-    set({ socket });
   },
 
   fetchActiveSession: async () => {

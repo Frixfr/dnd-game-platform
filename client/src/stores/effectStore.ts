@@ -1,7 +1,7 @@
 // client/src/stores/effectStore.ts
 import { create } from "zustand";
-import { io, Socket } from "socket.io-client";
 import type { EffectType } from "../types";
+import { socket } from "../lib/socket";
 
 interface PaginatedResponse<T> {
   data: T[];
@@ -15,7 +15,6 @@ interface EffectState {
   effectsTotal: number;
   currentPage: number;
   limit: number;
-  socket: Socket | null;
   addEffect: (effect: EffectType) => void;
   setEffects: (
     effects: EffectType[],
@@ -30,24 +29,17 @@ interface EffectState {
   removeEffect: (id: number) => void;
 }
 
+let effectSocketInitialized = false;
+
 export const useEffectStore = create<EffectState>((set, get) => ({
   effects: [],
   effectsTotal: 0,
   currentPage: 1,
   limit: 20,
-  socket: null,
 
   initializeSocket: () => {
-    if (get().socket?.connected) return;
-    if (typeof window === "undefined") return;
-
-    const socket = io({
-      withCredentials: true,
-      transports: ["websocket", "polling"],
-      autoConnect: true,
-      reconnection: true,
-      reconnectionAttempts: 5,
-    });
+    if (effectSocketInitialized) return;
+    effectSocketInitialized = true;
 
     socket.on("effect:created", async () => {
       console.log("Эффект создан (сокет)");
@@ -72,8 +64,6 @@ export const useEffectStore = create<EffectState>((set, get) => ({
       const { currentPage, limit, fetchEffects } = get();
       await fetchEffects(currentPage, limit);
     });
-
-    set({ socket });
   },
 
   fetchEffects: async (page = 1, limit = 20) => {

@@ -1,7 +1,7 @@
 // client/src/stores/abilityStore.ts
 import { create } from "zustand";
-import { io, Socket } from "socket.io-client";
 import type { AbilityType } from "../types";
+import { socket } from "../lib/socket";
 
 interface PaginatedResponse<T> {
   data: T[];
@@ -15,7 +15,6 @@ interface AbilityStore {
   abilitiesTotal: number;
   currentPage: number;
   limit: number;
-  socket: Socket | null;
   addAbility: (ability: AbilityType) => void;
   setAbilities: (
     abilities: AbilityType[],
@@ -30,12 +29,13 @@ interface AbilityStore {
   fetchAllAbilities: () => Promise<AbilityType[]>;
 }
 
+let abilitySocketInitialized = false;
+
 export const useAbilityStore = create<AbilityStore>((set, get) => ({
   abilities: [],
   abilitiesTotal: 0,
   currentPage: 1,
   limit: 20,
-  socket: null,
 
   addAbility: (ability) =>
     set((state) => {
@@ -59,16 +59,8 @@ export const useAbilityStore = create<AbilityStore>((set, get) => ({
     })),
 
   initializeSocket: () => {
-    if (typeof window === "undefined") return;
-    if (get().socket) return;
-
-    const socket = io({
-      withCredentials: true,
-      transports: ["websocket", "polling"],
-      autoConnect: true,
-      reconnection: true,
-      reconnectionAttempts: 5,
-    });
+    if (abilitySocketInitialized) return;
+    abilitySocketInitialized = true;
 
     socket.on("ability:created", async () => {
       console.log("Способность создана (сокет)");
@@ -93,8 +85,6 @@ export const useAbilityStore = create<AbilityStore>((set, get) => ({
       const { currentPage, limit, fetchAbilities } = get();
       await fetchAbilities(currentPage, limit);
     });
-
-    set({ socket });
   },
 
   fetchAbilities: async (page = 1, limit = 20) => {
