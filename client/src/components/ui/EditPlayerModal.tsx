@@ -78,7 +78,7 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
       }
     };
     loadFullPlayer();
-  }, [player.id, showError]); // добавлена зависимость showError
+  }, [player.id, showError]);
 
   const updatePlayerData = async () => {
     try {
