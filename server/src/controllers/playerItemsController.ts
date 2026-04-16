@@ -154,7 +154,7 @@ export const playerItemsController = {
   async transferItem(req: Request, res: Response) {
     const playerId = parseInt(String(req.params.playerId));
     const playerItemId = parseInt(String(req.params.playerItemId));
-    const { targetPlayerId } = req.body;
+    const { targetPlayerId, quantity = 1 } = req.body;
     if (
       isNaN(playerId) ||
       isNaN(playerItemId) ||
@@ -168,6 +168,7 @@ export const playerItemsController = {
         playerId,
         playerItemId,
         Number(targetPlayerId),
+        Number(quantity),
       );
       emitToPlayer(playerId, "player:updated", sender);
       emitToPlayer(Number(targetPlayerId), "player:updated", target);

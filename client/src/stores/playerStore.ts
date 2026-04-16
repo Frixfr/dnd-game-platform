@@ -34,6 +34,7 @@ interface PlayerStore {
     playerId: number,
     playerItemId: number,
     targetPlayerId: number,
+    quantity?: number,
   ) => Promise<void>;
 }
 
@@ -158,13 +159,14 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
     playerId: number,
     playerItemId: number,
     targetPlayerId: number,
+    quantity: number = 1,
   ) => {
     const response = await fetch(
       `/api/player-items/${playerId}/items/${playerItemId}/transfer`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ targetPlayerId }),
+        body: JSON.stringify({ targetPlayerId, quantity }),
       },
     );
     if (!response.ok) {

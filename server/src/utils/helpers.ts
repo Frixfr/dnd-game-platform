@@ -194,6 +194,7 @@ export async function getFullPlayerData(
       .where("player_id", playerId)
       .join("items", "player_items.item_id", "items.id")
       .select(
+        "player_items.id as player_item_id",
         "items.id",
         "items.name",
         "items.description",
@@ -214,6 +215,7 @@ export async function getFullPlayerData(
         const effects = await itemsService.getItemEffects(item.id);
         return {
           ...item,
+          player_item_id: item.player_item_id, // ← явно сохраняем
           active_effects: effects.filter((e) => e.effect_type === "active"),
           passive_effects: effects.filter((e) => e.effect_type === "passive"),
         };

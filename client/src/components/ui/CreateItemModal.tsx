@@ -1,4 +1,4 @@
-// client/src/components/ui/CreateItemModal.tsx
+// Файл: client/src/components/ui/CreateItemModal.tsx
 import { useState, useEffect } from 'react';
 import type { EffectType, RarityType } from '../../types';
 
@@ -12,7 +12,6 @@ export const CreateItemModal = ({ onClose, onItemCreated }: CreateItemModalProps
     name: '',
     description: '',
     rarity: 'common' as RarityType,
-    base_quantity: 1,
     is_deletable: true,
     is_usable: true,
     infinite_uses: false,
@@ -69,7 +68,7 @@ export const CreateItemModal = ({ onClose, onItemCreated }: CreateItemModalProps
           </div>
           {error && <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm">{error}</div>}
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium mb-1">Название *</label>
                 <input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full p-2 border rounded" required maxLength={100} />
@@ -86,10 +85,6 @@ export const CreateItemModal = ({ onClose, onItemCreated }: CreateItemModalProps
                   <option value="legendary">Легендарный</option><option value="mythical">Мифический</option>
                   <option value="story">Сюжетный</option>
                 </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Базовое количество</label>
-                <input type="number" min="1" value={formData.base_quantity} onChange={e => setFormData({...formData, base_quantity: Number(e.target.value)})} className="w-full p-2 border rounded" />
               </div>
             </div>
 

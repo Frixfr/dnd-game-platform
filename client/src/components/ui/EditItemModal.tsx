@@ -1,4 +1,4 @@
-// client/src/components/ui/EditItemModal.tsx
+// Файл: client/src/components/ui/EditItemModal.tsx
 import { useState, useEffect } from 'react';
 import type { ItemType, EffectType } from '../../types';
 import { useNotification } from '../../hooks/useNotification';
@@ -21,7 +21,6 @@ export const EditItemModal = ({ item, onClose, onItemUpdated, mode = 'edit' }: E
     name: '',
     description: '',
     rarity: 'common' as RarityType,
-    base_quantity: 1,
     is_deletable: true,
     is_usable: true,
     infinite_uses: false,
@@ -46,7 +45,6 @@ export const EditItemModal = ({ item, onClose, onItemUpdated, mode = 'edit' }: E
         name: item.name || '',
         description: item.description || '',
         rarity: item.rarity as RarityType,
-        base_quantity: item.base_quantity || 1,
         is_deletable: item.is_deletable ?? true,
         is_usable: item.is_usable ?? true,
         infinite_uses: item.infinite_uses ?? false,
@@ -55,7 +53,7 @@ export const EditItemModal = ({ item, onClose, onItemUpdated, mode = 'edit' }: E
       });
     } else if (mode === 'create') {
       setFormData({
-        name: '', description: '', rarity: 'common', base_quantity: 1,
+        name: '', description: '', rarity: 'common',
         is_deletable: true, is_usable: true, infinite_uses: false,
         active_effect_ids: [], passive_effect_ids: [],
       });
@@ -134,11 +132,11 @@ export const EditItemModal = ({ item, onClose, onItemUpdated, mode = 'edit' }: E
         <form onSubmit={handleSubmit} className="space-y-4">
           <input type="text" name="name" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="Название" className="w-full p-2 border rounded" required />
           <textarea name="description" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} placeholder="Описание" rows={3} className="w-full p-2 border rounded" />
-          <div className="grid grid-cols-2 gap-4">
-            <select value={formData.rarity} onChange={e => setFormData({...formData, rarity: e.target.value as RarityType})} className="p-2 border rounded">
+          <div>
+            <label className="block text-sm font-medium mb-1">Редкость</label>
+            <select value={formData.rarity} onChange={e => setFormData({...formData, rarity: e.target.value as RarityType})} className="w-full p-2 border rounded">
               {Object.entries(rarityConfig).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
-            <input type="number" min="1" value={formData.base_quantity} onChange={e => setFormData({...formData, base_quantity: Number(e.target.value)})} className="p-2 border rounded" />
           </div>
           <div className="flex gap-4">
             <label><input type="checkbox" checked={formData.is_deletable} onChange={e => setFormData({...formData, is_deletable: e.target.checked})} /> Выбрасываемый</label>

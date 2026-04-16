@@ -168,6 +168,7 @@ export interface PlayerAbilityExtended extends AbilityType {
 export interface PlayerItemExtended extends ItemType {
   quantity: number;
   is_equipped: number;
+  player_item_id: number;
   active_effect?: EffectType | null;
   passive_effect?: EffectType | null;
 }

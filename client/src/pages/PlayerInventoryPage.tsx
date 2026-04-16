@@ -8,9 +8,9 @@ import { usePlayerStore } from '../stores/playerStore';
 import { useNotification } from '../hooks/useNotification';
 import type { PlayerItemExtended, EffectType, RarityType } from '../types';
 
-// Тип ответа от API /api/players/:id/details
 interface PlayerDetailsResponse {
   items: Array<{
+    player_item_id: number;
     id: number;
     name: string;
     description: string | null;
@@ -30,15 +30,25 @@ export const PlayerInventoryPage = () => {
   const { playerId } = useParams();
   const [items, setItems] = useState<PlayerItemExtended[]>([]);
   const [loading, setLoading] = useState(true);
-  const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; itemId: number | null; itemName: string }>({
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    playerItemId: number | null;
+    itemName: string;
+  }>({
     isOpen: false,
-    itemId: null,
+    playerItemId: null,
     itemName: '',
   });
-  const [transferModal, setTransferModal] = useState<{ isOpen: boolean; itemId: number | null; itemName: string }>({
+  const [transferModal, setTransferModal] = useState<{
+    isOpen: boolean;
+    playerItemId: number | null;
+    itemName: string;
+    currentQuantity: number;
+  }>({
     isOpen: false,
-    itemId: null,
+    playerItemId: null,
     itemName: '',
+    currentQuantity: 0,
   });
 
   const { executeUseItem, executeDiscardItem, executeTransferItem } = usePlayerStore();
@@ -50,14 +60,19 @@ export const PlayerInventoryPage = () => {
       if (!res.ok) throw new Error('Ошибка загрузки');
       const data: PlayerDetailsResponse = await res.json();
       const mapped: PlayerItemExtended[] = (data.items || []).map((item) => ({
-        ...item,
-        // Приводим rarity к нужному типу (если значение не подходит, по умолчанию 'common')
+        id: item.id,
+        player_item_id: item.player_item_id,
+        name: item.name,
+        description: item.description,
         rarity: (item.rarity as RarityType) || 'common',
-        quantity: item.quantity || 1,
+        base_quantity: item.base_quantity,
+        quantity: item.quantity,
         is_equipped: item.is_equipped === 1 || item.is_equipped === true ? 1 : 0,
+        is_deletable: item.is_deletable,
+        is_usable: item.is_usable,
+        infinite_uses: item.infinite_uses,
         active_effects: item.active_effects || [],
         passive_effects: item.passive_effects || [],
-        // Добавляем недостающие поля для совместимости с ItemType
         active_effect_id: null,
         passive_effect_id: null,
         active_effect: null,
@@ -77,9 +92,9 @@ export const PlayerInventoryPage = () => {
     fetchInventory();
   }, [fetchInventory]);
 
-  const handleUse = async (itemId: number, itemName: string) => {
+  const handleUse = async (playerItemId: number, itemName: string) => {
     try {
-      await executeUseItem(Number(playerId), itemId);
+      await executeUseItem(Number(playerId), playerItemId);
       showSuccess(`"${itemName}" использован`);
       await fetchInventory();
     } catch (err) {
@@ -89,26 +104,26 @@ export const PlayerInventoryPage = () => {
   };
 
   const handleDiscard = async () => {
-    if (!confirmModal.itemId) return;
+    if (!confirmModal.playerItemId) return;
     try {
-      await executeDiscardItem(Number(playerId), confirmModal.itemId);
+      await executeDiscardItem(Number(playerId), confirmModal.playerItemId);
       showSuccess(`"${confirmModal.itemName}" выброшен`);
       await fetchInventory();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Неизвестная ошибка';
       showError(message);
     } finally {
-      setConfirmModal({ isOpen: false, itemId: null, itemName: '' });
+      setConfirmModal({ isOpen: false, playerItemId: null, itemName: '' });
     }
   };
 
-  const handleTransfer = async (targetPlayerId: number) => {
-    if (!transferModal.itemId) return;
+  const handleTransfer = async (targetPlayerId: number, quantity: number) => {
+    if (!transferModal.playerItemId) return;
     try {
-      await executeTransferItem(Number(playerId), transferModal.itemId, targetPlayerId);
-      showSuccess(`"${transferModal.itemName}" передан`);
+      await executeTransferItem(Number(playerId), transferModal.playerItemId, targetPlayerId, quantity);
+      showSuccess(`"${transferModal.itemName}" передан в количестве ${quantity}`);
       await fetchInventory();
-      setTransferModal({ isOpen: false, itemId: null, itemName: '' });
+      setTransferModal({ isOpen: false, playerItemId: null, itemName: '', currentQuantity: 0 });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Неизвестная ошибка';
       showError(message);
@@ -125,12 +140,12 @@ export const PlayerInventoryPage = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {items.map((item) => (
-            <div key={item.id} className="relative">
+            <div key={item.player_item_id} className="relative">
               <ItemCard item={item} />
               <div className="flex gap-2 mt-2 justify-end">
                 {item.is_usable && (item.infinite_uses || (item.quantity && item.quantity > 0)) && (
                   <button
-                    onClick={() => handleUse(item.id, item.name)}
+                    onClick={() => handleUse(item.player_item_id, item.name)}
                     className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700"
                   >
                     Использовать
@@ -139,13 +154,18 @@ export const PlayerInventoryPage = () => {
                 {item.is_deletable && !item.is_equipped && (
                   <>
                     <button
-                      onClick={() => setConfirmModal({ isOpen: true, itemId: item.id, itemName: item.name })}
+                      onClick={() => setConfirmModal({ isOpen: true, playerItemId: item.player_item_id, itemName: item.name })}
                       className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700"
                     >
                       Выбросить
                     </button>
                     <button
-                      onClick={() => setTransferModal({ isOpen: true, itemId: item.id, itemName: item.name })}
+                      onClick={() => setTransferModal({
+                        isOpen: true,
+                        playerItemId: item.player_item_id,
+                        itemName: item.name,
+                        currentQuantity: item.quantity
+                      })}
                       className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
                     >
                       Передать
@@ -160,7 +180,7 @@ export const PlayerInventoryPage = () => {
 
       <ConfirmModal
         isOpen={confirmModal.isOpen}
-        onCancel={() => setConfirmModal({ isOpen: false, itemId: null, itemName: '' })}
+        onCancel={() => setConfirmModal({ isOpen: false, playerItemId: null, itemName: '' })}
         onConfirm={handleDiscard}
         title="Подтверждение"
         message={`Вы уверены, что хотите выбросить "${confirmModal.itemName}"?`}
@@ -168,9 +188,11 @@ export const PlayerInventoryPage = () => {
 
       {transferModal.isOpen && (
         <TransferItemModal
-          onClose={() => setTransferModal({ isOpen: false, itemId: null, itemName: '' })}
+          onClose={() => setTransferModal({ isOpen: false, playerItemId: null, itemName: '', currentQuantity: 0 })}
           currentPlayerId={Number(playerId)}
           itemName={transferModal.itemName}
+          currentQuantity={transferModal.currentQuantity}
+          playerItemId={transferModal.playerItemId!}
           onTransfer={handleTransfer}
         />
       )}

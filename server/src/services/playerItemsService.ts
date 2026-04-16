@@ -204,6 +204,7 @@ export const playerItemsService = {
     playerId: number,
     playerItemId: number,
     targetPlayerId: number,
+    quantity: number = 1,
   ) {
     if (playerId === targetPlayerId)
       throw new Error("Нельзя передать предмет самому себе");
@@ -217,6 +218,10 @@ export const playerItemsService = {
     if (!item.is_deletable) throw new Error("Этот предмет нельзя передать");
     if (playerItem.is_equipped) throw new Error("Сначала снимите предмет");
 
+    if (quantity <= 0) throw new Error("Количество должно быть больше 0");
+    if (playerItem.quantity < quantity)
+      throw new Error("Недостаточно предметов");
+
     const targetPlayer = await db("players")
       .where("id", targetPlayerId)
       .first();
@@ -224,25 +229,27 @@ export const playerItemsService = {
     if (!targetPlayer.is_online) throw new Error("Игрок не в сети");
 
     await db.transaction(async (trx) => {
-      if (playerItem.quantity > 1) {
+      // Уменьшаем количество у отправителя
+      if (playerItem.quantity === quantity) {
+        await trx("player_items").where({ id: playerItemId }).delete();
+      } else {
         await trx("player_items")
           .where({ id: playerItemId })
-          .update({ quantity: playerItem.quantity - 1 });
-      } else {
-        await trx("player_items").where({ id: playerItemId }).delete();
+          .update({ quantity: playerItem.quantity - quantity });
       }
+      // Добавляем получателю
       const existing = await trx("player_items")
         .where({ player_id: targetPlayerId, item_id: playerItem.item_id })
         .first();
       if (existing) {
         await trx("player_items")
           .where({ id: existing.id })
-          .update({ quantity: existing.quantity + 1 });
+          .update({ quantity: existing.quantity + quantity });
       } else {
         await trx("player_items").insert({
           player_id: targetPlayerId,
           item_id: playerItem.item_id,
-          quantity: 1,
+          quantity: quantity,
           is_equipped: false,
           obtained_at: trx.fn.now(),
         });
@@ -260,6 +267,7 @@ export const playerItemsService = {
         from: playerId,
         to: targetPlayerId,
         item_id: item.id,
+        quantity: quantity,
       }),
     });
 
