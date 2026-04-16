@@ -204,7 +204,12 @@ export interface CombatParticipantWithDetails extends CombatParticipant {
 
 export interface Log {
   id: number;
-  action_type: "ability_use" | "item_use" | "effect_gain";
+  action_type:
+    | "ability_use"
+    | "item_use"
+    | "effect_gain"
+    | "item_transfer"
+    | "item_discard";
   player_id: number | null;
   npc_id: number | null;
   entity_name: string;

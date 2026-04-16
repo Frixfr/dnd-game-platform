@@ -44,20 +44,58 @@ const LogsButton: React.FC = () => {
             {logs.length === 0 ? (
               <p className="text-center text-slate-400 py-8">Нет логов</p>
             ) : (
-              logs.map((log) => (
-                <div key={log.id} className="text-sm py-2 border-b border-slate-100 last:border-0">
-                  <span className="text-slate-500 text-xs">{new Date(log.created_at).toLocaleTimeString()}</span>
-                  <span className="ml-2 text-slate-700">
-                    {log.entity_name}{" "}
-                    {log.action_type === "ability_use"
-                      ? "использовал"
-                      : log.action_type === "item_use"
-                      ? "использовал"
-                      : "получил эффект"}{" "}
-                    {log.action_name}
-                  </span>
-                </div>
-              ))
+              logs.map((log) => {
+                const { action_type, entity_name, action_name, details } = log;
+                let actionText = "";
+                let actionColor = "";
+                let extra = "";
+
+                switch (action_type) {
+                  case "ability_use":
+                    actionText = "использовал способность";
+                    actionColor = "text-purple-600";
+                    break;
+                  case "item_use":
+                    actionText = "использовал предмет";
+                    actionColor = "text-green-600";
+                    break;
+                  case "item_transfer":
+                    actionText = "передал предмет";
+                    actionColor = "text-blue-600";
+                    if (details) {
+                      try {
+                        const parsed = JSON.parse(details);
+                        extra = ` игроку ${parsed.to_name || `#${parsed.to}`}`;
+                      } catch {
+                        // игнорируем ошибки парсинга, extra останется пустым
+                      }
+                    }
+                    break;
+                  case "item_discard":
+                    actionText = "выбросил предмет";
+                    actionColor = "text-orange-600";
+                    break;
+                  case "effect_gain":
+                    actionText = "получил эффект";
+                    actionColor = "text-yellow-600";
+                    break;
+                  default:
+                    actionText = "совершил действие";
+                    actionColor = "text-gray-600";
+                }
+
+                return (
+                  <div key={log.id} className="text-sm py-2 border-b border-slate-100 last:border-0">
+                    <span className="text-slate-500 text-xs">{new Date(log.created_at).toLocaleTimeString()}</span>
+                    <span className="ml-2 text-slate-700">
+                      {entity_name}{" "}
+                      <span className={actionColor}>{actionText}</span>{" "}
+                      <span className="font-medium">{action_name}</span>
+                      {extra && <span className="text-slate-600">{extra}</span>}
+                    </span>
+                  </div>
+                );
+              })
             )}
             <div ref={logsEndRef} />
           </div>

@@ -266,6 +266,7 @@ export const playerItemsService = {
       details: JSON.stringify({
         from: playerId,
         to: targetPlayerId,
+        to_name: targetPlayer.name,
         item_id: item.id,
         quantity: quantity,
       }),
