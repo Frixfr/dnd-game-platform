@@ -2,207 +2,65 @@
 
 import { db } from "./index.js";
 
-// Добавление отсутствующих колонок (миграция)
-async function addMissingColumns() {
-  // Проверяем и добавляем race_id в таблицу players
-  const playersColumns = await db.table("players").columnInfo();
-  if (!playersColumns.race_id) {
-    await db.schema.alterTable("players", (table) => {
-      table
-        .integer("race_id")
-        .references("id")
-        .inTable("races")
-        .onDelete("SET NULL");
-    });
-    console.log("Колонка race_id добавлена в таблицу players");
-  }
-
-  // Проверяем и добавляем access_password в таблицу players
-  if (!playersColumns.access_password) {
-    await db.schema.alterTable("players", (table) => {
-      table.text("access_password");
-    });
-    // Добавляем уникальный индекс для паролей (кроме NULL)
-    await db.raw(`
-      CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_access_password 
-      ON players (access_password) 
-      WHERE access_password IS NOT NULL
-    `);
-    console.log("Колонка access_password и уникальный индекс добавлены");
-  }
-
-  // Добавляем avatar_url в players
-  if (!playersColumns.avatar_url) {
-    await db.schema.alterTable("players", (table) => {
-      table.string("avatar_url", 255).nullable();
-    });
-    console.log("Колонка avatar_url добавлена в таблицу players");
-  }
-
-  // Добавляем avatar_url в npcs
-  const npcsColumns = await db.table("npcs").columnInfo();
-  if (!npcsColumns.avatar_url) {
-    await db.schema.alterTable("npcs", (table) => {
-      table.string("avatar_url", 255).nullable();
-    });
-    console.log("Колонка avatar_url добавлена в таблицу npcs");
-  }
-
-  // Добавляем колонку remaining_cooldown_turns в player_abilities
-  const playerAbilitiesColumns = await db
-    .table("player_abilities")
-    .columnInfo();
-  if (!playerAbilitiesColumns.remaining_cooldown_turns) {
-    await db.schema.alterTable("player_abilities", (table) => {
-      table.integer("remaining_cooldown_turns").defaultTo(0);
-    });
-    console.log(
-      "Колонка remaining_cooldown_turns добавлена в player_abilities",
-    );
-  }
-
-  // Добавляем колонку remaining_cooldown_turns в npc_abilities
-  const npcAbilitiesColumns = await db.table("npc_abilities").columnInfo();
-  if (!npcAbilitiesColumns.remaining_cooldown_turns) {
-    await db.schema.alterTable("npc_abilities", (table) => {
-      table.integer("remaining_cooldown_turns").defaultTo(0);
-    });
-    console.log("Колонка remaining_cooldown_turns добавлена в npc_abilities");
-  }
-
-  // Проверяем и добавляем race_id в таблицу npcs
-  if (!npcsColumns.race_id) {
-    await db.schema.alterTable("npcs", (table) => {
-      table
-        .integer("race_id")
-        .references("id")
-        .inTable("races")
-        .onDelete("SET NULL");
-    });
-    console.log("Колонка race_id добавлена в таблицу npcs");
-  }
-
-  // Проверяем и добавляем колонку tags в таблицу effects
-  const effectsColumns = await db.table("effects").columnInfo();
-  if (!effectsColumns.tags) {
-    await db.schema.alterTable("effects", (table) => {
-      table.text("tags").defaultTo("[]");
-    });
-    console.log("Колонка tags добавлена в таблицу effects");
-  }
-
-  // Добавляем колонку remaining_cooldown_days в player_abilities
-  const playerAbilitiesColumns2 = await db
-    .table("player_abilities")
-    .columnInfo();
-  if (!playerAbilitiesColumns2.remaining_cooldown_days) {
-    await db.schema.alterTable("player_abilities", (table) => {
-      table.integer("remaining_cooldown_days").defaultTo(0);
-    });
-    console.log("Колонка remaining_cooldown_days добавлена в player_abilities");
-  }
-
-  // Добавляем колонку remaining_cooldown_days в npc_abilities
-  const npcAbilitiesColumns2 = await db.table("npc_abilities").columnInfo();
-  if (!npcAbilitiesColumns2.remaining_cooldown_days) {
-    await db.schema.alterTable("npc_abilities", (table) => {
-      table.integer("remaining_cooldown_days").defaultTo(0);
-    });
-    console.log("Колонка remaining_cooldown_days добавлена в npc_abilities");
-  }
-
-  // === НОВАЯ МИГРАЦИЯ ДЛЯ ПРЕДМЕТОВ (без удаления старых колонок) ===
-  const itemsColumns = await db.table("items").columnInfo();
-
-  // Добавляем is_deletable, is_usable, infinite_uses, если их нет
-  if (!itemsColumns.is_deletable) {
-    await db.schema.alterTable("items", (table) => {
-      table.boolean("is_deletable").notNullable().defaultTo(1);
-    });
-    console.log("Колонка is_deletable добавлена в таблицу items");
-  }
-  if (!itemsColumns.is_usable) {
-    await db.schema.alterTable("items", (table) => {
-      table.boolean("is_usable").notNullable().defaultTo(1);
-    });
-    console.log("Колонка is_usable добавлена в таблицу items");
-  }
-  if (!itemsColumns.infinite_uses) {
-    await db.schema.alterTable("items", (table) => {
-      table.boolean("infinite_uses").notNullable().defaultTo(0);
-    });
-    console.log("Колонка infinite_uses добавлена в таблицу items");
-  }
-
-  // Создаём таблицу item_effects, если её нет
-  if (!(await db.schema.hasTable("item_effects"))) {
-    await db.schema.createTable("item_effects", (table) => {
-      table.increments("id").primary();
-      table
-        .integer("item_id")
-        .notNullable()
-        .references("id")
-        .inTable("items")
-        .onDelete("CASCADE");
-      table
-        .integer("effect_id")
-        .notNullable()
-        .references("id")
-        .inTable("effects")
-        .onDelete("CASCADE");
-      table
-        .string("effect_type", 10)
-        .notNullable()
-        .checkIn(["active", "passive"]);
-      table.timestamp("created_at").defaultTo(db.fn.now());
-      table.unique(["item_id", "effect_id", "effect_type"]);
-    });
-    console.log("Таблица item_effects создана (миграция)");
-  }
-
-  // Перенос данных из старых колонок active_effect_id / passive_effect_id в item_effects
-  const itemEffectsCount = await db("item_effects")
-    .count("id as count")
-    .first();
-  if (Number(itemEffectsCount?.count) === 0) {
-    const itemsWithOldEffects = await db("items")
-      .select("id", "active_effect_id", "passive_effect_id")
-      .whereNotNull("active_effect_id")
-      .orWhereNotNull("passive_effect_id");
-    for (const item of itemsWithOldEffects) {
-      if (item.active_effect_id) {
-        await db("item_effects")
-          .insert({
-            item_id: item.id,
-            effect_id: item.active_effect_id,
-            effect_type: "active",
-            created_at: db.fn.now(),
-          })
-          .onConflict(["item_id", "effect_id", "effect_type"])
-          .ignore();
-      }
-      if (item.passive_effect_id) {
-        await db("item_effects")
-          .insert({
-            item_id: item.id,
-            effect_id: item.passive_effect_id,
-            effect_type: "passive",
-            created_at: db.fn.now(),
-          })
-          .onConflict(["item_id", "effect_id", "effect_type"])
-          .ignore();
-      }
-    }
-    if (itemsWithOldEffects.length > 0) {
-      console.log(
-        `Перенесено ${itemsWithOldEffects.length} предметов из старых колонок в item_effects`,
-      );
-    }
-  }
-}
-
 export async function initializeDatabase() {
   try {
+    // Таблица effects (нужна для рас, способностей, предметов)
+    if (!(await db.schema.hasTable("effects"))) {
+      await db.schema.createTable("effects", (table) => {
+        table.increments("id").primary();
+        table.string("name", 100).notNullable().unique();
+        table.text("description");
+        table
+          .string("attribute", 20)
+          .checkIn([
+            "health",
+            "max_health",
+            "armor",
+            "strength",
+            "agility",
+            "intelligence",
+            "physique",
+            "wisdom",
+            "charisma",
+          ]);
+        table.integer("modifier");
+        table.integer("duration_turns").nullable();
+        table.integer("duration_days").nullable();
+        table.boolean("is_permanent").defaultTo(false);
+        table.text("tags").defaultTo("[]");
+      });
+      console.log("Таблица effects создана");
+    }
+
+    // Таблица races (должна быть до players и npcs из-за внешних ключей)
+    if (!(await db.schema.hasTable("races"))) {
+      await db.schema.createTable("races", (table) => {
+        table.increments("id").primary();
+        table.string("name", 50).notNullable().unique();
+        table.text("description");
+        table.timestamp("created_at").defaultTo(db.fn.now());
+      });
+      console.log("Таблица races создана");
+    }
+
+    // Таблица race_effects (связь расы с эффектами)
+    if (!(await db.schema.hasTable("race_effects"))) {
+      await db.schema.createTable("race_effects", (table) => {
+        table
+          .integer("race_id")
+          .references("id")
+          .inTable("races")
+          .onDelete("CASCADE");
+        table
+          .integer("effect_id")
+          .references("id")
+          .inTable("effects")
+          .onDelete("CASCADE");
+        table.primary(["race_id", "effect_id"]);
+      });
+      console.log("Таблица race_effects создана");
+    }
+
     // Таблица players
     if (!(await db.schema.hasTable("players"))) {
       await db.schema.createTable("players", (table) => {
@@ -232,34 +90,6 @@ export async function initializeDatabase() {
         table.string("avatar_url", 255).nullable();
       });
       console.log("Таблица players создана");
-    }
-
-    // Таблица effects
-    if (!(await db.schema.hasTable("effects"))) {
-      await db.schema.createTable("effects", (table) => {
-        table.increments("id").primary();
-        table.string("name", 100).notNullable().unique();
-        table.text("description");
-        table
-          .string("attribute", 20)
-          .checkIn([
-            "health",
-            "max_health",
-            "armor",
-            "strength",
-            "agility",
-            "intelligence",
-            "physique",
-            "wisdom",
-            "charisma",
-          ]);
-        table.integer("modifier");
-        table.integer("duration_turns").nullable();
-        table.integer("duration_days").nullable();
-        table.boolean("is_permanent").defaultTo(false);
-        table.text("tags").defaultTo("[]");
-      });
-      console.log("Таблица effects создана");
     }
 
     // Таблица abilities
@@ -325,7 +155,7 @@ export async function initializeDatabase() {
           ])
           .defaultTo("common");
         table.integer("base_quantity").defaultTo(1);
-        // Старые колонки (оставляем, но не используем)
+        // Старые колонки (оставляем для совместимости, но не используем)
         table
           .integer("active_effect_id")
           .references("id")
@@ -336,11 +166,10 @@ export async function initializeDatabase() {
           .references("id")
           .inTable("effects")
           .onDelete("SET NULL");
-        // НОВЫЕ ПОЛЯ
+        // Новые поля
         table.boolean("is_deletable").notNullable().defaultTo(1);
         table.boolean("is_usable").notNullable().defaultTo(1);
         table.boolean("infinite_uses").notNullable().defaultTo(0);
-        // ---
         table.timestamps(true, true);
       });
       console.log("Таблица items создана");
@@ -517,32 +346,25 @@ export async function initializeDatabase() {
       console.log("Таблица npc_active_effects создана");
     }
 
-    if (!(await db.schema.hasTable("races"))) {
-      await db.schema.createTable("races", (table) => {
+    if (!(await db.schema.hasTable("map_tokens"))) {
+      await db.schema.createTable("map_tokens", (table) => {
         table.increments("id").primary();
-        table.string("name", 50).notNullable().unique();
-        table.text("description");
-        table.timestamp("created_at").defaultTo(db.fn.now());
-      });
-      console.log("Таблица races создана");
-    }
-
-    // Таблица race_effects (связь расы с эффектами)
-    if (!(await db.schema.hasTable("race_effects"))) {
-      await db.schema.createTable("race_effects", (table) => {
         table
-          .integer("race_id")
-          .references("id")
-          .inTable("races")
-          .onDelete("CASCADE");
-        table
-          .integer("effect_id")
-          .references("id")
-          .inTable("effects")
-          .onDelete("CASCADE");
-        table.primary(["race_id", "effect_id"]);
+          .string("entity_type", 10)
+          .notNullable()
+          .checkIn(["player", "npc"]);
+        table.integer("entity_id").notNullable();
+        table.string("map_id", 100).notNullable().defaultTo("default");
+        table.integer("x").defaultTo(0);
+        table.integer("y").defaultTo(0);
+        table.timestamp("updated_at").defaultTo(db.fn.now());
+        // Уникальный ключ: у одного игрока/NPC может быть позиция на каждой карте
+        table.unique(["entity_type", "entity_id", "map_id"]);
+        // Индекс для быстрого поиска всех токенов на карте
+        table.index(["map_id"]);
+        table.index(["entity_type", "entity_id"]);
       });
-      console.log("Таблица race_effects создана");
+      console.log("Таблица map_tokens создана");
     }
 
     // Таблица logs
@@ -572,7 +394,7 @@ export async function initializeDatabase() {
       console.log("Таблица combat_sessions создана");
     }
 
-    // Таблица combat_participants (порядок участников в бою)
+    // Таблица combat_participants
     if (!(await db.schema.hasTable("combat_participants"))) {
       await db.schema.createTable("combat_participants", (table) => {
         table.increments("id").primary();
@@ -587,18 +409,14 @@ export async function initializeDatabase() {
           .notNullable()
           .checkIn(["player", "npc"]);
         table.integer("entity_id").notNullable();
-        table.integer("order_index").notNullable(); // позиция в очереди (0-based)
+        table.integer("order_index").notNullable();
         table.boolean("is_current_turn").defaultTo(false);
         table.timestamp("joined_at").defaultTo(db.fn.now());
-        // Уникальный индекс для предотвращения дублей (session_id + entity_type + entity_id)
         table.unique(["session_id", "entity_type", "entity_id"]);
-        // Индекс для сортировки по order_index
         table.index(["session_id", "order_index"]);
       });
       console.log("Таблица combat_participants создана");
     }
-
-    await addMissingColumns();
 
     // Индексы
     await db
