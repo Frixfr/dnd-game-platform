@@ -26,6 +26,15 @@ export function initSocket(
       console.log(`Socket ${socket.id} joined room player:${playerId}`);
     });
 
+    socket.on("join-map", (mapId: number) => {
+      socket.join(`map:${mapId}`);
+      console.log(`Socket ${socket.id} joined map ${mapId}`);
+    });
+
+    socket.on("leave-map", (mapId: number) => {
+      socket.leave(`map:${mapId}`);
+    });
+
     socket.on("disconnect", () => {
       console.log("Клиент отключился:", socket.id);
     });

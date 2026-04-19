@@ -289,3 +289,45 @@ export interface ItemEffectLink {
   effect_type: "active" | "passive";
   created_at: string;
 }
+
+export interface Map {
+  id: number;
+  name: string;
+  image_url: string;
+  show_to_players: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MapToken {
+  id: number;
+  map_id: number;
+  entity_type: "player" | "npc";
+  entity_id: number;
+  x: number; // 0..1
+  y: number; // 0..1
+  is_grayscale: boolean;
+  scale: number;
+  updated_at: string;
+}
+
+export interface MapWithTokens extends Map {
+  tokens: (MapToken & { entity_name: string; avatar_url?: string | null })[];
+}
+
+export interface CreateMapDto {
+  name: string;
+  show_to_players?: boolean;
+}
+
+export interface UpdateMapDto {
+  name?: string;
+  show_to_players?: boolean;
+}
+
+export interface UpdateTokenDto {
+  x?: number;
+  y?: number;
+  is_grayscale?: boolean;
+  scale?: number;
+}

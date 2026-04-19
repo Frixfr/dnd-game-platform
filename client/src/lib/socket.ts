@@ -12,10 +12,16 @@ export function getSocket(): Socket {
       reconnection: true,
       reconnectionAttempts: 5,
     });
-    console.log("Socket singleton created");
+    // Убираем socket.onAny – больше не нужен
   }
   return socketInstance;
 }
 
-// Экспортируем сам сокет (для удобства, но лучше использовать getSocket)
 export const socket = getSocket();
+
+declare global {
+  interface Window {
+    __socket: typeof socket;
+  }
+}
+window.__socket = socket;

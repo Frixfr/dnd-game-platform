@@ -71,7 +71,7 @@ export const CreateAbilityModal = ({
     };
     
     try {
-      const response = await fetch('http://localhost:5000/api/abilities', {
+      const response = await fetch('/api/abilities', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',

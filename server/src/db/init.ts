@@ -346,25 +346,69 @@ export async function initializeDatabase() {
       console.log("Таблица npc_active_effects создана");
     }
 
-    if (!(await db.schema.hasTable("map_tokens"))) {
+    // Таблица maps (карты)
+    if (!(await db.schema.hasTable("maps"))) {
+      await db.schema.createTable("maps", (table) => {
+        table.increments("id").primary();
+        table.string("name", 100).notNullable();
+        table.string("image_url", 255).notNullable(); // путь к файлу карты
+        table.boolean("show_to_players").defaultTo(false);
+        table.timestamp("created_at").defaultTo(db.fn.now());
+        table.timestamp("updated_at").defaultTo(db.fn.now());
+      });
+      console.log("Таблица maps создана");
+    }
+
+    // Обновляем существующую таблицу map_tokens (добавляем колонки, если их нет)
+    const hasMapTokens = await db.schema.hasTable("map_tokens");
+    if (!hasMapTokens) {
       await db.schema.createTable("map_tokens", (table) => {
         table.increments("id").primary();
+        table
+          .integer("map_id")
+          .notNullable()
+          .references("id")
+          .inTable("maps")
+          .onDelete("CASCADE");
         table
           .string("entity_type", 10)
           .notNullable()
           .checkIn(["player", "npc"]);
         table.integer("entity_id").notNullable();
-        table.string("map_id", 100).notNullable().defaultTo("default");
-        table.integer("x").defaultTo(0);
-        table.integer("y").defaultTo(0);
+        table.float("x").defaultTo(0); // процент 0..1
+        table.float("y").defaultTo(0); // процент 0..1
+        table.boolean("is_grayscale").defaultTo(false);
+        table.float("scale").defaultTo(1); // масштаб аватарки (1 = 100%)
         table.timestamp("updated_at").defaultTo(db.fn.now());
-        // Уникальный ключ: у одного игрока/NPC может быть позиция на каждой карте
-        table.unique(["entity_type", "entity_id", "map_id"]);
-        // Индекс для быстрого поиска всех токенов на карте
+        table.unique(["map_id", "entity_type", "entity_id"]);
         table.index(["map_id"]);
-        table.index(["entity_type", "entity_id"]);
       });
       console.log("Таблица map_tokens создана");
+    } else {
+      // Добавляем недостающие колонки (миграция)
+      const hasIsGrayscale = await db.schema.hasColumn(
+        "map_tokens",
+        "is_grayscale",
+      );
+      if (!hasIsGrayscale) {
+        await db.schema.alterTable("map_tokens", (table) => {
+          table.boolean("is_grayscale").defaultTo(false);
+          table.float("scale").defaultTo(1);
+        });
+      }
+      const hasMapId = await db.schema.hasColumn("map_tokens", "map_id");
+      if (!hasMapId) {
+        // Если таблица существовала без map_id, пересоздаём (или добавляем с дефолтом)
+        await db.schema.alterTable("map_tokens", (table) => {
+          table
+            .integer("map_id")
+            .references("id")
+            .inTable("maps")
+            .onDelete("CASCADE");
+        });
+        // Устанавливаем map_id = 1 для существующих записей (если есть)
+        await db("map_tokens").update({ map_id: 1 }).whereNull("map_id");
+      }
     }
 
     // Таблица logs

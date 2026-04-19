@@ -27,6 +27,8 @@ import { useAbilityStore } from './stores/abilityStore';
 import { useEffectStore } from './stores/effectStore';
 import { useItemStore } from './stores/itemStore';
 import { useRaceStore } from './stores/raceStore';
+import { MapsPage } from "./pages/MapsPage";
+import { useMapStore } from './stores/mapStore';
 
 const App: React.FC = () => {
   // Инициализируем сокет один раз при старте приложения
@@ -42,6 +44,7 @@ const App: React.FC = () => {
     useEffectStore.getState().initializeSocket();
     useItemStore.getState().initializeSocket();
     useRaceStore.getState().initializeSocket();
+    useMapStore.getState().initializeSocket();
 
     // Опционально: закрываем соединение при размонтировании (но приложение обычно не размонтируется)
     return () => {
@@ -64,6 +67,7 @@ const App: React.FC = () => {
             <Route path="npcs" element={<NpcsPage />} />
             <Route path="races" element={<RacesPage />} />
             <Route path="combat" element={<CombatPage />} />
+            <Route path="maps" element={<MapsPage />} />
           </Route>
           <Route path="/player/select" element={<PlayerSelectionPage />} />
           <Route path="/player/:playerId" element={<PlayerLayout />}>

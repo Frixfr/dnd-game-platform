@@ -21,6 +21,7 @@ import npcEffectsRoutes from "./routes/npcEffects.js";
 import racesRouter from "./routes/races.js";
 import combatRouter from "./routes/combat.js";
 import logsRouter from "./routes/logs.js";
+import mapsRouter from "./routes/maps.js";
 
 const app = express();
 const server = createServer(app);
@@ -64,6 +65,7 @@ app.use("/api/npc-effects", npcEffectsRoutes);
 app.use("/api/races", racesRouter);
 app.use("/api/combat", combatRouter);
 app.use("/api/logs", logsRouter);
+app.use("/api/maps", mapsRouter);
 
 // Функция для запуска приложения (инициализация БД и сокетов)
 export async function startApp() {

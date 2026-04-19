@@ -217,3 +217,35 @@ export interface Log {
   details: string | null;
   created_at: string;
 }
+
+export interface MapType {
+  id: number;
+  name: string;
+  image_url: string;
+  show_to_players: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MapTokenType {
+  id: number;
+  map_id: number;
+  entity_type: "player" | "npc";
+  entity_id: number;
+  x: number;
+  y: number;
+  is_grayscale: boolean;
+  scale: number;
+  updated_at: string;
+  entity_name: string;
+  avatar_url?: string | null;
+}
+
+export interface MapWithTokensType extends MapType {
+  tokens: MapTokenType[];
+}
+
+export interface AvailableEntities {
+  players: { id: number; name: string; avatar_url?: string | null }[];
+  npcs: { id: number; name: string; avatar_url?: string | null }[];
+}
