@@ -282,14 +282,12 @@ export async function getFullPlayerData(
     }
 
     const allActiveEffects = [...activeEffects, ...raceEffects];
-    const equippedPassiveEffects = items
-      .filter((item) => item.is_equipped)
-      .flatMap((item) => item.passive_effects);
+    const allPassiveEffects = items.flatMap((item) => item.passive_effects);
 
     const finalStats = calculateFinalStats(
       player,
       allActiveEffects,
-      equippedPassiveEffects,
+      allPassiveEffects,
     );
 
     return {
@@ -464,14 +462,12 @@ export async function getFullNpcData(
     }
 
     const allActiveEffects = [...activeEffects, ...raceEffects];
-    const equippedPassiveEffects = items
-      .filter((item) => item.is_equipped)
-      .flatMap((item) => item.passive_effects);
+    const allPassiveEffects = items.flatMap((item) => item.passive_effects);
 
     const finalStats = calculateNpcFinalStats(
       npc,
       allActiveEffects,
-      equippedPassiveEffects,
+      allPassiveEffects,
     );
 
     return {

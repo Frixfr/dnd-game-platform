@@ -293,10 +293,15 @@ export const playersService = {
       }
 
       const allActiveEffects = [...activeEffects, ...raceEffects];
+      // Собираем все пассивные эффекты из всех предметов (игнорируем is_equipped)
+      const allPassiveEffects = items.flatMap((item) => {
+        if (item.passive_effect) return [item.passive_effect];
+        return [];
+      });
       const finalStats = calculateFinalStats(
         player,
         allActiveEffects,
-        items as any,
+        allPassiveEffects,
       );
 
       result.push({
@@ -310,6 +315,275 @@ export const playersService = {
     }
 
     return result;
+  },
+
+  async getAllFullPaginated(
+    page: number,
+    limit: number,
+    card_shown_only?: boolean,
+  ): Promise<PaginatedResponse<FullPlayerData>> {
+    let query = db("players").select("*");
+    if (card_shown_only) {
+      query = query.where("is_card_shown", true);
+    }
+
+    const offset = (page - 1) * limit;
+    const totalQuery = query
+      .clone()
+      .clearSelect()
+      .clearOrder()
+      .count("id as count")
+      .first();
+    const totalResult = await totalQuery;
+    const total = Number(totalResult?.count) || 0;
+
+    const players = await query.limit(limit).offset(offset);
+    if (players.length === 0) {
+      return { data: [], total, page, limit };
+    }
+
+    const playerIds = players.map((p) => p.id);
+
+    // Способности (аналогично getAllFull, но только для выбранных игроков)
+    const abilitiesRaw = await db("player_abilities")
+      .whereIn("player_id", playerIds)
+      .where("is_active", true)
+      .join("abilities", "player_abilities.ability_id", "abilities.id")
+      .leftJoin("effects", "abilities.effect_id", "effects.id")
+      .select(
+        "player_abilities.player_id",
+        "abilities.id",
+        "abilities.name",
+        "abilities.description",
+        "abilities.ability_type",
+        "abilities.cooldown_turns",
+        "abilities.cooldown_days",
+        "abilities.effect_id",
+        "abilities.created_at",
+        "abilities.updated_at",
+        "player_abilities.obtained_at",
+        "player_abilities.is_active",
+        "player_abilities.remaining_cooldown_turns",
+        "effects.id as effect_id",
+        "effects.name as effect_name",
+        "effects.description as effect_description",
+        "effects.attribute as effect_attribute",
+        "effects.modifier as effect_modifier",
+        "effects.duration_turns as effect_duration_turns",
+        "effects.duration_days as effect_duration_days",
+        "effects.is_permanent as effect_is_permanent",
+      );
+
+    const abilitiesByPlayer: Record<number, any[]> = {};
+    for (const row of abilitiesRaw) {
+      const playerId = row.player_id;
+      if (!abilitiesByPlayer[playerId]) abilitiesByPlayer[playerId] = [];
+      const {
+        effect_id,
+        effect_name,
+        effect_description,
+        effect_attribute,
+        effect_modifier,
+        effect_duration_turns,
+        effect_duration_days,
+        effect_is_permanent,
+        ...ability
+      } = row;
+      const effect = effect_id
+        ? {
+            id: effect_id,
+            name: effect_name,
+            description: effect_description,
+            attribute: effect_attribute,
+            modifier: effect_modifier,
+            duration_turns: effect_duration_turns,
+            duration_days: effect_duration_days,
+            is_permanent: effect_is_permanent,
+          }
+        : null;
+      abilitiesByPlayer[playerId].push({ ...ability, effect });
+    }
+
+    // Предметы (с учётом item_effects)
+    const itemsRaw = await db("player_items")
+      .whereIn("player_id", playerIds)
+      .join("items", "player_items.item_id", "items.id")
+      .select(
+        "player_items.player_id",
+        "items.id",
+        "items.name",
+        "items.description",
+        "items.rarity",
+        "items.base_quantity",
+        "items.created_at",
+        "items.updated_at",
+        "player_items.quantity",
+        "player_items.is_equipped",
+        "player_items.obtained_at",
+      );
+
+    // Загружаем эффекты для всех предметов
+    const allItemIds = itemsRaw.map((i) => i.id);
+    const itemEffectsRaw = await db("item_effects")
+      .whereIn("item_id", allItemIds)
+      .join("effects", "item_effects.effect_id", "effects.id")
+      .select(
+        "item_effects.item_id",
+        "item_effects.effect_type",
+        "effects.id",
+        "effects.name",
+        "effects.description",
+        "effects.attribute",
+        "effects.modifier",
+        "effects.duration_turns",
+        "effects.duration_days",
+        "effects.is_permanent",
+        "effects.tags",
+      );
+
+    const effectsByItemId: Record<number, { active: any[]; passive: any[] }> =
+      {};
+    for (const effect of itemEffectsRaw) {
+      if (!effectsByItemId[effect.item_id]) {
+        effectsByItemId[effect.item_id] = { active: [], passive: [] };
+      }
+      const effectData = {
+        id: effect.id,
+        name: effect.name,
+        description: effect.description,
+        attribute: effect.attribute,
+        modifier: effect.modifier,
+        duration_turns: effect.duration_turns,
+        duration_days: effect.duration_days,
+        is_permanent: effect.is_permanent,
+        tags: effect.tags ? JSON.parse(effect.tags) : [],
+      };
+      if (effect.effect_type === "active") {
+        effectsByItemId[effect.item_id].active.push(effectData);
+      } else {
+        effectsByItemId[effect.item_id].passive.push(effectData);
+      }
+    }
+
+    const itemsByPlayer: Record<number, any[]> = {};
+    for (const row of itemsRaw) {
+      const playerId = row.player_id;
+      if (!itemsByPlayer[playerId]) itemsByPlayer[playerId] = [];
+      const itemEffects = effectsByItemId[row.id] || {
+        active: [],
+        passive: [],
+      };
+      itemsByPlayer[playerId].push({
+        ...row,
+        active_effects: itemEffects.active,
+        passive_effects: itemEffects.passive,
+      });
+    }
+
+    // Активные эффекты
+    const activeEffectsRaw = await db("player_active_effects")
+      .whereIn("player_id", playerIds)
+      .where(function () {
+        this.where("remaining_turns", ">", 0)
+          .orWhere("remaining_days", ">", 0)
+          .orWhereNull("remaining_turns")
+          .orWhereNull("remaining_days");
+      })
+      .join("effects", "player_active_effects.effect_id", "effects.id")
+      .select(
+        "player_active_effects.player_id",
+        "effects.id",
+        "effects.name",
+        "effects.description",
+        "effects.attribute",
+        "effects.modifier",
+        "effects.duration_turns",
+        "effects.duration_days",
+        "effects.is_permanent",
+        "effects.tags",
+        "player_active_effects.source_type",
+        "player_active_effects.source_id",
+        "player_active_effects.remaining_turns",
+        "player_active_effects.remaining_days",
+        "player_active_effects.applied_at",
+      );
+
+    const activeEffectsByPlayer: Record<number, any[]> = {};
+    for (const row of activeEffectsRaw) {
+      const playerId = row.player_id;
+      if (!activeEffectsByPlayer[playerId])
+        activeEffectsByPlayer[playerId] = [];
+      activeEffectsByPlayer[playerId].push({
+        ...row,
+        tags: row.tags ? JSON.parse(row.tags) : [],
+      });
+    }
+
+    // Расы и эффекты рас
+    const playersWithRace = players.filter((p) => p.race_id !== null);
+    let raceDataById: Record<
+      number,
+      { id: number; name: string; description: string | null; effects: any[] }
+    > = {};
+
+    if (playersWithRace.length > 0) {
+      const raceIds = [...new Set(playersWithRace.map((p) => p.race_id!))];
+      const races = await db("races").whereIn("id", raceIds).select("*");
+      const raceEffectsRaw = await db("race_effects")
+        .whereIn("race_id", raceIds)
+        .join("effects", "race_effects.effect_id", "effects.id")
+        .select("race_effects.race_id", "effects.*");
+      const effectsByRace: Record<number, any[]> = {};
+      for (const re of raceEffectsRaw) {
+        if (!effectsByRace[re.race_id]) effectsByRace[re.race_id] = [];
+        effectsByRace[re.race_id].push({
+          ...re,
+          tags: re.tags ? JSON.parse(re.tags) : [],
+        });
+      }
+      for (const race of races) {
+        raceDataById[race.id] = {
+          id: race.id,
+          name: race.name,
+          description: race.description,
+          effects: effectsByRace[race.id] || [],
+        };
+      }
+    }
+
+    // Сборка FullPlayerData для каждого игрока
+    const result: FullPlayerData[] = [];
+    for (const player of players) {
+      const abilities = abilitiesByPlayer[player.id] || [];
+      const items = itemsByPlayer[player.id] || [];
+      const activeEffects = activeEffectsByPlayer[player.id] || [];
+
+      let raceEffects: any[] = [];
+      let raceData: any = null;
+      if (player.race_id && raceDataById[player.race_id]) {
+        raceData = raceDataById[player.race_id];
+        raceEffects = raceData.effects;
+      }
+
+      const allActiveEffects = [...activeEffects, ...raceEffects];
+      const allPassiveEffects = items.flatMap((item) => item.passive_effects);
+      const finalStats = calculateFinalStats(
+        player,
+        allActiveEffects,
+        allPassiveEffects,
+      );
+
+      result.push({
+        ...player,
+        final_stats: finalStats,
+        abilities,
+        items,
+        active_effects: activeEffects,
+        race: raceData ? { ...raceData, effects: raceEffects } : null,
+      });
+    }
+
+    return { data: result, total, page, limit };
   },
 
   async getById(id: number): Promise<Player | null> {

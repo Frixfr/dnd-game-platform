@@ -1,6 +1,6 @@
 // client/src/components/ui/EditPlayerModal.tsx
 import { useState, useEffect } from 'react';
-import type { PlayerType, RaceType, EffectType } from '../../types';
+import type { PlayerType, RaceType, EffectType, PlayerItemExtended, PlayerAbilityExtended } from '../../types';
 import { usePlayerStore } from '../../stores/playerStore';
 import { PlayerStatsForm } from './PlayerStatsForm';
 import { PlayerItemsManager } from './PlayerItemsManager';
@@ -198,7 +198,7 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
         return (
           <PlayerItemsManager
             playerId={player.id}
-            items={formData.items}
+            items={(formData.items || []) as PlayerItemExtended[]}
             onDataChanged={updatePlayerData}
             showError={showError}
           />
@@ -207,21 +207,24 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
         return (
           <PlayerAbilitiesManager
             playerId={player.id}
-            abilities={formData.abilities}
+            abilities={(formData.abilities || []) as PlayerAbilityExtended[]}
             onDataChanged={updatePlayerData}
             showError={showError}
           />
         );
-      case 'effects':
+      case 'effects': {  // ← фигурные скобки
+        const itemPassiveEffects = (formData.items || []).flatMap(item => item.passive_effects || []);
         return (
           <PlayerEffectsManager
             playerId={player.id}
-            activeEffects={formData.active_effects}
+            activeEffects={formData.active_effects || []}
             raceEffects={selectedRaceEffects}
+            itemPassiveEffects={itemPassiveEffects}
             onDataChanged={updatePlayerData}
             showError={showError}
           />
         );
+      }
       default:
         return null;
     }

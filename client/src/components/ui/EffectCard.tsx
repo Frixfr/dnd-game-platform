@@ -21,7 +21,23 @@ const attributeLabels: Record<string, string> = {
   charisma: 'Харизма',
 };
 
+// Функция для нормализации tags (строка -> массив)
+const normalizeTags = (tags: string | string[] | null | undefined): string[] => {
+  if (Array.isArray(tags)) return tags;
+  if (typeof tags === 'string') {
+    try {
+      const parsed = JSON.parse(tags);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+};
+
 export const EffectCard = ({ effect, onClick, showDescription = true, compact = false, onDelete }: EffectCardProps) => {
+  const tags = normalizeTags(effect.tags);
+
   const formatDuration = () => {
     if (effect.is_permanent) return 'Постоянный';
     const parts = [];
@@ -108,9 +124,9 @@ export const EffectCard = ({ effect, onClick, showDescription = true, compact = 
           <p className="text-sm text-gray-600 mb-4 line-clamp-2">{effect.description}</p>
         )}
 
-        {effect.tags && effect.tags.length > 0 && (
+        {tags.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-2">
-            {effect.tags.map(tag => (
+            {tags.map(tag => (
               <span key={tag} className="inline-block px-2 py-0.5 text-xs bg-gray-100 text-gray-600 rounded-full">
                 #{tag}
               </span>

@@ -27,7 +27,6 @@ interface PlayerStore {
   updatePlayer: (updatedPlayer: PlayerType) => void;
   deletePlayer: (playerId: number) => void;
   fetchAllPlayers: () => Promise<PlayerType[]>;
-  // Переименованные методы
   executeUseItem: (playerId: number, playerItemId: number) => Promise<void>;
   executeDiscardItem: (playerId: number, playerItemId: number) => Promise<void>;
   executeTransferItem: (
@@ -50,22 +49,36 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
     if (playerSocketInitialized) return;
     playerSocketInitialized = true;
 
-    socket.on("player:created", async () => {
+    socket.on("player:created", (newPlayer: PlayerType) => {
       console.log("Игрок создан (сокет)");
-      const { currentPage, limit, fetchPlayers } = get();
-      await fetchPlayers(currentPage, limit);
+      set((state) => {
+        // Если мы на первой странице и есть место, добавляем в начало
+        if (state.currentPage === 1 && state.players.length < state.limit) {
+          return {
+            players: [newPlayer, ...state.players],
+            playersTotal: state.playersTotal + 1,
+          };
+        } else {
+          return { playersTotal: state.playersTotal + 1 };
+        }
+      });
     });
 
-    socket.on("player:updated", async () => {
+    socket.on("player:updated", (updatedPlayer: PlayerType) => {
       console.log("Игрок обновлён (сокет)");
-      const { currentPage, limit, fetchPlayers } = get();
-      await fetchPlayers(currentPage, limit);
+      set((state) => ({
+        players: state.players.map((p) =>
+          p.id === updatedPlayer.id ? updatedPlayer : p,
+        ),
+      }));
     });
 
-    socket.on("player:deleted", async () => {
+    socket.on("player:deleted", (playerId: number) => {
       console.log("Игрок удалён (сокет)");
-      const { currentPage, limit, fetchPlayers } = get();
-      await fetchPlayers(currentPage, limit);
+      set((state) => ({
+        players: state.players.filter((p) => p.id !== playerId),
+        playersTotal: state.playersTotal - 1,
+      }));
     });
 
     socket.on("connect", async () => {
@@ -77,7 +90,10 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
 
   fetchPlayers: async (page = 1, limit = 20) => {
     try {
-      const response = await fetch(`/api/players?page=${page}&limit=${limit}`);
+      // Добавляем параметр full=true для получения final_stats
+      const response = await fetch(
+        `/api/players?full=true&page=${page}&limit=${limit}`,
+      );
       if (response.ok) {
         const result: PaginatedResponse<PlayerType> = await response.json();
         set({
@@ -96,10 +112,12 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
 
   fetchAllPlayers: async () => {
     try {
-      const response = await fetch("/api/players?limit=9999");
+      // Для списка всех игроков тоже лучше использовать full=true
+      const response = await fetch("/api/players?full=true&limit=9999");
       if (response.ok) {
         const result = await response.json();
-        const players = Array.isArray(result) ? result : result.data;
+        // Ответ с пагинацией: { data, total, page, limit }
+        const players = result.data || result;
         return players;
       }
       return [];

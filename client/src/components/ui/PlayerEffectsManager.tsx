@@ -6,13 +6,21 @@ interface PlayerEffectsManagerProps {
   playerId: number;
   activeEffects: PlayerEffectExtended[];
   raceEffects: EffectType[];
+  itemPassiveEffects?: EffectType[]; // новый пропс
   onDataChanged: () => Promise<void>;
   showError: (msg: string) => void;
 }
 
 type EffectsSubTab = 'list' | 'add';
 
-export const PlayerEffectsManager = ({ playerId, activeEffects, raceEffects, onDataChanged, showError }: PlayerEffectsManagerProps) => {
+export const PlayerEffectsManager = ({ 
+  playerId, 
+  activeEffects, 
+  raceEffects, 
+  itemPassiveEffects = [], 
+  onDataChanged, 
+  showError 
+}: PlayerEffectsManagerProps) => {
   const [effectsSubTab, setEffectsSubTab] = useState<EffectsSubTab>('list');
   const [allEffects, setAllEffects] = useState<EffectType[]>([]);
   const [effectsLoading, setEffectsLoading] = useState(false);
@@ -68,14 +76,15 @@ export const PlayerEffectsManager = ({ playerId, activeEffects, raceEffects, onD
   };
 
   const renderCurrentEffects = () => {
-    const hasEffects = activeEffects.length > 0 || raceEffects.length > 0;
+    const hasEffects = activeEffects.length > 0 || raceEffects.length > 0 || itemPassiveEffects.length > 0;
     if (!hasEffects) {
       return <p className="text-center text-gray-500 py-8">🌀 Нет эффектов</p>;
     }
     return (
       <div className="space-y-3 max-h-[60vh] overflow-y-auto">
-        {raceEffects.map(effect => (
-          <div key={`race-${effect.id}`} className="bg-purple-50 rounded-xl p-3 md:p-4 border border-purple-200">
+        {/* Расовые эффекты */}
+        {raceEffects.map((effect, idx) => (
+          <div key={`race-${effect.id}-${idx}`} className="bg-purple-50 rounded-xl p-3 md:p-4 border border-purple-200">
             <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
@@ -104,8 +113,47 @@ export const PlayerEffectsManager = ({ playerId, activeEffects, raceEffects, onD
             </div>
           </div>
         ))}
-        {activeEffects.map(effect => (
-          <div key={effect.id} className="bg-gray-50 rounded-xl p-3 md:p-4 border">
+
+        {/* Пассивные эффекты от предметов (новый блок) */}
+        {itemPassiveEffects.length > 0 && (
+          <div>
+            <h4 className="text-sm font-semibold text-gray-500 mb-2 flex items-center gap-2">
+              <span className="text-lg">📦</span> Пассивные эффекты от предметов
+            </h4>
+            {itemPassiveEffects.map((effect, idx) => (
+              <div key={`item-passive-${effect.id}-${idx}`} className="bg-blue-50 rounded-xl p-3 md:p-4 border border-blue-200">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="font-semibold text-blue-800">{effect.name}</h4>
+                    <span className="text-xs bg-blue-200 text-blue-800 px-2 py-0.5 rounded-full">Пассивный (от предмета)</span>
+                  </div>
+                  <p className="text-sm text-gray-600 mt-1">{effect.description || 'Нет описания'}</p>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {effect.attribute && (
+                      <span className="text-xs bg-white px-2 py-0.5 rounded-full">
+                        {effect.attribute}: {effect.modifier > 0 ? `+${effect.modifier}` : effect.modifier}
+                      </span>
+                    )}
+                    {effect.duration_turns && (
+                      <span className="text-xs bg-white px-2 py-0.5 rounded-full">{effect.duration_turns} ходов</span>
+                    )}
+                    {effect.duration_days && (
+                      <span className="text-xs bg-white px-2 py-0.5 rounded-full">{effect.duration_days} дней</span>
+                    )}
+                    {effect.is_permanent && (
+                      <span className="text-xs bg-white px-2 py-0.5 rounded-full">Постоянный</span>
+                    )}
+                  </div>
+                </div>
+                <div className="text-xs text-blue-500 italic mt-2">(действует, пока предмет в инвентаре)</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Активные эффекты (временные) */}
+        {activeEffects.map((effect, idx) => (
+          <div key={`active-${effect.id}-${idx}`} className="bg-gray-50 rounded-xl p-3 md:p-4 border">
             <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
               <div>
                 <h4 className="font-semibold">{effect.name}</h4>

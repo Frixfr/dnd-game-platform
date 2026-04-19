@@ -29,9 +29,20 @@ export const playersController = {
       const full = req.query.full === "true";
 
       if (full) {
-        // Полные данные без пагинации (как было)
-        const fullPlayers = await playersService.getAllFull();
-        res.json(fullPlayers);
+        // Полные данные с пагинацией
+        const page = req.query.page
+          ? parseInt(req.query.page as string, 10)
+          : 1;
+        const limit = req.query.limit
+          ? parseInt(req.query.limit as string, 10)
+          : 20;
+        const card_shown_only = req.query.card_shown === "true";
+        const result = await playersService.getAllFullPaginated(
+          page,
+          limit,
+          card_shown_only,
+        );
+        res.json(result);
         return;
       }
 
