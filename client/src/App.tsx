@@ -29,6 +29,7 @@ import { useItemStore } from './stores/itemStore';
 import { useRaceStore } from './stores/raceStore';
 import { MapsPage } from "./pages/MapsPage";
 import { useMapStore } from './stores/mapStore';
+import { PublicMapPage } from './pages/PublicMapPage';
 
 const App: React.FC = () => {
   // Инициализируем сокет один раз при старте приложения
@@ -59,6 +60,7 @@ const App: React.FC = () => {
       <Router>
         <Routes>
           <Route path="/" element={<LoginPage />} />
+          <Route path="/map" element={<PublicMapPage />} /> 
           <Route path="/master" element={<MasterLayout />}>
             <Route index element={<MasterDashboardPage />} />
             <Route path="items" element={<ItemsPage />} />

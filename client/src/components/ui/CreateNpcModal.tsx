@@ -42,7 +42,7 @@ export const CreateNpcModal = ({ onClose }: { onClose: () => void }) => {
     setLoading(true);
     setError("");
     try {
-      const response = await fetch("http://localhost:5000/api/npcs", {
+      const response = await fetch("/api/npcs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),

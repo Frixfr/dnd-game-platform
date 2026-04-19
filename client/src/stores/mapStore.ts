@@ -63,8 +63,27 @@ export const useMapStore = create<MapStore>((set, get) => ({
         set({ currentMap: null });
       }
     });
-    socket.on("map:active-changed", (activeMap) => {
-      set({ activeMap });
+
+    // Новый обработчик: при смене активной карты перезагружаем полные данные
+    socket.on("map:active-changed", async (activeMapData) => {
+      console.log("[mapStore] map:active-changed received:", activeMapData);
+      try {
+        // Если данные falsy (null, undefined) — карта скрыта
+        if (!activeMapData) {
+          console.log("[mapStore] Активная карта скрыта, устанавливаем null");
+          set({ activeMap: null });
+          return;
+        }
+
+        // Если данные есть — загружаем полную карту с токенами
+        console.log("[mapStore] Загружаем полные данные активной карты");
+        await get().fetchActiveMap();
+      } catch (error) {
+        console.error(
+          "[mapStore] Ошибка при обработке map:active-changed:",
+          error,
+        );
+      }
     });
 
     // Обработчик обновления токенов
