@@ -2,21 +2,17 @@ import { Request, Response } from "express";
 import { itemsService } from "../services/itemsService.js";
 import { getIO } from "../socket/index.js";
 
-const allowedRarities = [
-  "common",
-  "uncommon",
-  "rare",
-  "epic",
-  "legendary",
-  "mythical",
-  "story",
-];
-
 export const itemsController = {
   async getAll(req: Request, res: Response) {
     try {
-      const items = await itemsService.getAll();
-      res.json(items);
+      const page = req.query.page
+        ? parseInt(req.query.page as string, 10)
+        : undefined;
+      const limit = req.query.limit
+        ? parseInt(req.query.limit as string, 10)
+        : undefined;
+      const result = await itemsService.getAll(page, limit);
+      res.json(result);
     } catch (error) {
       console.error(error);
       res.status(500).json({ error: "Ошибка сервера" });
@@ -25,7 +21,13 @@ export const itemsController = {
 
   async getOne(req: Request, res: Response) {
     try {
-      const id = String(req.params.id);
+      const idParam = req.params.id;
+      const id =
+        typeof idParam === "string"
+          ? parseInt(idParam, 10)
+          : Number(idParam[0]);
+      if (isNaN(id)) return res.status(400).json({ error: "Неверный ID" });
+
       const item = await itemsService.getById(id);
       if (!item) return res.status(404).json({ error: "Предмет не найден" });
       res.json(item);
@@ -38,64 +40,27 @@ export const itemsController = {
   async create(req: Request, res: Response) {
     const {
       name,
-      description = "",
-      rarity = "common",
-      base_quantity = 1,
-      active_effect_id = null,
-      passive_effect_id = null,
+      description,
+      rarity,
+      base_quantity,
+      is_deletable,
+      is_usable,
+      infinite_uses,
+      active_effect_ids,
+      passive_effect_ids,
     } = req.body;
-
-    if (!name || typeof name !== "string" || name.trim().length === 0) {
-      return res.status(400).json({ error: "Название обязательно" });
-    }
-    if (name.length > 100) {
-      return res
-        .status(400)
-        .json({ error: "Название не должно превышать 100 символов" });
-    }
-    if (!allowedRarities.includes(rarity)) {
-      return res.status(400).json({
-        error: `Недопустимая редкость. Допустимые: ${allowedRarities.join(", ")}`,
-      });
-    }
-    if (typeof base_quantity !== "number" || base_quantity < 1) {
-      return res
-        .status(400)
-        .json({ error: "base_quantity должно быть положительным числом" });
-    }
-
-    if (active_effect_id) {
-      const exists = await itemsService.checkEffectExists(active_effect_id);
-      if (!exists)
-        return res.status(404).json({
-          error: `Активный эффект с ID ${active_effect_id} не найден`,
-        });
-    }
-    if (passive_effect_id) {
-      const exists = await itemsService.checkEffectExists(passive_effect_id);
-      if (!exists)
-        return res.status(404).json({
-          error: `Пассивный эффект с ID ${passive_effect_id} не найден`,
-        });
-    }
-    if (
-      active_effect_id &&
-      passive_effect_id &&
-      active_effect_id === passive_effect_id
-    ) {
-      return res.status(400).json({
-        error: "Активный и пассивный эффекты не могут быть одинаковыми",
-      });
-    }
 
     try {
       const item = await itemsService.create({
-        name: name.trim(),
-        description: description || null,
+        name,
+        description,
         rarity,
         base_quantity,
-        active_effect_id: active_effect_id || null,
-        passive_effect_id: passive_effect_id || null,
+        is_deletable,
+        is_usable,
+        infinite_uses,
+        active_effect_ids,
+        passive_effect_ids,
       });
       getIO().emit("item:created", item);
       res.status(201).json({ success: true, item });
@@ -111,80 +76,45 @@ export const itemsController = {
   },
 
   async update(req: Request, res: Response) {
-    const id = String(req.params.id);
-    const updateData = req.body;
-    delete updateData.id;
-    delete updateData.created_at;
-    delete updateData.updated_at;
+    const idParam = req.params.id;
+    const id =
+      typeof idParam === "string" ? parseInt(idParam, 10) : Number(idParam[0]);
+    if (isNaN(id)) return res.status(400).json({ error: "Неверный ID" });
 
-    if (Object.keys(updateData).length === 0) {
-      return res.status(400).json({ error: "Нет данных для обновления" });
-    }
+    const {
+      name,
+      description,
+      rarity,
+      base_quantity,
+      is_deletable,
+      is_usable,
+      infinite_uses,
+      active_effect_ids,
+      passive_effect_ids,
+    } = req.body;
 
-    // Проверка активного эффекта
-    if (updateData.active_effect_id !== undefined) {
-      if (updateData.active_effect_id !== null) {
-        const exists = await itemsService.checkEffectExists(
-          updateData.active_effect_id,
-        );
-        if (!exists) {
-          return res
-            .status(404)
-            .json({
-              error: `Активный эффект с ID ${updateData.active_effect_id} не найден`,
-            });
-        }
-      }
-    }
-    // Проверка пассивного эффекта
-    if (updateData.passive_effect_id !== undefined) {
-      if (updateData.passive_effect_id !== null) {
-        const exists = await itemsService.checkEffectExists(
-          updateData.passive_effect_id,
-        );
-        if (!exists) {
-          return res
-            .status(404)
-            .json({
-              error: `Пассивный эффект с ID ${updateData.passive_effect_id} не найден`,
-            });
-        }
-      }
-    }
-    // Нельзя одинаковые эффекты
-    if (
-      updateData.active_effect_id &&
-      updateData.passive_effect_id &&
-      updateData.active_effect_id === updateData.passive_effect_id
-    ) {
-      return res
-        .status(400)
-        .json({
-          error: "Активный и пассивный эффекты не могут быть одинаковыми",
-        });
-    }
-
-    try {
-      const updated = await itemsService.update(id, updateData);
-      if (!updated) return res.status(404).json({ error: "Предмет не найден" });
-      getIO().emit("item:updated", updated);
-      res.json({ success: true, item: updated });
-    } catch (error: any) {
-      if (error.message.includes("UNIQUE constraint failed")) {
-        return res
-          .status(409)
-          .json({ error: "Предмет с таким именем уже существует" });
-      }
-      if (error.message.includes("FOREIGN KEY")) {
-        return res.status(404).json({ error: "Связанный эффект не найден" });
-      }
-      console.error(error);
-      res.status(500).json({ error: "Ошибка обновления предмета" });
-    }
+    const updated = await itemsService.update(id, {
+      name,
+      description,
+      rarity,
+      base_quantity,
+      is_deletable,
+      is_usable,
+      infinite_uses,
+      active_effect_ids,
+      passive_effect_ids,
+    });
+    if (!updated) return res.status(404).json({ error: "Item not found" });
+    getIO().emit("item:updated", updated);
+    res.json(updated);
   },
 
   async partialUpdate(req: Request, res: Response) {
-    const id = String(req.params.id);
+    const idParam = req.params.id;
+    const id =
+      typeof idParam === "string" ? parseInt(idParam, 10) : Number(idParam[0]);
+    if (isNaN(id)) return res.status(400).json({ error: "Неверный ID" });
+
     const updateData = req.body;
     delete updateData.id;
     delete updateData.created_at;
@@ -210,11 +140,15 @@ export const itemsController = {
   },
 
   async delete(req: Request, res: Response) {
-    const id = String(req.params.id);
+    const idParam = req.params.id;
+    const id =
+      typeof idParam === "string" ? parseInt(idParam, 10) : Number(idParam[0]);
+    if (isNaN(id)) return res.status(400).json({ error: "Неверный ID" });
+
     try {
       const deleted = await itemsService.delete(id);
       if (!deleted) return res.status(404).json({ error: "Предмет не найден" });
-      getIO().emit("item:deleted", { id: Number(id) });
+      getIO().emit("item:deleted", { id });
       res.json({ success: true, message: "Предмет удалён" });
     } catch (error: any) {
       if (error.message === "Item is in use") {

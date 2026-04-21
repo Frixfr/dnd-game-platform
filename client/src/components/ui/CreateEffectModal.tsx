@@ -1,4 +1,4 @@
-// client/src/components/ui/CreateEffectModal.tsx
+// client/src/components/ui/CreateEffectModal.tsx (полный файл с изменениями)
 import { useState } from 'react';
 
 interface EffectFormData {
@@ -9,6 +9,7 @@ interface EffectFormData {
   duration_turns: number | null;
   duration_days: number | null;
   is_permanent: boolean;
+  tags: string[];
 }
 
 const ATTRIBUTE_OPTIONS = [
@@ -31,7 +32,8 @@ export const CreateEffectModal = ({ onClose }: { onClose: () => void }) => {
     modifier: 0,
     duration_turns: null,
     duration_days: null,
-    is_permanent: false
+    is_permanent: false,
+    tags: [],
   });
   
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -52,6 +54,16 @@ export const CreateEffectModal = ({ onClose }: { onClose: () => void }) => {
 
     if (formData.modifier < -100 || formData.modifier > 100) {
       newErrors.modifier = 'Модификатор должен быть в диапазоне от -100 до 100';
+    }
+
+    // Валидация тегов
+    if (formData.tags.length > 10) {
+      newErrors.tags = 'Максимум 10 тегов';
+    } else {
+      const longTag = formData.tags.find(tag => tag.length > 30);
+      if (longTag) {
+        newErrors.tags = `Тег "${longTag}" превышает 30 символов`;
+      }
     }
 
     if (!formData.is_permanent) {
@@ -85,15 +97,18 @@ export const CreateEffectModal = ({ onClose }: { onClose: () => void }) => {
     setSubmitting(true);
 
     try {
-      const response = await fetch('http://localhost:5000/api/effects', {
+      const response = await fetch('/api/effects', {  // ← изменён URL
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...formData,
+          name: formData.name,
           description: formData.description || '',
           attribute: formData.attribute || null,
-          duration_turns: formData.duration_turns || null,
-          duration_days: formData.duration_days || null
+          modifier: formData.modifier,
+          duration_turns: formData.is_permanent ? null : (formData.duration_turns || null),
+          duration_days: formData.is_permanent ? null : (formData.duration_days || null),
+          is_permanent: formData.is_permanent,
+          tags: formData.tags
         })
       });
 
@@ -140,6 +155,16 @@ export const CreateEffectModal = ({ onClose }: { onClose: () => void }) => {
     }
   };
 
+  const handleTagsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    const tagsArray = raw.split(',').map(s => s.trim()).filter(s => s.length > 0);
+    setFormData({...formData, tags: tagsArray});
+    // очищаем ошибку тегов при изменении
+    if (errors.tags) {
+      setErrors(prev => ({ ...prev, tags: '' }));
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -163,7 +188,6 @@ export const CreateEffectModal = ({ onClose }: { onClose: () => void }) => {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Основные поля */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Название и атрибут */}
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -208,7 +232,6 @@ export const CreateEffectModal = ({ onClose }: { onClose: () => void }) => {
                 </div>
               </div>
 
-              {/* Модификатор и тип эффекта */}
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -286,6 +309,26 @@ export const CreateEffectModal = ({ onClose }: { onClose: () => void }) => {
                 rows={3}
                 placeholder="Опишите эффект, его проявления и особенности..."
               />
+            </div>
+
+            {/* Теги */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Теги (через запятую)
+              </label>
+              <input
+                type="text"
+                value={formData.tags.join(', ')}
+                onChange={handleTagsChange}
+                className={`w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 ${
+                  errors.tags ? 'border-red-500' : 'border-gray-300'
+                }`}
+                placeholder="например: боевой, расовый, магия"
+              />
+              {errors.tags && (
+                <p className="mt-1 text-sm text-red-600">{errors.tags}</p>
+              )}
+              <p className="text-xs text-gray-500 mt-1">Максимум 10 тегов, каждый до 30 символов</p>
             </div>
 
             {/* Длительность (только для временных эффектов) */}

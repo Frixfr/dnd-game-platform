@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { playerItemsService } from "../services/playerItemsService.js";
-import { getIO } from "../socket/index.js";
+import { getIO, emitToPlayer } from "../socket/index.js";
 
 export const playerItemsController = {
   async getAll(req: Request, res: Response) {
@@ -112,6 +112,69 @@ export const playerItemsController = {
       }
       console.error(error);
       res.status(500).json({ error: "Ошибка обновления экипировки" });
+    }
+  },
+
+  async useItem(req: Request, res: Response) {
+    const playerId = parseInt(String(req.params.playerId));
+    const playerItemId = parseInt(String(req.params.playerItemId));
+    if (isNaN(playerId) || isNaN(playerItemId)) {
+      return res.status(400).json({ error: "Неверный идентификатор" });
+    }
+    try {
+      const updatedPlayer = await playerItemsService.useItem(
+        playerId,
+        playerItemId,
+      );
+      emitToPlayer(playerId, "player:updated", updatedPlayer);
+      res.json({ success: true, player: updatedPlayer });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  },
+
+  async discardItem(req: Request, res: Response) {
+    const playerId = parseInt(String(req.params.playerId));
+    const playerItemId = parseInt(String(req.params.playerItemId));
+    if (isNaN(playerId) || isNaN(playerItemId)) {
+      return res.status(400).json({ error: "Неверный идентификатор" });
+    }
+    try {
+      const updatedPlayer = await playerItemsService.discardItem(
+        playerId,
+        playerItemId,
+      );
+      emitToPlayer(playerId, "player:updated", updatedPlayer);
+      res.json({ success: true, player: updatedPlayer });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  },
+
+  async transferItem(req: Request, res: Response) {
+    const playerId = parseInt(String(req.params.playerId));
+    const playerItemId = parseInt(String(req.params.playerItemId));
+    const { targetPlayerId, quantity = 1 } = req.body;
+    if (
+      isNaN(playerId) ||
+      isNaN(playerItemId) ||
+      !targetPlayerId ||
+      isNaN(Number(targetPlayerId))
+    ) {
+      return res.status(400).json({ error: "Неверные идентификаторы" });
+    }
+    try {
+      const { sender, target } = await playerItemsService.transferItem(
+        playerId,
+        playerItemId,
+        Number(targetPlayerId),
+        Number(quantity),
+      );
+      emitToPlayer(playerId, "player:updated", sender);
+      emitToPlayer(Number(targetPlayerId), "player:updated", target);
+      res.json({ success: true, sender, target });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
     }
   },
 };

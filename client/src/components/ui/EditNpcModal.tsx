@@ -38,6 +38,8 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
   
   const [equipStatus, setEquipStatus] = useState<{ [key: number]: boolean }>({});
   const [deleting, setDeleting] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [races, setRaces] = useState<RaceType[]>([]);
   
   const { fetchNpcs } = useNpcStore();
@@ -75,6 +77,14 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
     };
     loadFullNpc();
   }, [npc.id]);
+
+  useEffect(() => {
+    if (formData.avatar_url) {
+      setAvatarPreview(formData.avatar_url);
+    } else {
+      setAvatarPreview(null);
+    }
+  }, [formData.avatar_url]);
 
   const loadAllItems = useCallback(async () => {
     setItemsLoading(true);
@@ -157,6 +167,45 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
     } else {
       setFormData({ ...formData, [name]: value });
     }
+  };
+
+  const uploadAvatar = async (file: File) => {
+    setUploadingAvatar(true);
+    const formDataUpload = new FormData();
+    formDataUpload.append("avatar", file);
+    try {
+      const response = await fetch(`/api/npcs/${npc.id}/avatar`, {
+        method: "POST",
+        body: formDataUpload,
+      });
+      if (!response.ok) throw new Error("Ошибка загрузки");
+      const result = await response.json();
+      setAvatarPreview(result.avatarUrl);
+      await updateNpcData();
+    } catch (err) {
+      setError("Не удалось загрузить аватарку");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const deleteAvatar = async () => {
+    if (!confirm("Удалить аватарку?")) return;
+    try {
+      const response = await fetch(`/api/npcs/${npc.id}/avatar`, {
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error("Ошибка удаления");
+      setAvatarPreview(null);
+      await updateNpcData();
+    } catch (err) {
+      setError("Не удалось удалить аватарку");
+    }
+  };
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) uploadAvatar(file);
   };
 
   // === Обработчики для предметов ===
@@ -377,6 +426,7 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
         is_online: formData.is_online ? 1 : 0,
         is_card_shown: formData.is_card_shown ? 1 : 0,
         aggression: Number(formData.aggression),
+        race_id: formData.race_id ?? null,
       };
       const response = await fetch(`/api/npcs/${npc.id}`, {
         method: 'PUT',
@@ -425,6 +475,33 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
   const renderStatsForm = () => (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Avatar section */}
+        <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
+          <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
+            {avatarPreview ? (
+              <img src={avatarPreview} alt="avatar" className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-3xl text-gray-400">👤</span>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <label className="cursor-pointer text-sm bg-white px-3 py-1 rounded border text-gray-700">
+              Загрузить
+              <input type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} disabled={loading || uploadingAvatar} />
+            </label>
+            {avatarPreview && (
+              <button
+                type="button"
+                onClick={deleteAvatar}
+                disabled={loading || uploadingAvatar}
+                className="text-sm bg-red-50 px-3 py-1 rounded border border-red-200 text-red-600 hover:bg-red-100"
+              >
+                Удалить
+              </button>
+            )}
+          </div>
+          {uploadingAvatar && <span className="text-sm text-gray-500">Загрузка...</span>}
+        </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Имя NPC *</label>
           <input type="text" name="name" value={formData.name} onChange={handleInputChange} className="w-full px-3 py-2 border rounded" required maxLength={50} disabled={loading} />

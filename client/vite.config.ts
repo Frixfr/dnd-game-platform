@@ -11,6 +11,7 @@ export default defineConfig({
         target: "http://192.168.50.116:5000", // вместо localhost
         changeOrigin: true,
       },
+      "/uploads": "http://192.168.50.116:5000",
       "/socket.io": {
         target: "http://192.168.50.116:5000", // вместо localhost
         ws: true,

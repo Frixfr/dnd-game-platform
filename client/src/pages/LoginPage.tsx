@@ -58,7 +58,13 @@ const LoginPage: React.FC = () => {
         />
       )}
       {isPlayerModalOpen && (
-        <PlayerAuthModal onClose={() => setIsPlayerModalOpen(false)} />
+        <PlayerAuthModal 
+          onClose={() => setIsPlayerModalOpen(false)} 
+          onSelectAvailable={() => {
+            setIsPlayerModalOpen(false);
+            navigate('/player/select');
+          }}
+        />
       )}
     </div>
   );

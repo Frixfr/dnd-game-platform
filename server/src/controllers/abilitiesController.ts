@@ -1,12 +1,19 @@
 import { Request, Response } from "express";
 import { abilitiesService } from "../services/abilitiesService.js";
+import { playerAbilitiesService } from "../services/playerAbilitiesService.js";
 import { getIO } from "../socket/index.js";
 
 export const abilitiesController = {
   async getAll(req: Request, res: Response) {
     try {
-      const abilities = await abilitiesService.getAll();
-      res.json(abilities);
+      const page = req.query.page
+        ? parseInt(req.query.page as string, 10)
+        : undefined;
+      const limit = req.query.limit
+        ? parseInt(req.query.limit as string, 10)
+        : undefined;
+      const result = await abilitiesService.getAll(page, limit);
+      res.json(result);
     } catch (error) {
       console.error(error);
       res.status(500).json({ error: "Ошибка сервера" });
@@ -150,6 +157,28 @@ export const abilitiesController = {
       }
       console.error(error);
       res.status(500).json({ error: "Ошибка удаления способности" });
+    }
+  },
+
+  async useAbility(req: Request, res: Response) {
+    const abilityId = Number(req.params.id);
+    const { playerId } = req.body;
+
+    if (isNaN(abilityId) || !playerId || isNaN(Number(playerId))) {
+      return res.status(400).json({ error: "Invalid abilityId or playerId" });
+    }
+
+    try {
+      // Заменяем abilitiesService.useAbility на playerAbilitiesService.useAbility
+      const result = await playerAbilitiesService.useAbility(
+        Number(playerId),
+        abilityId,
+      );
+      res.json(result);
+    } catch (error: any) {
+      console.error(error);
+      const status = error.message.includes("not found") ? 404 : 400;
+      res.status(status).json({ error: error.message });
     }
   },
 };

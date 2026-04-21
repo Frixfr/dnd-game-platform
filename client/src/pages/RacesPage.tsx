@@ -2,37 +2,47 @@ import { useState, useEffect } from 'react';
 import { EditRaceModal } from '../components/ui/EditRaceModal';
 import { RaceCard } from '../components/ui/RaceCard';
 import { useRaceStore } from '../stores/raceStore';
+import { CreateRaceModal } from '../components/ui/CreateRaceModal';
 import type { RaceType } from '../types';
+import ConfirmModal from '../components/ui/ConfirmModal';
 
 export const RacesPage = () => {
-  const { races, initializeSocket, fetchRaces, removeRace } = useRaceStore();
+  const { races, initializeSocket, fetchRaces } = useRaceStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedRace, setSelectedRace] = useState<RaceType | null>(null);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [raceToDelete, setRaceToDelete] = useState<RaceType | null>(null);
 
   useEffect(() => {
     initializeSocket();
     fetchRaces();
   }, [initializeSocket, fetchRaces]);
 
-  const handleCreate = () => {
-    setSelectedRace(null);
-    setIsModalOpen(true);
-  };
-
   const handleEdit = (race: RaceType) => {
     setSelectedRace(race);
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (race: RaceType) => {
-    if (!confirm(`Удалить расу "${race.name}"?`)) return;
+  const handleDelete = (race: RaceType) => {
+    setRaceToDelete(race);
+    setShowConfirmModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!raceToDelete) return;
     try {
-      const response = await fetch(`/api/races/${race.id}`, { method: 'DELETE' });
-      if (!response.ok) throw new Error();
-      // стор обновится через сокет
+      const response = await fetch(`/api/races/${raceToDelete.id}`, { method: 'DELETE' });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Ошибка ${response.status}: не удалось удалить расу`);
+      }
     } catch (error) {
       console.error(error);
-      alert('Не удалось удалить расу');
+      alert(error instanceof Error ? error.message : 'Не удалось удалить расу');
+    } finally {
+      setShowConfirmModal(false);
+      setRaceToDelete(null);
     }
   };
 
@@ -43,9 +53,7 @@ export const RacesPage = () => {
           <h1 className="text-3xl font-bold">Расы</h1>
           <p className="text-gray-600 mt-1">Всего рас: {races.length}</p>
         </div>
-        <button onClick={handleCreate} className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
-          + Создать расу
-        </button>
+        <button onClick={() => setIsCreateOpen(true)}>+ Создать расу</button>
       </div>
 
       {races.length === 0 ? (
@@ -68,6 +76,18 @@ export const RacesPage = () => {
           }}
         />
       )}
+
+      {isCreateOpen && <CreateRaceModal onClose={() => setIsCreateOpen(false)} />}
+      
+      <ConfirmModal
+        isOpen={showConfirmModal}
+        message={`Удалить расу "${raceToDelete?.name}"?`}
+        onConfirm={confirmDelete}
+        onCancel={() => {
+          setShowConfirmModal(false);
+          setRaceToDelete(null);
+        }}
+      />
     </div>
   );
 };

@@ -42,10 +42,23 @@ export const racesService = {
     data: Partial<Race>,
     effectIds?: number[],
   ): Promise<Race | null> {
+    // Валидация существования эффектов
+    if (effectIds !== undefined && effectIds.length > 0) {
+      const existingEffects = await db("effects")
+        .whereIn("id", effectIds)
+        .select("id");
+      const foundIds = existingEffects.map((e: any) => e.id);
+      const missingIds = effectIds.filter((eid) => !foundIds.includes(eid));
+      if (missingIds.length > 0) {
+        throw new Error(`Effect with id ${missingIds.join(", ")} not found`);
+      }
+    }
+
     const [updated] = await db("races")
       .where({ id })
       .update(data)
       .returning("*");
+
     if (updated && effectIds !== undefined) {
       // Обновляем связи с эффектами
       await db("race_effects").where("race_id", id).delete();

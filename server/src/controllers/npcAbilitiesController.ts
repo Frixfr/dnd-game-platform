@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { npcAbilitiesService } from "../services/npcAbilitiesService.js";
 import { getIO } from "../socket/index.js";
+import { npcsService } from "../services/npcsService.js";
 
 export const npcAbilitiesController = {
   async getAll(req: Request, res: Response) {
@@ -80,6 +81,23 @@ export const npcAbilitiesController = {
         return res.status(404).json({ error: "Связь не найдена" });
       console.error(error);
       res.status(500).json({ error: "Ошибка удаления связи" });
+    }
+  },
+
+  async useAbility(req: Request, res: Response) {
+    const npcId = Number(req.params.npcId);
+    const abilityId = Number(req.params.abilityId);
+    if (isNaN(npcId) || isNaN(abilityId)) {
+      return res.status(400).json({ error: "Некорректные ID" });
+    }
+    try {
+      const result = await npcAbilitiesService.useAbility(npcId, abilityId);
+      // После использования способности обновляем данные NPC
+      const fullNpc = await npcsService.getFullDetails(npcId.toString());
+      getIO().emit("npc:updated", fullNpc);
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
     }
   },
 };

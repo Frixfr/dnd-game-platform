@@ -1,4 +1,5 @@
 import { db } from "../db/index.js";
+import { logsService } from "./logsService.js";
 
 export const playerEffectsService = {
   async getAll(filters: {
@@ -47,6 +48,20 @@ export const playerEffectsService = {
         applied_at: db.fn.now(),
       })
       .returning("*");
+
+    if (player && effect) {
+      await logsService.create({
+        action_type: "effect_gain",
+        player_id: data.player_id,
+        npc_id: null,
+        entity_name: player.name,
+        action_name: effect.name,
+        details: JSON.stringify({
+          source_type: data.source_type,
+          source_id: data.source_id,
+        }),
+      });
+    }
     return newEffect;
   },
 

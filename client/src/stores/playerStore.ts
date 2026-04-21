@@ -1,74 +1,129 @@
 // client/src/stores/playerStore.ts
 import { create } from "zustand";
-import { io, Socket } from "socket.io-client";
 import type { PlayerType } from "../types";
+import { socket } from "../lib/socket";
+
+interface PaginatedResponse<T> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+}
 
 interface PlayerStore {
   players: PlayerType[];
-  socket: Socket | null;
+  playersTotal: number;
+  currentPage: number;
+  limit: number;
   initializeSocket: () => void;
+  setPlayers: (
+    players: PlayerType[],
+    total: number,
+    page: number,
+    limit: number,
+  ) => void;
+  fetchPlayers: (page?: number, limit?: number) => Promise<void>;
   addPlayer: (player: PlayerType) => void;
   updatePlayer: (updatedPlayer: PlayerType) => void;
   deletePlayer: (playerId: number) => void;
-  setPlayers: (players: PlayerType[]) => void;
-  fetchPlayers: () => Promise<void>;
+  fetchAllPlayers: () => Promise<PlayerType[]>;
+  executeUseItem: (playerId: number, playerItemId: number) => Promise<void>;
+  executeDiscardItem: (playerId: number, playerItemId: number) => Promise<void>;
+  executeTransferItem: (
+    playerId: number,
+    playerItemId: number,
+    targetPlayerId: number,
+    quantity?: number,
+  ) => Promise<void>;
 }
+
+let playerSocketInitialized = false;
 
 export const usePlayerStore = create<PlayerStore>((set, get) => ({
   players: [],
-  socket: null,
+  playersTotal: 0,
+  currentPage: 1,
+  limit: 20,
 
   initializeSocket: () => {
-    const socket = io({
-      // без указания URL
-      withCredentials: true,
-      transports: ["websocket", "polling"],
-      autoConnect: true,
-      reconnection: true,
-      reconnectionAttempts: 5,
+    if (playerSocketInitialized) return;
+    playerSocketInitialized = true;
+
+    socket.on("player:created", (newPlayer: PlayerType) => {
+      console.log("Игрок создан (сокет)");
+      set((state) => {
+        // Если мы на первой странице и есть место, добавляем в начало
+        if (state.currentPage === 1 && state.players.length < state.limit) {
+          return {
+            players: [newPlayer, ...state.players],
+            playersTotal: state.playersTotal + 1,
+          };
+        } else {
+          return { playersTotal: state.playersTotal + 1 };
+        }
+      });
     });
 
-    // Исправлено: событие сервера "player:created"
-    socket.on("player:created", (player: PlayerType) => {
-      console.log("Игрок создан (сокет):", player);
+    socket.on("player:updated", (updatedPlayer: PlayerType) => {
+      console.log("Игрок обновлён (сокет)");
       set((state) => ({
-        players: [...state.players, player],
+        players: state.players.map((p) =>
+          p.id === updatedPlayer.id ? updatedPlayer : p,
+        ),
       }));
     });
 
-    // Исправлено: "player:updated"
-    socket.on("player:updated", (player: PlayerType) => {
-      console.log("Игрок обновлён (сокет):", player);
-      set((state) => ({
-        players: state.players.map((p) => (p.id === player.id ? player : p)),
-      }));
-    });
-
-    // Исправлено: "player:deleted"
     socket.on("player:deleted", (playerId: number) => {
-      console.log("Игрок удалён (сокет):", playerId);
+      console.log("Игрок удалён (сокет)");
       set((state) => ({
         players: state.players.filter((p) => p.id !== playerId),
+        playersTotal: state.playersTotal - 1,
       }));
     });
 
     socket.on("connect", async () => {
       console.log("Socket connected (players)");
-      await get().fetchPlayers();
+      const { currentPage, limit, fetchPlayers } = get();
+      await fetchPlayers(currentPage, limit);
     });
-
-    set({ socket });
   },
 
-  fetchPlayers: async () => {
+  fetchPlayers: async (page = 1, limit = 20) => {
     try {
-      const response = await fetch("/api/players");
+      // Добавляем параметр full=true для получения final_stats
+      const response = await fetch(
+        `/api/players?full=true&page=${page}&limit=${limit}`,
+      );
       if (response.ok) {
-        const players = await response.json();
-        set({ players });
+        const result: PaginatedResponse<PlayerType> = await response.json();
+        set({
+          players: result.data,
+          playersTotal: result.total,
+          currentPage: result.page,
+          limit: result.limit,
+        });
+      } else {
+        console.error("Ошибка загрузки игроков:", response.status);
       }
     } catch (error) {
       console.error("Ошибка загрузки игроков:", error);
+    }
+  },
+
+  fetchAllPlayers: async () => {
+    try {
+      // Для списка всех игроков тоже лучше использовать full=true
+      const response = await fetch("/api/players?full=true&limit=9999");
+      if (response.ok) {
+        const result = await response.json();
+        // Ответ с пагинацией: { data, total, page, limit }
+        const players = result.data || result;
+        return players;
+      }
+      return [];
+    } catch (error) {
+      console.error("Ошибка загрузки всех игроков:", error);
+      return [];
     }
   },
 
@@ -80,21 +135,61 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
 
   updatePlayer: (updatedPlayer) => {
     set((state) => ({
-      players: state.players.map((player) =>
-        player.id === updatedPlayer.id ? updatedPlayer : player,
+      players: state.players.map((p) =>
+        p.id === updatedPlayer.id ? updatedPlayer : p,
       ),
     }));
   },
 
   deletePlayer: (playerId) => {
     set((state) => ({
-      players: state.players.filter((player) => player.id !== playerId),
+      players: state.players.filter((p) => p.id !== playerId),
     }));
   },
 
-  setPlayers: (players) => {
-    set({ players });
+  setPlayers: (players, total, page, limit) => {
+    set({ players, playersTotal: total, currentPage: page, limit });
+  },
+
+  executeUseItem: async (playerId: number, playerItemId: number) => {
+    const response = await fetch(
+      `/api/player-items/${playerId}/items/${playerItemId}/use`,
+      { method: "POST" },
+    );
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text);
+    }
+  },
+
+  executeDiscardItem: async (playerId: number, playerItemId: number) => {
+    const response = await fetch(
+      `/api/player-items/${playerId}/items/${playerItemId}/discard`,
+      { method: "DELETE" },
+    );
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text);
+    }
+  },
+
+  executeTransferItem: async (
+    playerId: number,
+    playerItemId: number,
+    targetPlayerId: number,
+    quantity: number = 1,
+  ) => {
+    const response = await fetch(
+      `/api/player-items/${playerId}/items/${playerItemId}/transfer`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetPlayerId, quantity }),
+      },
+    );
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text);
+    }
   },
 }));
-
-// ВАЖНО: вызовите usePlayerStore.getState().initializeSocket() в вашем App.tsx или аналогичном корневом компоненте

@@ -4,6 +4,63 @@ import { db } from "./index.js";
 
 export async function initializeDatabase() {
   try {
+    // Таблица effects (нужна для рас, способностей, предметов)
+    if (!(await db.schema.hasTable("effects"))) {
+      await db.schema.createTable("effects", (table) => {
+        table.increments("id").primary();
+        table.string("name", 100).notNullable().unique();
+        table.text("description");
+        table
+          .string("attribute", 20)
+          .checkIn([
+            "health",
+            "max_health",
+            "armor",
+            "strength",
+            "agility",
+            "intelligence",
+            "physique",
+            "wisdom",
+            "charisma",
+          ]);
+        table.integer("modifier");
+        table.integer("duration_turns").nullable();
+        table.integer("duration_days").nullable();
+        table.boolean("is_permanent").defaultTo(false);
+        table.text("tags").defaultTo("[]");
+      });
+      console.log("Таблица effects создана");
+    }
+
+    // Таблица races (должна быть до players и npcs из-за внешних ключей)
+    if (!(await db.schema.hasTable("races"))) {
+      await db.schema.createTable("races", (table) => {
+        table.increments("id").primary();
+        table.string("name", 50).notNullable().unique();
+        table.text("description");
+        table.timestamp("created_at").defaultTo(db.fn.now());
+      });
+      console.log("Таблица races создана");
+    }
+
+    // Таблица race_effects (связь расы с эффектами)
+    if (!(await db.schema.hasTable("race_effects"))) {
+      await db.schema.createTable("race_effects", (table) => {
+        table
+          .integer("race_id")
+          .references("id")
+          .inTable("races")
+          .onDelete("CASCADE");
+        table
+          .integer("effect_id")
+          .references("id")
+          .inTable("effects")
+          .onDelete("CASCADE");
+        table.primary(["race_id", "effect_id"]);
+      });
+      console.log("Таблица race_effects создана");
+    }
+
     // Таблица players
     if (!(await db.schema.hasTable("players"))) {
       await db.schema.createTable("players", (table) => {
@@ -29,35 +86,10 @@ export async function initializeDatabase() {
           .references("id")
           .inTable("races")
           .onDelete("SET NULL");
+        table.text("access_password");
+        table.string("avatar_url", 255).nullable();
       });
       console.log("Таблица players создана");
-    }
-
-    // Таблица effects
-    if (!(await db.schema.hasTable("effects"))) {
-      await db.schema.createTable("effects", (table) => {
-        table.increments("id").primary();
-        table.string("name", 100).notNullable().unique();
-        table.text("description");
-        table
-          .string("attribute", 20)
-          .checkIn([
-            "health",
-            "max_health",
-            "armor",
-            "strength",
-            "agility",
-            "intelligence",
-            "physique",
-            "wisdom",
-            "charisma",
-          ]);
-        table.integer("modifier");
-        table.integer("duration_turns").nullable();
-        table.integer("duration_days").nullable();
-        table.boolean("is_permanent").defaultTo(false);
-      });
-      console.log("Таблица effects создана");
     }
 
     // Таблица abilities
@@ -97,6 +129,8 @@ export async function initializeDatabase() {
           .onDelete("CASCADE");
         table.timestamp("obtained_at").defaultTo(db.fn.now());
         table.boolean("is_active").defaultTo(true);
+        table.integer("remaining_cooldown_turns").defaultTo(0);
+        table.integer("remaining_cooldown_days").defaultTo(0);
         table.primary(["player_id", "ability_id"]);
       });
       console.log("Таблица player_abilities создана");
@@ -121,6 +155,7 @@ export async function initializeDatabase() {
           ])
           .defaultTo("common");
         table.integer("base_quantity").defaultTo(1);
+        // Старые колонки (оставляем для совместимости, но не используем)
         table
           .integer("active_effect_id")
           .references("id")
@@ -131,9 +166,39 @@ export async function initializeDatabase() {
           .references("id")
           .inTable("effects")
           .onDelete("SET NULL");
+        // Новые поля
+        table.boolean("is_deletable").notNullable().defaultTo(1);
+        table.boolean("is_usable").notNullable().defaultTo(1);
+        table.boolean("infinite_uses").notNullable().defaultTo(0);
         table.timestamps(true, true);
       });
       console.log("Таблица items создана");
+    }
+
+    // Таблица item_effects (связь предметов с множественными эффектами)
+    if (!(await db.schema.hasTable("item_effects"))) {
+      await db.schema.createTable("item_effects", (table) => {
+        table.increments("id").primary();
+        table
+          .integer("item_id")
+          .notNullable()
+          .references("id")
+          .inTable("items")
+          .onDelete("CASCADE");
+        table
+          .integer("effect_id")
+          .notNullable()
+          .references("id")
+          .inTable("effects")
+          .onDelete("CASCADE");
+        table
+          .string("effect_type", 10)
+          .notNullable()
+          .checkIn(["active", "passive"]);
+        table.timestamp("created_at").defaultTo(db.fn.now());
+        table.unique(["item_id", "effect_id", "effect_type"]);
+      });
+      console.log("Таблица item_effects создана");
     }
 
     // Таблица player_items
@@ -208,6 +273,7 @@ export async function initializeDatabase() {
           .references("id")
           .inTable("races")
           .onDelete("SET NULL");
+        table.string("avatar_url", 255).nullable();
       });
       console.log("Таблица npcs создана");
     }
@@ -227,6 +293,8 @@ export async function initializeDatabase() {
           .onDelete("CASCADE");
         table.timestamp("obtained_at").defaultTo(db.fn.now());
         table.boolean("is_active").defaultTo(true);
+        table.integer("remaining_cooldown_turns").defaultTo(0);
+        table.integer("remaining_cooldown_days").defaultTo(0);
         table.primary(["npc_id", "ability_id"]);
       });
       console.log("Таблица npc_abilities создана");
@@ -278,32 +346,120 @@ export async function initializeDatabase() {
       console.log("Таблица npc_active_effects создана");
     }
 
-    if (!(await db.schema.hasTable("races"))) {
-      await db.schema.createTable("races", (table) => {
+    // Таблица maps (карты)
+    if (!(await db.schema.hasTable("maps"))) {
+      await db.schema.createTable("maps", (table) => {
         table.increments("id").primary();
-        table.string("name", 50).notNullable().unique();
-        table.text("description");
+        table.string("name", 100).notNullable();
+        table.string("image_url", 255).notNullable(); // путь к файлу карты
+        table.boolean("show_to_players").defaultTo(false);
         table.timestamp("created_at").defaultTo(db.fn.now());
+        table.timestamp("updated_at").defaultTo(db.fn.now());
       });
-      console.log("Таблица races создана");
+      console.log("Таблица maps создана");
     }
 
-    // Таблица race_effects (связь расы с эффектами)
-    if (!(await db.schema.hasTable("race_effects"))) {
-      await db.schema.createTable("race_effects", (table) => {
+    // Обновляем существующую таблицу map_tokens (добавляем колонки, если их нет)
+    const hasMapTokens = await db.schema.hasTable("map_tokens");
+    if (!hasMapTokens) {
+      await db.schema.createTable("map_tokens", (table) => {
+        table.increments("id").primary();
         table
-          .integer("race_id")
+          .integer("map_id")
+          .notNullable()
           .references("id")
-          .inTable("races")
+          .inTable("maps")
           .onDelete("CASCADE");
         table
-          .integer("effect_id")
-          .references("id")
-          .inTable("effects")
-          .onDelete("CASCADE");
-        table.primary(["race_id", "effect_id"]);
+          .string("entity_type", 10)
+          .notNullable()
+          .checkIn(["player", "npc"]);
+        table.integer("entity_id").notNullable();
+        table.float("x").defaultTo(0); // процент 0..1
+        table.float("y").defaultTo(0); // процент 0..1
+        table.boolean("is_grayscale").defaultTo(false);
+        table.float("scale").defaultTo(1); // масштаб аватарки (1 = 100%)
+        table.timestamp("updated_at").defaultTo(db.fn.now());
+        table.unique(["map_id", "entity_type", "entity_id"]);
+        table.index(["map_id"]);
       });
-      console.log("Таблица race_effects создана");
+      console.log("Таблица map_tokens создана");
+    } else {
+      // Добавляем недостающие колонки (миграция)
+      const hasIsGrayscale = await db.schema.hasColumn(
+        "map_tokens",
+        "is_grayscale",
+      );
+      if (!hasIsGrayscale) {
+        await db.schema.alterTable("map_tokens", (table) => {
+          table.boolean("is_grayscale").defaultTo(false);
+          table.float("scale").defaultTo(1);
+        });
+      }
+      const hasMapId = await db.schema.hasColumn("map_tokens", "map_id");
+      if (!hasMapId) {
+        // Если таблица существовала без map_id, пересоздаём (или добавляем с дефолтом)
+        await db.schema.alterTable("map_tokens", (table) => {
+          table
+            .integer("map_id")
+            .references("id")
+            .inTable("maps")
+            .onDelete("CASCADE");
+        });
+        // Устанавливаем map_id = 1 для существующих записей (если есть)
+        await db("map_tokens").update({ map_id: 1 }).whereNull("map_id");
+      }
+    }
+
+    // Таблица logs
+    if (!(await db.schema.hasTable("logs"))) {
+      await db.schema.createTable("logs", (table) => {
+        table.increments("id").primary();
+        table.string("action_type", 20).notNullable(); // ability_use, item_use, effect_gain
+        table.integer("player_id").nullable();
+        table.integer("npc_id").nullable();
+        table.string("entity_name", 100).notNullable();
+        table.string("action_name", 100).notNullable();
+        table.text("details").nullable(); // JSON строка
+        table.timestamp("created_at").defaultTo(db.fn.now());
+        table.index(["created_at"]);
+      });
+      console.log("Таблица logs создана");
+    }
+
+    // Таблица combat_sessions
+    if (!(await db.schema.hasTable("combat_sessions"))) {
+      await db.schema.createTable("combat_sessions", (table) => {
+        table.increments("id").primary();
+        table.boolean("is_active").defaultTo(true);
+        table.timestamp("created_at").defaultTo(db.fn.now());
+        table.timestamp("ended_at").nullable();
+      });
+      console.log("Таблица combat_sessions создана");
+    }
+
+    // Таблица combat_participants
+    if (!(await db.schema.hasTable("combat_participants"))) {
+      await db.schema.createTable("combat_participants", (table) => {
+        table.increments("id").primary();
+        table
+          .integer("session_id")
+          .notNullable()
+          .references("id")
+          .inTable("combat_sessions")
+          .onDelete("CASCADE");
+        table
+          .string("entity_type", 10)
+          .notNullable()
+          .checkIn(["player", "npc"]);
+        table.integer("entity_id").notNullable();
+        table.integer("order_index").notNullable();
+        table.boolean("is_current_turn").defaultTo(false);
+        table.timestamp("joined_at").defaultTo(db.fn.now());
+        table.unique(["session_id", "entity_type", "entity_id"]);
+        table.index(["session_id", "order_index"]);
+      });
+      console.log("Таблица combat_participants создана");
     }
 
     // Индексы

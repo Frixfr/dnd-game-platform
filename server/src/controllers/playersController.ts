@@ -19,16 +19,113 @@ const ALLOWED_UPDATE_FIELDS = new Set([
   "in_battle",
   "is_online",
   "is_card_shown",
+  "race_id",
+  "access_password",
 ]);
 
 export const playersController = {
   async getAll(req: Request, res: Response) {
     try {
-      const players = await playersService.getAll();
-      res.json(players);
+      const full = req.query.full === "true";
+
+      if (full) {
+        // Полные данные с пагинацией
+        const page = req.query.page
+          ? parseInt(req.query.page as string, 10)
+          : 1;
+        const limit = req.query.limit
+          ? parseInt(req.query.limit as string, 10)
+          : 20;
+        const card_shown_only = req.query.card_shown === "true";
+        const result = await playersService.getAllFullPaginated(
+          page,
+          limit,
+          card_shown_only,
+        );
+        res.json(result);
+        return;
+      }
+
+      const card_shown_only = req.query.card_shown === "true";
+      const available_for_selection =
+        req.query.available_for_selection === "true";
+      const page = req.query.page
+        ? parseInt(req.query.page as string, 10)
+        : undefined;
+      const limit = req.query.limit
+        ? parseInt(req.query.limit as string, 10)
+        : undefined;
+
+      const result = await playersService.getAll(
+        card_shown_only,
+        available_for_selection,
+        page,
+        limit,
+      );
+      res.json(result);
     } catch (error) {
       console.error(error);
       res.status(500).json({ error: "Ошибка сервера" });
+    }
+  },
+
+  async loginByPassword(req: Request, res: Response) {
+    const { password } = req.body;
+    if (!password || typeof password !== "string") {
+      return res.status(400).json({ error: "Пароль обязателен" });
+    }
+    try {
+      const player = await playersService.loginWithPassword(password);
+      if (!player) {
+        return res.status(401).json({ error: "Неверный пароль" });
+      }
+      const fullPlayer = await playersService.getFullDetails(player.id);
+      res.json({ success: true, player: fullPlayer });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Ошибка сервера" });
+    }
+  },
+
+  async setPassword(req: Request, res: Response) {
+    const id = Number(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: "Некорректный ID" });
+
+    const { password } = req.body;
+    if (
+      !password ||
+      typeof password !== "string" ||
+      password.trim().length === 0
+    ) {
+      return res.status(400).json({ error: "Пароль обязателен" });
+    }
+    if (password.length < 3) {
+      return res
+        .status(400)
+        .json({ error: "Пароль должен содержать минимум 3 символа" });
+    }
+
+    try {
+      const updatedPlayer = await playersService.setPassword(
+        id,
+        password.trim(),
+      );
+      if (!updatedPlayer)
+        return res.status(404).json({ error: "Игрок не найден" });
+
+      // После установки пароля загружаем полные данные и эмитим обновление
+      const fullPlayer = await playersService.getFullDetails(id);
+      getIO().emit("player:updated", fullPlayer);
+      res.json({ success: true, player: fullPlayer });
+    } catch (error: any) {
+      if (error.message === "Пароль уже установлен для этого игрока") {
+        return res.status(409).json({ error: error.message });
+      }
+      if (error.message === "Этот пароль уже используется другим игроком") {
+        return res.status(409).json({ error: error.message });
+      }
+      console.error(error);
+      res.status(500).json({ error: "Ошибка установки пароля" });
     }
   },
 
@@ -116,13 +213,18 @@ export const playersController = {
         in_battle: false,
         is_online: Boolean(is_online),
         is_card_shown: Boolean(is_card_shown),
+        race_id: null, // добавлено
+        access_password: req.body.access_password || null,
       });
       getIO().emit("player:created", newPlayer);
       res
         .status(201)
         .json({ success: true, message: "Игрок создан", player: newPlayer });
-    } catch (error: any) {
-      if (error.message.includes("UNIQUE constraint failed")) {
+    } catch (error: unknown) {
+      if (
+        error instanceof Error &&
+        error.message.includes("UNIQUE constraint failed")
+      ) {
         return res
           .status(409)
           .json({ error: "Игрок с таким именем уже существует" });
@@ -158,18 +260,22 @@ export const playersController = {
       const updatedPlayer = await playersService.update(id, filteredData);
       if (!updatedPlayer)
         return res.status(404).json({ error: "Игрок не найден" });
-      getIO().emit("player:updated", updatedPlayer);
-      res.json({ success: true, player: updatedPlayer });
-    } catch (error: any) {
-      if (error.message.includes("Health cannot exceed max health")) {
-        return res
-          .status(400)
-          .json({ error: "Текущее здоровье не может превышать максимальное" });
-      }
-      if (error.message.includes("UNIQUE constraint failed")) {
-        return res
-          .status(409)
-          .json({ error: "Игрок с таким именем уже существует" });
+      // --- ИЗМЕНЕНИЕ: получаем полные данные и эмитим их ---
+      const fullPlayer = await playersService.getFullDetails(id);
+      if (fullPlayer) getIO().emit("player:updated", fullPlayer);
+      res.json({ success: true, player: fullPlayer || updatedPlayer });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        if (error.message.includes("Health cannot exceed max health")) {
+          return res.status(400).json({
+            error: "Текущее здоровье не может превышать максимальное",
+          });
+        }
+        if (error.message.includes("UNIQUE constraint failed")) {
+          return res
+            .status(409)
+            .json({ error: "Игрок с таким именем уже существует" });
+        }
       }
       console.error(error);
       res.status(500).json({ error: "Ошибка обновления игрока" });
@@ -205,8 +311,12 @@ export const playersController = {
       const fullPlayer = await playersService.getFullDetails(playerId);
       if (fullPlayer) getIO().emit("player:updated", fullPlayer);
       res.json(result);
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        res.status(500).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: "Неизвестная ошибка" });
+      }
     }
   },
 
@@ -229,8 +339,12 @@ export const playersController = {
       const fullPlayer = await playersService.getFullDetails(playerId);
       if (fullPlayer) getIO().emit("player:updated", fullPlayer);
       res.json(result);
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        res.status(500).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: "Неизвестная ошибка" });
+      }
     }
   },
 
@@ -248,8 +362,12 @@ export const playersController = {
       const fullPlayer = await playersService.getFullDetails(playerId);
       if (fullPlayer) getIO().emit("player:updated", fullPlayer);
       res.json(result);
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        res.status(500).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: "Неизвестная ошибка" });
+      }
     }
   },
 
@@ -268,8 +386,12 @@ export const playersController = {
       const fullPlayer = await playersService.getFullDetails(playerId);
       if (fullPlayer) getIO().emit("player:updated", fullPlayer);
       res.json({ success: true, message: "Предмет удален" });
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        res.status(500).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: "Неизвестная ошибка" });
+      }
     }
   },
 
@@ -288,8 +410,12 @@ export const playersController = {
       const fullPlayer = await playersService.getFullDetails(playerId);
       if (fullPlayer) getIO().emit("player:updated", fullPlayer);
       res.json({ success: true, message: "Способность удалена" });
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        res.status(500).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: "Неизвестная ошибка" });
+      }
     }
   },
 
@@ -308,8 +434,12 @@ export const playersController = {
       const fullPlayer = await playersService.getFullDetails(playerId);
       if (fullPlayer) getIO().emit("player:updated", fullPlayer);
       res.json({ success: true, message: "Эффект удален" });
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        res.status(500).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: "Неизвестная ошибка" });
+      }
     }
   },
 
@@ -333,8 +463,12 @@ export const playersController = {
       const fullPlayer = await playersService.getFullDetails(playerId);
       if (fullPlayer) getIO().emit("player:updated", fullPlayer);
       res.json({ success: true, player_item: updated });
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        res.status(500).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: "Неизвестная ошибка" });
+      }
     }
   },
 
@@ -357,8 +491,65 @@ export const playersController = {
       const fullPlayer = await playersService.getFullDetails(playerId);
       if (fullPlayer) getIO().emit("player:updated", fullPlayer);
       res.json({ success: true, player_ability: updated });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        res.status(500).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: "Неизвестная ошибка" });
+      }
+    }
+  },
+
+  async useItem(req: Request, res: Response) {
+    const playerId = Number(req.params.playerId);
+    const itemId = Number(req.params.itemId);
+    if (isNaN(playerId) || isNaN(itemId)) {
+      return res.status(400).json({ error: "Некорректные ID" });
+    }
+    try {
+      const result = await playersService.useItem(playerId, itemId);
+      // --- ИЗМЕНЕНИЕ: после использования предмета эмитим полные данные игрока ---
+      const fullPlayer = await playersService.getFullDetails(playerId);
+      if (fullPlayer) getIO().emit("player:updated", fullPlayer);
+      res.json(result);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(400).json({ error: error.message });
+    }
+  },
+
+  async uploadAvatar(req: Request, res: Response) {
+    const id = Number(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: "Некорректный ID" });
+    if (!req.file) return res.status(400).json({ error: "Файл не загружен" });
+
+    try {
+      const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+      const updated = await playersService.updateAvatar(id, avatarUrl);
+      if (!updated) return res.status(404).json({ error: "Игрок не найден" });
+      // --- ИЗМЕНЕНИЕ: эмитим полные данные ---
+      const fullPlayer = await playersService.getFullDetails(id);
+      if (fullPlayer) getIO().emit("player:updated", fullPlayer);
+      res.json({ success: true, player: fullPlayer || updated, avatarUrl });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Ошибка загрузки аватарки" });
+    }
+  },
+
+  async deleteAvatar(req: Request, res: Response) {
+    const id = Number(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: "Некорректный ID" });
+    try {
+      const updated = await playersService.deleteAvatar(id);
+      if (!updated) return res.status(404).json({ error: "Игрок не найден" });
+      // --- ИЗМЕНЕНИЕ: эмитим полные данные ---
+      const fullPlayer = await playersService.getFullDetails(id);
+      if (fullPlayer) getIO().emit("player:updated", fullPlayer);
+      res.json({ success: true, player: fullPlayer || updated });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Ошибка удаления аватарки" });
     }
   },
 };

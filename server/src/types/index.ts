@@ -19,6 +19,8 @@ export interface Player {
   is_card_shown: boolean;
   created_at: string;
   race_id: number | null;
+  access_password?: string | null;
+  avatar_url?: string | null;
 }
 
 export interface Effect {
@@ -42,6 +44,7 @@ export interface Effect {
   duration_turns: number | null;
   duration_days: number | null;
   is_permanent: boolean;
+  tags: string[];
 }
 
 export interface Ability {
@@ -73,6 +76,10 @@ export interface Item {
   passive_effect_id: number | null;
   created_at: string;
   updated_at: string;
+  is_deletable: boolean;
+  is_usable: boolean;
+  infinite_uses: boolean;
+  effects?: (Effect & { effect_type: "active" | "passive" })[];
 }
 
 export interface NPC {
@@ -95,6 +102,7 @@ export interface NPC {
   aggression: 0 | 1 | 2;
   created_at: string;
   race_id: number | null;
+  avatar_url?: string | null;
 }
 
 export interface PlayerAbility {
@@ -102,6 +110,8 @@ export interface PlayerAbility {
   ability_id: number;
   obtained_at: string;
   is_active: boolean;
+  remaining_cooldown_turns?: number | null;
+  remaining_cooldown_days?: number | null;
 }
 
 export interface PlayerItem {
@@ -129,6 +139,8 @@ export interface NpcAbility {
   ability_id: number;
   obtained_at: string;
   is_active: boolean;
+  remaining_cooldown_turns?: number | null;
+  remaining_cooldown_days?: number | null;
 }
 
 export interface NpcItem {
@@ -221,4 +233,101 @@ export interface Race {
 export interface RaceEffect {
   race_id: number;
   effect_id: number;
+}
+
+// Combat types
+export interface CombatSession {
+  id: number;
+  is_active: boolean;
+  created_at: string;
+  ended_at: string | null;
+}
+
+export interface CombatParticipant {
+  id: number;
+  session_id: number;
+  entity_type: "player" | "npc";
+  entity_id: number;
+  order_index: number;
+  is_current_turn: boolean;
+  joined_at: string;
+}
+
+export interface Log {
+  id: number;
+  action_type:
+    | "ability_use"
+    | "item_use"
+    | "effect_gain"
+    | "item_discard"
+    | "item_transfer";
+  player_id: number | null;
+  npc_id: number | null;
+  entity_name: string;
+  action_name: string;
+  details: string | null;
+  created_at: string;
+}
+
+// Расширенный участник боя с данными сущности
+export interface CombatParticipantWithDetails extends CombatParticipant {
+  entity: Player | NPC;
+  final_stats?: any;
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface ItemEffectLink {
+  id: number;
+  item_id: number;
+  effect_id: number;
+  effect_type: "active" | "passive";
+  created_at: string;
+}
+
+export interface Map {
+  id: number;
+  name: string;
+  image_url: string;
+  show_to_players: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MapToken {
+  id: number;
+  map_id: number;
+  entity_type: "player" | "npc";
+  entity_id: number;
+  x: number; // 0..1
+  y: number; // 0..1
+  is_grayscale: boolean;
+  scale: number;
+  updated_at: string;
+}
+
+export interface MapWithTokens extends Map {
+  tokens: (MapToken & { entity_name: string; avatar_url?: string | null })[];
+}
+
+export interface CreateMapDto {
+  name: string;
+  show_to_players?: boolean;
+}
+
+export interface UpdateMapDto {
+  name?: string;
+  show_to_players?: boolean;
+}
+
+export interface UpdateTokenDto {
+  x?: number;
+  y?: number;
+  is_grayscale?: boolean;
+  scale?: number;
 }

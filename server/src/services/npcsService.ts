@@ -1,11 +1,31 @@
 import { db } from "../db/index.js";
 import { getFullNpcData, ensureFrightenedEffect } from "../utils/helpers.js";
-import type { NPC, FullNPCData } from "../types/index.js";
+import type { NPC, FullNPCData, PaginatedResponse } from "../types/index.js";
 import { npcAbilitiesService } from "./npcAbilitiesService.js";
 
 export const npcsService = {
-  async getAll(): Promise<NPC[]> {
-    return db("npcs").select("*");
+  async getAll(
+    page?: number,
+    limit?: number,
+  ): Promise<NPC[] | PaginatedResponse<NPC>> {
+    let query = db("npcs").select("*");
+
+    if (page === undefined || limit === undefined) {
+      return query;
+    }
+
+    const offset = (page - 1) * limit;
+    const totalQuery = query
+      .clone()
+      .clearSelect()
+      .clearOrder()
+      .count("id as count")
+      .first();
+    const totalResult = await totalQuery;
+    const total = Number(totalResult?.count) || 0;
+
+    const data = await query.limit(limit).offset(offset);
+    return { data, total, page, limit };
   },
 
   async getById(id: string): Promise<NPC | null> {
@@ -30,16 +50,6 @@ export const npcsService = {
   },
 
   async delete(id: string): Promise<boolean> {
-    // Проверка связей
-    const hasAbilities = await db("npc_abilities").where("npc_id", id).first();
-    if (hasAbilities) throw new Error("NPC has relations");
-    const hasItems = await db("npc_items").where("npc_id", id).first();
-    if (hasItems) throw new Error("NPC has relations");
-    const hasEffects = await db("npc_active_effects")
-      .where("npc_id", id)
-      .first();
-    if (hasEffects) throw new Error("NPC has relations");
-
     const deleted = await db("npcs").where({ id }).delete();
     return deleted > 0;
   },
@@ -214,8 +224,20 @@ export const npcsService = {
           action: npcAbility.obtained_at ? "created" : "updated",
           npc_ability: npcAbility,
         });
-      } catch (error: any) {
-        results.push({ ability_id, success: false, error: error.message });
+      } catch (error: unknown) {
+        if (error instanceof Error) {
+          results.push({
+            ability_id,
+            success: false,
+            error: error.message,
+          });
+        } else {
+          results.push({
+            ability_id,
+            success: false,
+            error: "Неизвестная ошибка",
+          });
+        }
       }
     }
     const successful = results.filter((r) => r.success).length;
@@ -302,12 +324,40 @@ export const npcsService = {
   },
 
   async toggleAbility(npcId: number, abilityId: number, is_active: boolean) {
-    const [updated] = await db("npc_abilities")
-      .where({ npc_id: npcId, ability_id: abilityId })
-      .update({ is_active })
-      .returning("*");
-    if (!updated) throw new Error("Способность не найдена");
-    await npcAbilitiesService.create(npcId, abilityId, is_active);
+    // Используем единый метод toggleActive из npcAbilitiesService
+    const updated = await npcAbilitiesService.toggleActive(
+      npcId,
+      abilityId,
+      is_active,
+    );
     return updated;
+  },
+
+  async updateAvatar(
+    id: number,
+    avatarUrl: string | null,
+  ): Promise<NPC | null> {
+    const [updated] = await db("npcs")
+      .where({ id })
+      .update({ avatar_url: avatarUrl })
+      .returning("*");
+    return updated || null;
+  },
+
+  async deleteAvatar(id: number): Promise<NPC | null> {
+    const npc = await db("npcs").where({ id }).first();
+    if (npc?.avatar_url) {
+      const fs = await import("fs");
+      const path = await import("path");
+      const filePath = path.join(process.cwd(), npc.avatar_url);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }
+    const [updated] = await db("npcs")
+      .where({ id })
+      .update({ avatar_url: null })
+      .returning("*");
+    return updated || null;
   },
 };

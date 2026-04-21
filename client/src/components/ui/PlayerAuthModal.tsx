@@ -1,88 +1,95 @@
-// Остаётся без изменений, так как не зависит от роутинга.
-// В будущем можно добавить onSuccess и перенаправление на CharacterCreatorPage.
 import React, { useState } from 'react';
 import Modal from './Modal';
-
-type Gender = 'male' | 'female';
+import { useNavigate } from 'react-router-dom';
+import { usePlayerSessionStore } from '../../stores/playerSessionStore';
 
 interface PlayerAuthModalProps {
   onClose: () => void;
+  onSelectAvailable: () => void; // вместо onLogin
 }
 
-const PlayerAuthModal: React.FC<PlayerAuthModalProps> = ({ onClose }) => {
-  const [name, setName] = useState('');
-  const [gender, setGender] = useState<Gender>('female');
+const PlayerAuthModal: React.FC<PlayerAuthModalProps> = ({ onClose, onSelectAvailable }) => {
+  const navigate = useNavigate();
+  const { setSelectedPlayer } = usePlayerSessionStore();
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim()) {
-      setError('Пожалуйста, введите имя');
+  const handleSelectAvailable = () => {
+    onSelectAvailable();
+  };
+
+  const handleLoginWithPassword = async () => {
+    if (!password.trim()) {
+      setError('Введите пароль');
       return;
     }
-    alert(`Привет, ${name}! Выберите персонажа (реализация позже).`);
-    onClose();
+    setLoading(true);
+    setError('');
+    try {
+      const response = await fetch('/api/players/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: password.trim() }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Ошибка входа');
+      }
+      setSelectedPlayer(data.player);
+      navigate(`/player/${data.player.id}`);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <Modal onClose={onClose} title="Вход для игрока">
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-4">
         <div>
-          <label htmlFor="player-name" className="block text-sm font-medium text-gray-700">
-            Имя
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Пароль от персонажа (если есть)
           </label>
           <input
-            id="player-name"
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+            placeholder="Введите пароль"
+            autoFocus
           />
+          <p className="text-xs text-gray-500 mt-1">
+            Если у персонажа нет пароля, выберите "Выберу доступных"
+          </p>
         </div>
-
-        <div>
-          <span className="block text-sm font-medium text-gray-700 mb-1">Пол</span>
-          <div className="flex space-x-6">
-            <label className="inline-flex items-center">
-              <input
-                type="radio"
-                name="gender"
-                checked={gender === 'female'}
-                onChange={() => setGender('female')}
-                className="h-4 w-4 text-pink-600"
-              />
-              <span className="ml-2">Женский</span>
-            </label>
-            <label className="inline-flex items-center">
-              <input
-                type="radio"
-                name="gender"
-                checked={gender === 'male'}
-                onChange={() => setGender('male')}
-                className="h-4 w-4 text-blue-600"
-              />
-              <span className="ml-2">Мужской</span>
-            </label>
-          </div>
-        </div>
-
         {error && <p className="text-red-600 text-sm">{error}</p>}
-        <div className="flex justify-end space-x-3">
+        <div className="flex justify-end space-x-3 pt-2">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-slate-700 bg-slate-200 rounded hover:bg-slate-300 transition-colors"
-            >
+            className="px-4 py-2 text-slate-700 bg-slate-200 rounded hover:bg-slate-300"
+          >
             Отмена
-            </button>
-            <button
-            type="submit"
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-            >
-            Продолжить
-           </button>
+          </button>
+          <button
+            type="button"
+            onClick={handleSelectAvailable}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Выберу доступных
+          </button>
+          <button
+            type="button"
+            onClick={handleLoginWithPassword}
+            disabled={loading}
+            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+          >
+            {loading ? 'Вход...' : 'Ввести пароль'}
+          </button>
         </div>
-      </form>
+      </div>
     </Modal>
   );
 };

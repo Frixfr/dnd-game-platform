@@ -1,44 +1,48 @@
 // client/src/pages/MasterDashboardPage.tsx
+
 import { useState, useEffect } from 'react';
 import { PlayerCard } from '../components/ui/PlayerCard';
 import { CreatePlayerModal } from '../components/ui/CreatePlayerModal';
 import { EditPlayerModal } from '../components/ui/EditPlayerModal';
+import { Pagination } from '../components/ui/Pagination';
 import { usePlayerStore } from '../stores/playerStore';
 import type { PlayerType } from '../types';
+import ConfirmModal from '../components/ui/ConfirmModal';
+import { useErrorHandler } from '../hooks/useErrorHandler';
 
 export const MasterDashboardPage = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerType | null>(null);
   const [loading, setLoading] = useState(true);
-  const [loadingFullPlayer, setLoadingFullPlayer] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [playerToDelete, setPlayerToDelete] = useState<PlayerType | null>(null);
+  const { showError } = useErrorHandler();
 
-  // Берём всё из стора
-  const { players, setPlayers, updatePlayer, socket, initializeSocket } = usePlayerStore();
+  const {
+    players,
+    playersTotal,
+    currentPage,
+    limit,
+    fetchPlayers,
+    initializeSocket,
+    socket,
+  } = usePlayerStore();
 
-  // Инициализация сокетов при монтировании
   useEffect(() => {
     initializeSocket();
   }, [initializeSocket]);
 
-  // Загрузка начальных данных
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await fetch('http://localhost:5000/api/players');
-        if (!response.ok) throw new Error('Ошибка загрузки');
-        const data = await response.json();
-        setPlayers(data); // обновляем стор
-      } catch (error) {
-        console.error('Ошибка:', error);
-      } finally {
-        setLoading(false);
-      }
+    const load = async () => {
+      setLoading(true);
+      await fetchPlayers(currentPage, limit);
+      setLoading(false);
     };
+    load();
+  }, [currentPage, limit, fetchPlayers]);
 
-    fetchData();
-
-    // Очистка сокет-событий при размонтировании (исправленные имена)
+  useEffect(() => {
     return () => {
       if (socket) {
         socket.off('player:created');
@@ -46,45 +50,39 @@ export const MasterDashboardPage = () => {
         socket.off('player:deleted');
       }
     };
-  }, [socket, setPlayers]);
+  }, [socket]);
 
-  // Обработчик клика по карточке игрока – загружаем полные данные
-  const handlePlayerClick = async (player: PlayerType) => {
-    setLoadingFullPlayer(true);
-    try {
-      const response = await fetch(`http://localhost:5000/api/players/${player.id}/details`);
-      if (!response.ok) throw new Error('Ошибка загрузки полных данных игрока');
-      const fullPlayer = await response.json();
-      setSelectedPlayer(fullPlayer);
-      setIsEditModalOpen(true);
-    } catch (error) {
-      console.error('Ошибка загрузки полных данных:', error);
-      setSelectedPlayer(player);
-      setIsEditModalOpen(true);
-    } finally {
-      setLoadingFullPlayer(false);
-    }
+  const handlePlayerClick = (player: PlayerType) => {
+    setSelectedPlayer(player);
+    setIsEditModalOpen(true);
   };
 
-  // Обработчик обновления игрока (вызывается из EditPlayerModal)
-  const handlePlayerUpdated = (updatedPlayer: PlayerType) => {
-    updatePlayer(updatedPlayer);
+  const handlePlayerUpdated = () => {
     setIsEditModalOpen(false);
     setSelectedPlayer(null);
+    fetchPlayers(currentPage, limit);
   };
 
   const handleDeletePlayer = async (player: PlayerType) => {
+    setPlayerToDelete(player);
+    setShowConfirmModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!playerToDelete) return;
     try {
-      const response = await fetch(`http://localhost:5000/api/players/${player.id}`, {
-        method: 'DELETE',
-      });
+      const response = await fetch(`/api/players/${playerToDelete.id}`, { method: 'DELETE' });
       if (!response.ok) throw new Error('Ошибка удаления');
-      // стор обновится через сокет или можно вызвать fetchPlayers снова
     } catch (error) {
       console.error(error);
-      alert('Не удалось удалить игрока');
+      showError('Не удалось удалить игрока');
+    } finally {
+      setShowConfirmModal(false);
+      setPlayerToDelete(null);
     }
   };
+
+  const totalPages = Math.ceil(playersTotal / limit);
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
@@ -92,7 +90,7 @@ export const MasterDashboardPage = () => {
         <div>
           <h1 className="text-3xl font-bold">Панель игроков</h1>
           <p className="text-gray-600 mt-1">
-            Всего игроков: <span className="font-semibold">{players.length}</span>
+            Всего игроков: <span className="font-semibold">{playersTotal}</span>
           </p>
         </div>
         <button
@@ -114,35 +112,27 @@ export const MasterDashboardPage = () => {
           <p className="mb-4">Нажмите кнопку выше для создания первого игрока</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {players.map((player) => (
-            <PlayerCard
-              key={player.id}
-              player={player}
-              onClick={() => handlePlayerClick(player)}
-              disabled={loadingFullPlayer}
-              onDelete={() => handleDeletePlayer(player)}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Индикатор загрузки полных данных */}
-      {loadingFullPlayer && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-xl">
-            <div className="text-center">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mb-4"></div>
-              <p className="text-gray-700">Загрузка данных игрока...</p>
-            </div>
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {players.map((player) => (
+              <PlayerCard
+                key={player.id}
+                player={player}
+                onClick={() => handlePlayerClick(player)}
+                onDelete={() => handleDeletePlayer(player)}
+              />
+            ))}
           </div>
-        </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={(page) => fetchPlayers(page, limit)}
+          />
+        </>
       )}
 
-      {/* Модальное окно создания игрока */}
       {isCreateModalOpen && <CreatePlayerModal onClose={() => setIsCreateModalOpen(false)} />}
 
-      {/* Модальное окно редактирования игрока */}
       {isEditModalOpen && selectedPlayer && (
         <EditPlayerModal
           player={selectedPlayer}
@@ -153,6 +143,16 @@ export const MasterDashboardPage = () => {
           onPlayerUpdated={handlePlayerUpdated}
         />
       )}
+
+      <ConfirmModal
+        isOpen={showConfirmModal}
+        message={`Удалить игрока "${playerToDelete?.name}"?`}
+        onConfirm={confirmDelete}
+        onCancel={() => {
+          setShowConfirmModal(false);
+          setPlayerToDelete(null);
+        }}
+      />
     </div>
   );
 };

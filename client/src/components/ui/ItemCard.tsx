@@ -1,9 +1,8 @@
 // client/src/components/ui/ItemCard.tsx
-import type { ItemType, EffectType } from '../../types';
+import type { ItemType } from '../../types';
 
 interface ItemCardProps {
   item: ItemType;
-  effects?: EffectType[];
   onClick?: () => void;
   onDelete?: () => void;
 }
@@ -18,16 +17,12 @@ const rarityConfig: Record<ItemType['rarity'], { label: string; gradient: string
   story: { label: 'Сюжетный', gradient: 'from-orange-400 to-orange-500', badgeClass: 'bg-orange-100 text-orange-800' },
 };
 
-export const ItemCard = ({ item, effects = [], onClick, onDelete }: ItemCardProps) => {
+export const ItemCard = ({ item, onClick, onDelete }: ItemCardProps) => {
   const config = rarityConfig[item.rarity];
-  const activeEffect = effects.find(e => e.id === item.active_effect_id);
-  const passiveEffect = effects.find(e => e.id === item.passive_effect_id);
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (onDelete && confirm(`Удалить предмет "${item.name}"?`)) {
-      onDelete();
-    }
+    if (onDelete) onDelete();
   };
 
   return (
@@ -58,32 +53,14 @@ export const ItemCard = ({ item, effects = [], onClick, onDelete }: ItemCardProp
           <p className="text-sm text-gray-600 mb-4 line-clamp-2">{item.description}</p>
         )}
 
-        {(activeEffect || passiveEffect) && (
-          <div className="space-y-2">
-            {activeEffect && (
-              <div className="flex items-center justify-between bg-blue-50 rounded-lg px-3 py-2 border border-blue-100">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm">🎯</span>
-                  <span className="text-xs font-medium text-blue-700">Активный</span>
-                  <span className="text-sm text-gray-800 truncate max-w-[150px]">{activeEffect.name}</span>
-                </div>
-                <span className={`text-sm font-bold ${activeEffect.modifier > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {activeEffect.modifier > 0 ? '+' : ''}{activeEffect.modifier}
-                </span>
-              </div>
-            )}
-            {passiveEffect && (
-              <div className="flex items-center justify-between bg-green-50 rounded-lg px-3 py-2 border border-green-100">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm">✨</span>
-                  <span className="text-xs font-medium text-green-700">Пассивный</span>
-                  <span className="text-sm text-gray-800 truncate max-w-[150px]">{passiveEffect.name}</span>
-                </div>
-                <span className={`text-sm font-bold ${passiveEffect.modifier > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {passiveEffect.modifier > 0 ? '+' : ''}{passiveEffect.modifier}
-                </span>
-              </div>
-            )}
+        {(item.active_effects && item.active_effects.length > 0) && (
+          <div className="text-sm mb-1">
+            <span className="font-semibold text-blue-600">Активные:</span> {item.active_effects.map(e => e.name).join(", ")}
+          </div>
+        )}
+        {(item.passive_effects && item.passive_effects.length > 0) && (
+          <div className="text-sm">
+            <span className="font-semibold text-green-600">Пассивные:</span> {item.passive_effects.map(e => e.name).join(", ")}
           </div>
         )}
       </div>

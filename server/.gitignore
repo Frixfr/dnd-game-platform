@@ -1,0 +1,18 @@
+# Папка с аватарками
+uploads/
+
+# Файлы базы данных SQLite
+data/*.db
+data/*.db-shm
+data/*.db-wal
+
+# Логи
+*.log
+npm-debug.log*
+
+# Зависимости (обычно не игнорируются, но можно)
+# node_modules/   # обычно не добавляют в .gitignore в папке server, если она не вложена
+
+# Сборка и временные файлы
+dist/
+*.tsbuildinfo

@@ -11,7 +11,7 @@ export function initSocket(
 ) {
   io = new SocketServer(server, {
     cors: {
-      origin: process.env.CLIENT_ORIGIN || "http://localhost:5173",
+      origin: process.env.CLIENT_ORIGIN || "*",
       methods: ["GET", "POST"],
     },
     ...options,
@@ -24,6 +24,15 @@ export function initSocket(
     socket.on("join-player", (playerId: string) => {
       socket.join(`player:${playerId}`);
       console.log(`Socket ${socket.id} joined room player:${playerId}`);
+    });
+
+    socket.on("join-map", (mapId: number) => {
+      socket.join(`map:${mapId}`);
+      console.log(`Socket ${socket.id} joined map ${mapId}`);
+    });
+
+    socket.on("leave-map", (mapId: number) => {
+      socket.leave(`map:${mapId}`);
     });
 
     socket.on("disconnect", () => {
@@ -48,10 +57,7 @@ export const emitToAll = (event: string, data: any) => {
   getIO().emit(event, data);
 };
 
-export const emitToPlayer = (
-  playerId: string | number,
-  event: string,
-  data: any,
-) => {
-  getIO().to(`player:${playerId}`).emit(event, data);
-};
+export function emitToPlayer(playerId: number, event: string, data: any) {
+  const io = getIO();
+  io.to(`player:${playerId}`).emit(event, data);
+}

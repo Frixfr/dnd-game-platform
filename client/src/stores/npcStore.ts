@@ -1,60 +1,99 @@
+// client/src/stores/npcStore.ts
+
 import { create } from "zustand";
-import { io, Socket } from "socket.io-client";
 import type { NpcType } from "../types";
+import { socket } from "../lib/socket";
+
+interface PaginatedResponse<T> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+}
 
 interface NpcStore {
   npcs: NpcType[];
-  socket: Socket | null;
+  npcsTotal: number;
+  currentPage: number;
+  limit: number;
   initializeSocket: () => void;
+  fetchNpcs: (page?: number, limit?: number) => Promise<void>;
+  fetchAllNpcs: () => Promise<NpcType[]>;
   addNpc: (npc: NpcType) => void;
   updateNpc: (updatedNpc: NpcType) => void;
   deleteNpc: (npcId: number) => void;
-  setNpcs: (npcs: NpcType[]) => void;
-  fetchNpcs: () => Promise<void>;
+  setNpcs: (
+    npcs: NpcType[],
+    total: number,
+    page: number,
+    limit: number,
+  ) => void;
 }
+
+let npcSocketInitialized = false;
 
 export const useNpcStore = create<NpcStore>((set, get) => ({
   npcs: [],
-  socket: null,
+  npcsTotal: 0,
+  currentPage: 1,
+  limit: 20,
 
   initializeSocket: () => {
-    const { socket } = get();
-    // Если сокет уже существует и подключён — не создаём новый
-    if (socket && socket.connected) return;
+    if (npcSocketInitialized) return;
+    npcSocketInitialized = true;
 
-    const newSocket = io({
-      withCredentials: true,
-      transports: ["websocket", "polling"],
-      autoConnect: true,
-      reconnection: true,
+    socket.on("npc:created", async () => {
+      console.log("NPC создан (сокет)");
+      const { currentPage, limit, fetchNpcs } = get();
+      await fetchNpcs(currentPage, limit);
     });
-
-    newSocket.on("npc:created", (npc: NpcType) => {
-      console.log("NPC создан:", npc);
-      set((state) => ({ npcs: [...state.npcs, npc] }));
+    socket.on("npc:updated", async () => {
+      console.log("NPC обновлён (сокет)");
+      const { currentPage, limit, fetchNpcs } = get();
+      await fetchNpcs(currentPage, limit);
     });
-    newSocket.on("npc:updated", (npc: NpcType) => {
-      set((state) => ({
-        npcs: state.npcs.map((p) => (p.id === npc.id ? npc : p)),
-      }));
+    socket.on("npc:deleted", async () => {
+      console.log("NPC удалён (сокет)");
+      const { currentPage, limit, fetchNpcs } = get();
+      await fetchNpcs(currentPage, limit);
     });
-    newSocket.on("npc:deleted", (npcId: number) => {
-      set((state) => ({ npcs: state.npcs.filter((p) => p.id !== npcId) }));
+    socket.on("connect", async () => {
+      console.log("Socket connected (npcs)");
+      const { currentPage, limit, fetchNpcs } = get();
+      await fetchNpcs(currentPage, limit);
     });
-    // Не вызываем fetchNpcs здесь, чтобы избежать двойной загрузки
-    // (fetchNpcs будет вызван в useEffect на странице)
-    set({ socket: newSocket });
   },
 
-  fetchNpcs: async () => {
+  fetchNpcs: async (page = 1, limit = 20) => {
     try {
-      const response = await fetch("/api/npcs");
+      const response = await fetch(`/api/npcs?page=${page}&limit=${limit}`);
       if (response.ok) {
-        const npcs = await response.json();
-        set({ npcs });
+        const result: PaginatedResponse<NpcType> = await response.json();
+        set({
+          npcs: result.data,
+          npcsTotal: result.total,
+          currentPage: result.page,
+          limit: result.limit,
+        });
+      } else {
+        console.error("Ошибка загрузки NPC:", response.status);
       }
     } catch (error) {
       console.error("Ошибка загрузки NPC:", error);
+    }
+  },
+
+  fetchAllNpcs: async () => {
+    try {
+      const response = await fetch("/api/npcs?limit=9999");
+      if (response.ok) {
+        const result = await response.json();
+        return Array.isArray(result) ? result : result.data;
+      }
+      return [];
+    } catch (error) {
+      console.error("Ошибка загрузки всех NPC:", error);
+      return [];
     }
   },
 
@@ -65,5 +104,6 @@ export const useNpcStore = create<NpcStore>((set, get) => ({
     })),
   deleteNpc: (npcId) =>
     set((state) => ({ npcs: state.npcs.filter((n) => n.id !== npcId) })),
-  setNpcs: (npcs) => set({ npcs }),
+  setNpcs: (npcs, total, page, limit) =>
+    set({ npcs, npcsTotal: total, currentPage: page, limit }),
 }));

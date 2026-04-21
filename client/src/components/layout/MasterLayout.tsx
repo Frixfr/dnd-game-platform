@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
+import LogsButton from "../ui/LogsButton";
 
 const MasterLayout: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -49,6 +50,7 @@ const MasterLayout: React.FC = () => {
           <Outlet />
         </main>
       </div>
+      <LogsButton />
     </div>
   );
 };

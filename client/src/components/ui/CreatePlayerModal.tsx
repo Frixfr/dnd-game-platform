@@ -1,6 +1,7 @@
 // client/src/components/ui/CreatePlayerModal.tsx
 import { useState } from 'react';
 import { usePlayerStore } from '../../stores/playerStore';
+import { useErrorHandler } from '../../hooks/useErrorHandler';
 
 const initialStats = {
   strength: 0,
@@ -20,8 +21,8 @@ export const CreatePlayerModal = ({ onClose }: { onClose: () => void }) => {
     history: '',
     ...initialStats,
   });
-  const [error, setError] = useState('');
   const { fetchPlayers } = usePlayerStore();
+  const { showError } = useErrorHandler();
 
   const handleStatChange = (stat: keyof typeof initialStats, value: number) => {
     setFormData(prev => ({ ...prev, [stat]: Math.min(10, Math.max(-10, value)) }));
@@ -30,16 +31,16 @@ export const CreatePlayerModal = ({ onClose }: { onClose: () => void }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim()) {
-      setError('Имя обязательно');
+      showError('Имя обязательно');
       return;
     }
     if (formData.max_health <= 0 || formData.armor < 0) {
-      setError('Здоровье и броня должны быть положительными');
+      showError('Здоровье и броня должны быть положительными');
       return;
     }
 
     try {
-      const response = await fetch('http://localhost:5000/api/players', {
+      const response = await fetch('/api/players', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -54,7 +55,7 @@ export const CreatePlayerModal = ({ onClose }: { onClose: () => void }) => {
       await fetchPlayers();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Неизвестная ошибка');
+      showError(err instanceof Error ? err.message : 'Неизвестная ошибка');
     }
   };
 
@@ -69,11 +70,6 @@ export const CreatePlayerModal = ({ onClose }: { onClose: () => void }) => {
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {error && (
-            <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">
-              ⚠️ {error}
-            </div>
-          )}
 
           {/* Имя и пол */}
           <div className="grid grid-cols-2 gap-4">
