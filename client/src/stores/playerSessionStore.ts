@@ -1,5 +1,6 @@
 // client/src/stores/playerSessionStore.ts
 import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
 import type { PlayerType } from "../types";
 
 interface PlayerSessionStore {
@@ -8,8 +9,16 @@ interface PlayerSessionStore {
   clearSession: () => void;
 }
 
-export const usePlayerSessionStore = create<PlayerSessionStore>((set) => ({
-  selectedPlayer: null,
-  setSelectedPlayer: (player) => set({ selectedPlayer: player }),
-  clearSession: () => set({ selectedPlayer: null }),
-}));
+export const usePlayerSessionStore = create<PlayerSessionStore>()(
+  persist(
+    (set) => ({
+      selectedPlayer: null,
+      setSelectedPlayer: (player) => set({ selectedPlayer: player }),
+      clearSession: () => set({ selectedPlayer: null }),
+    }),
+    {
+      name: "player-session",
+      storage: createJSONStorage(() => sessionStorage),
+    },
+  ),
+);

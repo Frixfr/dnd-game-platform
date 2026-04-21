@@ -11,13 +11,31 @@ const PlayerLayout: React.FC = () => {
   const { selectedPlayer, clearSession } = usePlayerSessionStore();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  
+  // Состояние гидратации стора
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
+    // Ожидаем восстановления персистентного состояния
+    const unsubHydrate = usePlayerSessionStore.persist.onHydrate?.(() => setHydrated(false));
+    const unsubFinish = usePlayerSessionStore.persist.onFinishHydration?.(() => setHydrated(true));
+    
+    // Если onFinishHydration не доступен, устанавливаем true через таймаут
+    const timeout = setTimeout(() => setHydrated(true), 100);
+    
+    return () => {
+      unsubHydrate?.();
+      unsubFinish?.();
+      clearTimeout(timeout);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
     if (!selectedPlayer || selectedPlayer.id !== Number(playerId)) {
-      // Если нет выбранного игрока или ID не совпадает, редирект на выбор
       navigate('/');
     }
-  }, [selectedPlayer, playerId, navigate]);
+  }, [selectedPlayer, playerId, navigate, hydrated]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -39,6 +57,7 @@ const PlayerLayout: React.FC = () => {
     navigate('/');
   };
 
+  if (!hydrated) return null;
   if (!selectedPlayer) return null;
 
   return (
