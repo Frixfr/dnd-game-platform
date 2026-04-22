@@ -1,7 +1,6 @@
 // client/src/hooks/useCanvasMap.ts
 import { useEffect, useRef, useCallback, type RefObject } from "react";
 
-// Расширенный тип токена
 interface ExtendedToken {
   id: number;
   map_id: number;
@@ -27,9 +26,14 @@ interface UseCanvasMapOptions {
     newAbsY: number,
   ) => void;
   onCanvasClick?: (relX: number, relY: number) => void;
+  onCanvasContextMenu?: (relX: number, relY: number) => void;
+  onTokenContextMenu?: (
+    token: ExtendedToken,
+    clientX: number,
+    clientY: number,
+  ) => void;
 }
 
-// Рисование токена
 function drawToken(
   ctx: CanvasRenderingContext2D,
   img: HTMLImageElement,
@@ -38,8 +42,8 @@ function drawToken(
   size: number,
   grayscale: boolean,
 ) {
+  ctx.save();
   if (grayscale) {
-    ctx.save();
     ctx.filter = "grayscale(100%)";
   }
   ctx.beginPath();
@@ -47,7 +51,7 @@ function drawToken(
   ctx.closePath();
   ctx.clip();
   ctx.drawImage(img, x - size / 2, y - size / 2, size, size);
-  if (grayscale) ctx.restore();
+  ctx.restore();
   ctx.beginPath();
   ctx.arc(x, y, size / 2, 0, 2 * Math.PI);
   ctx.strokeStyle = "white";
@@ -66,6 +70,8 @@ export function useCanvasMap(
     originalHeight,
     onTokenDrag,
     onCanvasClick,
+    onCanvasContextMenu,
+    onTokenContextMenu,
   } = options;
   const imageRef = useRef<HTMLImageElement | null>(null);
   const dragRef = useRef<{
@@ -75,6 +81,7 @@ export function useCanvasMap(
     startRelX: number;
     startRelY: number;
   } | null>(null);
+  const avatarCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
 
   const getDrawParams = useCallback(
     (canvas: HTMLCanvasElement, img: HTMLImageElement) => {
@@ -102,10 +109,35 @@ export function useCanvasMap(
     [],
   );
 
-  const drawCanvas = useCallback(() => {
+  // Загрузка недостающих аватаров
+  const ensureAvatars = useCallback(async (requiredUrls: string[]) => {
+    const missingUrls = requiredUrls.filter(
+      (url) => !avatarCacheRef.current.has(url),
+    );
+    if (missingUrls.length === 0) return;
+    const promises = missingUrls.map((url) => {
+      return new Promise<{ url: string; img: HTMLImageElement }>((resolve) => {
+        const img = new Image();
+        img.crossOrigin = "Anonymous";
+        img.onload = () => resolve({ url, img });
+        img.onerror = () => resolve({ url, img: new Image() });
+        img.src = url;
+      });
+    });
+    const results = await Promise.all(promises);
+    results.forEach(({ url, img }) => avatarCacheRef.current.set(url, img));
+  }, []);
+
+  const drawCanvas = useCallback(async () => {
     const canvas = canvasRef.current;
-    const img = imageRef.current;
-    if (!canvas || !img) return;
+    const mapImg = imageRef.current;
+    if (!canvas || !mapImg) return;
+
+    // Собираем уникальные URL аватаров
+    const uniqueUrls = Array.from(
+      new Set(tokens.map((t) => t.avatar_url || "/default-avatar.png")),
+    );
+    await ensureAvatars(uniqueUrls);
 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
@@ -119,13 +151,12 @@ export function useCanvasMap(
 
     const { drawWidth, drawHeight, offsetX, offsetY } = getDrawParams(
       canvas,
-      img,
+      mapImg,
     );
-
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
+    ctx.drawImage(mapImg, offsetX, offsetY, drawWidth, drawHeight);
 
-    tokens.forEach((token) => {
+    for (const token of tokens) {
       let relX, relY;
       if (token.x <= 1 && token.y <= 1) {
         relX = token.x;
@@ -137,25 +168,29 @@ export function useCanvasMap(
       const canvasX = offsetX + relX * drawWidth;
       const canvasY = offsetY + relY * drawHeight;
 
-      // Размер токена: 5% от ШИРИНЫ ОТРИСОВАННОЙ КАРТИНКИ (drawWidth), а не canvas.width
       let tokenSize =
         Math.min(80, Math.max(24, drawWidth * 0.05)) * token.scale;
       tokenSize = Math.min(80, tokenSize);
 
-      const avatar = new Image();
-      avatar.src = token.avatar_url || "/default-avatar.png";
-      if (avatar.complete) {
-        drawToken(ctx, avatar, canvasX, canvasY, tokenSize, token.is_grayscale);
+      const avatarUrl = token.avatar_url || "/default-avatar.png";
+      const avatarImg = avatarCacheRef.current.get(avatarUrl);
+      if (avatarImg && avatarImg.complete && avatarImg.naturalWidth > 0) {
+        drawToken(
+          ctx,
+          avatarImg,
+          canvasX,
+          canvasY,
+          tokenSize,
+          token.is_grayscale,
+        );
       } else {
-        avatar.onload = () =>
-          drawToken(
-            ctx,
-            avatar,
-            canvasX,
-            canvasY,
-            tokenSize,
-            token.is_grayscale,
-          );
+        // fallback: серый круг
+        ctx.beginPath();
+        ctx.arc(canvasX, canvasY, tokenSize / 2, 0, 2 * Math.PI);
+        ctx.fillStyle = "#888";
+        ctx.fill();
+        ctx.strokeStyle = "white";
+        ctx.stroke();
       }
 
       ctx.font = `bold ${Math.max(10, tokenSize * 0.3)}px sans-serif`;
@@ -168,9 +203,17 @@ export function useCanvasMap(
         canvasY - tokenSize / 2 - 5,
       );
       ctx.shadowBlur = 0;
-    });
-  }, [canvasRef, tokens, originalWidth, originalHeight, getDrawParams]);
+    }
+  }, [
+    canvasRef,
+    tokens,
+    originalWidth,
+    originalHeight,
+    getDrawParams,
+    ensureAvatars,
+  ]);
 
+  // Загрузка карты
   useEffect(() => {
     const img = new Image();
     img.crossOrigin = "Anonymous";
@@ -184,12 +227,14 @@ export function useCanvasMap(
     };
   }, [mapImageUrl, drawCanvas]);
 
+  // Перерисовка при изменении токенов или ресайзе
   useEffect(() => {
     drawCanvas();
     window.addEventListener("resize", drawCanvas);
     return () => window.removeEventListener("resize", drawCanvas);
   }, [drawCanvas]);
 
+  // Обработка перетаскивания и кликов (без изменений)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -204,17 +249,13 @@ export function useCanvasMap(
       };
     };
 
-    const handleMouseDown = (e: MouseEvent) => {
-      if (!onTokenDrag) return;
-      const { mouseX, mouseY } = getMouseCanvasCoords(e);
+    const getTokenAt = (mouseX: number, mouseY: number) => {
       const img = imageRef.current;
-      if (!img) return;
-
+      if (!img) return null;
       const { drawWidth, drawHeight, offsetX, offsetY } = getDrawParams(
         canvas,
         img,
       );
-
       for (const token of tokens) {
         let relX, relY;
         if (token.x <= 1 && token.y <= 1) {
@@ -226,25 +267,43 @@ export function useCanvasMap(
         }
         const tokenCanvasX = offsetX + relX * drawWidth;
         const tokenCanvasY = offsetY + relY * drawHeight;
-        // Используем drawWidth для размера токена (единообразие)
         let tokenSize =
           Math.min(80, Math.max(24, drawWidth * 0.05)) * token.scale;
         tokenSize = Math.min(80, tokenSize);
         const dx = mouseX - tokenCanvasX;
         const dy = mouseY - tokenCanvasY;
         if (Math.hypot(dx, dy) <= tokenSize / 2) {
-          dragRef.current = {
-            token,
-            startX: mouseX,
-            startY: mouseY,
-            startRelX: relX,
-            startRelY: relY,
-          };
-          canvas.style.cursor = "grabbing";
-          e.preventDefault();
-          break;
+          return token;
         }
       }
+      return null;
+    };
+
+    const handleMouseDown = (e: MouseEvent) => {
+      if (!onTokenDrag) return;
+      if (e.button !== 0) return;
+      const { mouseX, mouseY } = getMouseCanvasCoords(e);
+      const token = getTokenAt(mouseX, mouseY);
+      if (!token) return;
+      const img = imageRef.current;
+      if (!img) return;
+      let relX, relY;
+      if (token.x <= 1 && token.y <= 1) {
+        relX = token.x;
+        relY = token.y;
+      } else {
+        relX = token.x / originalWidth;
+        relY = token.y / originalHeight;
+      }
+      dragRef.current = {
+        token,
+        startX: mouseX,
+        startY: mouseY,
+        startRelX: relX,
+        startRelY: relY,
+      };
+      canvas.style.cursor = "grabbing";
+      e.preventDefault();
     };
 
     const handleMouseMove = (e: MouseEvent) => {
@@ -279,6 +338,7 @@ export function useCanvasMap(
 
     const handleClick = (e: MouseEvent) => {
       if (!onCanvasClick) return;
+      if (e.button !== 0) return;
       const { mouseX, mouseY } = getMouseCanvasCoords(e);
       const img = imageRef.current;
       if (!img) return;
@@ -293,16 +353,39 @@ export function useCanvasMap(
       }
     };
 
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+      const { mouseX, mouseY } = getMouseCanvasCoords(e);
+      const token = getTokenAt(mouseX, mouseY);
+      const img = imageRef.current;
+      if (!img) return;
+      const { drawWidth, drawHeight, offsetX, offsetY } = getDrawParams(
+        canvas,
+        img,
+      );
+      const relX = (mouseX - offsetX) / drawWidth;
+      const relY = (mouseY - offsetY) / drawHeight;
+      if (relX >= 0 && relX <= 1 && relY >= 0 && relY <= 1) {
+        if (token && onTokenContextMenu) {
+          onTokenContextMenu(token, e.clientX, e.clientY);
+        } else if (!token && onCanvasContextMenu) {
+          onCanvasContextMenu(relX, relY);
+        }
+      }
+    };
+
     canvas.addEventListener("mousedown", handleMouseDown);
     window.addEventListener("mousemove", handleMouseMove);
     window.addEventListener("mouseup", handleMouseUp);
     canvas.addEventListener("click", handleClick);
+    canvas.addEventListener("contextmenu", handleContextMenu);
 
     return () => {
       canvas.removeEventListener("mousedown", handleMouseDown);
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
       canvas.removeEventListener("click", handleClick);
+      canvas.removeEventListener("contextmenu", handleContextMenu);
     };
   }, [
     canvasRef,
@@ -311,6 +394,8 @@ export function useCanvasMap(
     originalHeight,
     onTokenDrag,
     onCanvasClick,
+    onCanvasContextMenu,
+    onTokenContextMenu,
     getDrawParams,
   ]);
 }

@@ -111,7 +111,7 @@ export const MapsPage = () => {
         {/* Редактор карты */}
         <div className="flex-1 bg-gray-100 rounded shadow overflow-hidden">
           {currentMap ? (
-            <MapEditor map={currentMap} />
+            <MapEditor mapId={currentMap.id} />
           ) : (
             <div className="flex items-center justify-center h-full text-gray-500">
               Выберите карту для редактирования
