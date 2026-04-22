@@ -1,5 +1,8 @@
 // server/src/services/mapsService.ts
 import { db } from "../db/index.js";
+import sharp from "sharp";
+import path from "path";
+import fs from "fs/promises";
 import type {
   Map,
   MapToken,
@@ -18,12 +21,23 @@ export const mapsService = {
     return db("maps").where({ id }).first();
   },
 
-  async createMap(data: CreateMapDto, imageUrl: string): Promise<Map> {
+  async createMap(
+    data: CreateMapDto,
+    imageUrl: string,
+    filePath: string,
+  ): Promise<Map> {
+    // Получаем размеры изображения через sharp
+    const metadata = await sharp(filePath).metadata();
+    const original_width = metadata.width || 0;
+    const original_height = metadata.height || 0;
+
     const [map] = await db("maps")
       .insert({
         name: data.name,
         image_url: imageUrl,
         show_to_players: data.show_to_players ?? false,
+        original_width,
+        original_height,
         updated_at: db.fn.now(),
       })
       .returning("*");

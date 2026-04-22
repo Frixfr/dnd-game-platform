@@ -286,6 +286,8 @@ export interface Map {
   name: string;
   image_url: string;
   show_to_players: boolean;
+  original_width: number; // добавить
+  original_height: number; // добавить
   created_at: string;
   updated_at: string;
 }

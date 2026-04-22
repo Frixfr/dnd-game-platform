@@ -353,10 +353,26 @@ export async function initializeDatabase() {
         table.string("name", 100).notNullable();
         table.string("image_url", 255).notNullable(); // путь к файлу карты
         table.boolean("show_to_players").defaultTo(false);
+        table.integer("original_width").notNullable(); // добавить
+        table.integer("original_height").notNullable(); // добавить
         table.timestamp("created_at").defaultTo(db.fn.now());
         table.timestamp("updated_at").defaultTo(db.fn.now());
       });
       console.log("Таблица maps создана");
+    } else {
+      // Миграция для существующей таблицы (добавляем колонки, если их нет)
+      const hasOriginalWidth = await db.schema.hasColumn(
+        "maps",
+        "original_width",
+      );
+      if (!hasOriginalWidth) {
+        await db.schema.alterTable("maps", (table) => {
+          table.integer("original_width").nullable();
+          table.integer("original_height").nullable();
+        });
+        // Для существующих карт нужно будет заполнить эти поля из файлов, но это можно сделать отдельным скриптом.
+        // Пока оставим nullable, потом заполним.
+      }
     }
 
     // Обновляем существующую таблицу map_tokens (добавляем колонки, если их нет)

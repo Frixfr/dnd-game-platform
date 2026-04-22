@@ -51,6 +51,7 @@ export const mapsController = {
       const map = await mapsService.createMap(
         { name, show_to_players: show_to_players === "true" },
         imageUrl,
+        file.path, // добавить аргумент
       );
       const io = getIO();
       io.emit("map:created", map);
