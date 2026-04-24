@@ -366,6 +366,7 @@ export interface AvailableEntities {
 // Алиасы для способностей, эффектов и рас (для удобства)
 export type AbilityType = Ability;
 export type EffectType = Effect;
+export type ItemType = Item;
 export type RaceType = Race;
 
 export type RarityType = Item["rarity"];
@@ -375,3 +376,7 @@ export type StatType = keyof Pick<
   NPC,
   "strength" | "agility" | "intelligence" | "physique" | "wisdom" | "charisma"
 >;
+
+export type NpcItemExtended = FullNPCData["items"][0];
+export type NpcAbilityExtended = FullNPCData["abilities"][0];
+export type NpcEffectExtended = FullNPCData["active_effects"][0];
