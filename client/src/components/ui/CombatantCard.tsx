@@ -1,8 +1,9 @@
+// client/src/components/ui/CombatantCard.tsx
 import { useState } from "react";
-import type { CombatParticipantWithDetails, PlayerType, NpcType } from "../../types";
+import type { CombatParticipantWithDetails } from "../../types";
 
-// Расширенный тип для способности с полем кулдауна
-interface AbilityWithCooldown {
+// Общий тип для способности в бою (совместим с PlayerAbilityExtended и NPC ability)
+interface CombatAbility {
   id: number;
   name: string;
   description: string | null;
@@ -12,8 +13,9 @@ interface AbilityWithCooldown {
   effect_id: number | null;
   created_at: string;
   updated_at: string;
-  is_active?: number;
-  remaining_cooldown_turns?: number;
+  is_active: boolean;
+  remaining_cooldown_turns?: number | null;
+  remaining_cooldown_days?: number | null;
 }
 
 interface CombatantCardProps {
@@ -23,6 +25,7 @@ interface CombatantCardProps {
   onAddEffect: () => void;
   onRemove: () => void;
   onUseAbility: (abilityId: number) => Promise<void>;
+  onEdit: () => void;
 }
 
 export const CombatantCard = ({
@@ -32,8 +35,9 @@ export const CombatantCard = ({
   onAddEffect,
   onRemove,
   onUseAbility,
+  onEdit,
 }: CombatantCardProps) => {
-  const entity = participant.entity as PlayerType | NpcType;
+  const entity = participant.entity;
   const healthPercent = (entity.health / entity.max_health) * 100;
   const isDead = entity.health <= 0;
   const entityName = entity.name;
@@ -43,9 +47,18 @@ export const CombatantCard = ({
   const [showStats, setShowStats] = useState(false);
   const [showAbilities, setShowAbilities] = useState(false);
 
-  const abilities = (entity.abilities || []) as AbilityWithCooldown[];
+  // Приводим abilities к общему типу (данные с бэка совместимы по нужным полям)
+  const abilities = entity.abilities as unknown as CombatAbility[];
   const activeAbilities = abilities.filter(a => a.ability_type === "active");
   const passiveAbilities = abilities.filter(a => a.ability_type === "passive");
+
+  const handleCardClick = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('input')) {
+      return;
+    }
+    onEdit();
+  };
 
   return (
     <div
@@ -60,6 +73,7 @@ export const CombatantCard = ({
       onDragEnd={(e) => {
         e.currentTarget.style.opacity = "1";
       }}
+      onClick={handleCardClick}
     >
       <div className="flex items-start gap-3">
         <div className="w-12 h-12 rounded-full bg-gray-200 overflow-hidden flex-shrink-0">
@@ -78,7 +92,10 @@ export const CombatantCard = ({
               <span className="text-xs text-gray-500">{entityTypeLabel}</span>
             </div>
             <button
-              onClick={onRemove}
+              onClick={(e) => {
+                e.stopPropagation();
+                onRemove();
+              }}
               className="text-gray-400 hover:text-red-500 text-xl leading-none"
               title="Удалить из боя"
             >
@@ -114,9 +131,11 @@ export const CombatantCard = ({
                 className="w-20 px-2 py-1 text-sm border rounded"
                 min="0"
                 max={entity.max_health}
+                onClick={(e) => e.stopPropagation()}
               />
               <button
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   const newHealth = parseInt(healthInput, 10);
                   if (!isNaN(newHealth)) onHealthChange(newHealth);
                 }}
@@ -125,19 +144,28 @@ export const CombatantCard = ({
                 Установить
               </button>
               <button
-                onClick={onAddEffect}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAddEffect();
+                }}
                 className="text-xs bg-purple-100 px-2 py-1 rounded hover:bg-purple-200"
               >
                 Эффект
               </button>
               <button
-                onClick={() => setShowStats(!showStats)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowStats(!showStats);
+                }}
                 className="text-xs bg-gray-100 px-2 py-1 rounded hover:bg-gray-200"
               >
                 {showStats ? "Скрыть статы" : "Статы"}
               </button>
               <button
-                onClick={() => setShowAbilities(!showAbilities)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowAbilities(!showAbilities);
+                }}
                 className="text-xs bg-indigo-100 px-2 py-1 rounded hover:bg-indigo-200"
               >
                 {showAbilities ? "Скрыть способности" : "Способности"}
@@ -182,7 +210,10 @@ export const CombatantCard = ({
                       </div>
                       {!isPlayer && !isOnCooldown && (
                         <button
-                          onClick={() => onUseAbility(ability.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onUseAbility(ability.id);
+                          }}
                           className="text-xs px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600"
                         >
                           Использовать

@@ -3,7 +3,9 @@ import { useCombatStore } from "../stores/combatStore";
 import { usePlayerStore } from "../stores/playerStore";
 import { useNpcStore } from "../stores/npcStore";
 import { CombatantCard } from "../components/ui/CombatantCard";
-import type { EffectType } from "../types";
+import { EditPlayerModal } from "../components/ui/EditPlayerModal";
+import { EditNpcModal } from "../components/ui/EditNpcModal";
+import type { EffectType, PlayerType, NpcType } from "../types";
 
 export const CombatPage = () => {
   const {
@@ -30,12 +32,18 @@ export const CombatPage = () => {
   } | null>(null);
   const [effectsList, setEffectsList] = useState<EffectType[]>([]);
   const [effectSearch, setEffectSearch] = useState("");
+  
+  // Состояние для редактируемого участника
+  const [editingParticipant, setEditingParticipant] = useState<{
+    participant: typeof participants[0];
+  } | null>(null);
+  
   const filteredEffects = effectsList.filter(effect => {
     const searchLower = effectSearch.toLowerCase();
     const nameMatch = effect.name.toLowerCase().includes(searchLower);
     const tagsMatch = effect.tags?.some(tag => tag.toLowerCase().includes(searchLower)) || false;
     return nameMatch || tagsMatch;
-});
+  });
   const { callUseAbility } = useCombatStore();
 
   useEffect(() => {
@@ -97,6 +105,17 @@ export const CombatPage = () => {
       durationTurns
     );
     setSelectedEffect(null);
+  };
+
+  // Обработчик открытия модалки редактирования
+  const handleEditParticipant = (participant: typeof participants[0]) => {
+    setEditingParticipant({ participant });
+  };
+
+  // Обновление данных боя после редактирования игрока/NPC
+  const handleEntityUpdated = async () => {
+    await fetchActiveSession(); // перезагружаем бой, чтобы обновить характеристики в карточке
+    setEditingParticipant(null);
   };
 
   if (loading) {
@@ -172,6 +191,7 @@ export const CombatPage = () => {
                     alert("Игрок сам использует свои способности через свой интерфейс");
                     }
                 }}
+                onEdit={() => handleEditParticipant(participant)}
                 />
             </div>
           ))}
@@ -267,6 +287,23 @@ export const CombatPage = () => {
             </div>
         </div>
         )}
+
+      {/* Модалка редактирования игрока/NPC */}
+      {editingParticipant && (
+        editingParticipant.participant.entity_type === "player" ? (
+          <EditPlayerModal
+            player={editingParticipant.participant.entity as PlayerType}
+            onClose={() => setEditingParticipant(null)}
+            onPlayerUpdated={handleEntityUpdated}
+          />
+        ) : (
+          <EditNpcModal
+            npc={editingParticipant.participant.entity as NpcType}
+            onClose={() => setEditingParticipant(null)}
+            onNpcUpdated={handleEntityUpdated}
+          />
+        )
+      )}
     </div>
   );
 };

@@ -262,8 +262,7 @@ export interface Log {
 
 // Расширенный участник боя с данными сущности
 export interface CombatParticipantWithDetails extends CombatParticipant {
-  entity: Player | NPC;
-  final_stats?: FinalStats;
+  entity: FullPlayerData | FullNPCData;
 }
 
 export interface PaginatedResponse<T> {
