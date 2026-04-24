@@ -212,13 +212,15 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
             showError={showError}
           />
         );
-      case 'effects': {  // ← фигурные скобки
+      case 'effects': {
         const itemPassiveEffects = (formData.items || []).flatMap(item => item.passive_effects || []);
+        const raceName = races.find(r => r.id === formData.race_id)?.name || null;
         return (
           <PlayerEffectsManager
             playerId={player.id}
             activeEffects={formData.active_effects || []}
             raceEffects={selectedRaceEffects}
+            raceName={raceName}
             itemPassiveEffects={itemPassiveEffects}
             onDataChanged={updatePlayerData}
             showError={showError}

@@ -1,12 +1,14 @@
 // client/src/components/ui/PlayerEffectsManager.tsx
 import { useState, useEffect, useCallback } from 'react';
 import type { PlayerEffectExtended, EffectType } from '../../types';
+import { EffectCard } from './EffectCard';
 
 interface PlayerEffectsManagerProps {
   playerId: number;
   activeEffects: PlayerEffectExtended[];
   raceEffects: EffectType[];
-  itemPassiveEffects?: EffectType[]; // новый пропс
+  raceName?: string | null;
+  itemPassiveEffects: (EffectType & { source_item_name: string })[];
   onDataChanged: () => Promise<void>;
   showError: (msg: string) => void;
 }
@@ -17,7 +19,8 @@ export const PlayerEffectsManager = ({
   playerId, 
   activeEffects, 
   raceEffects, 
-  itemPassiveEffects = [], 
+  raceName,
+  itemPassiveEffects, 
   onDataChanged, 
   showError 
 }: PlayerEffectsManagerProps) => {
@@ -76,103 +79,108 @@ export const PlayerEffectsManager = ({
   };
 
   const renderCurrentEffects = () => {
-    const hasEffects = activeEffects.length > 0 || raceEffects.length > 0 || itemPassiveEffects.length > 0;
+    // Разделяем активные эффекты на пассивные от способностей и остальные временные
+    const passiveAbilityEffects = activeEffects.filter(
+      (effect) => effect.source_type === 'ability' && effect.remaining_turns === null && effect.remaining_days === null
+    );
+    // Все остальные эффекты (временные, от активных способностей, предметов, админа)
+    const temporaryEffects = activeEffects.filter(
+      (effect) => !(effect.source_type === 'ability' && effect.remaining_turns === null && effect.remaining_days === null)
+    );
+
+    const hasEffects =
+      passiveAbilityEffects.length > 0 ||
+      temporaryEffects.length > 0 ||
+      raceEffects.length > 0 ||
+      itemPassiveEffects.length > 0;
+
     if (!hasEffects) {
       return <p className="text-center text-gray-500 py-8">🌀 Нет эффектов</p>;
     }
-    return (
-      <div className="space-y-3 max-h-[60vh] overflow-y-auto">
-        {/* Расовые эффекты */}
-        {raceEffects.map((effect, idx) => (
-          <div key={`race-${effect.id}-${idx}`} className="bg-purple-50 rounded-xl p-3 md:p-4 border border-purple-200">
-            <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
-              <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h4 className="font-semibold text-purple-800">{effect.name}</h4>
-                  <span className="text-xs bg-purple-200 text-purple-800 px-2 py-0.5 rounded-full">Расовый эффект</span>
-                </div>
-                <p className="text-sm text-gray-600 mt-1">{effect.description || 'Нет описания'}</p>
-                <div className="flex flex-wrap gap-2 mt-1">
-                  {effect.attribute && (
-                    <span className="text-xs bg-white px-2 py-0.5 rounded-full">
-                      {effect.attribute}: {effect.modifier > 0 ? `+${effect.modifier}` : effect.modifier}
-                    </span>
-                  )}
-                  {effect.duration_turns && (
-                    <span className="text-xs bg-white px-2 py-0.5 rounded-full">{effect.duration_turns} ходов</span>
-                  )}
-                  {effect.duration_days && (
-                    <span className="text-xs bg-white px-2 py-0.5 rounded-full">{effect.duration_days} дней</span>
-                  )}
-                  {effect.is_permanent && (
-                    <span className="text-xs bg-white px-2 py-0.5 rounded-full">Постоянный</span>
-                  )}
-                </div>
-              </div>
-              <div className="text-xs text-purple-500 italic">(меняется только сменой расы)</div>
-            </div>
-          </div>
-        ))}
 
-        {/* Пассивные эффекты от предметов (новый блок) */}
-        {itemPassiveEffects.length > 0 && (
+    return (
+      <div className="space-y-6 max-h-[60vh] overflow-y-auto">
+        {/* Расовые эффекты (без изменений) */}
+        {raceEffects.length > 0 && (
           <div>
-            <h4 className="text-sm font-semibold text-gray-500 mb-2 flex items-center gap-2">
-              <span className="text-lg">📦</span> Пассивные эффекты от предметов
-            </h4>
-            {itemPassiveEffects.map((effect, idx) => (
-              <div key={`item-passive-${effect.id}-${idx}`} className="bg-blue-50 rounded-xl p-3 md:p-4 border border-blue-200">
-                <div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h4 className="font-semibold text-blue-800">{effect.name}</h4>
-                    <span className="text-xs bg-blue-200 text-blue-800 px-2 py-0.5 rounded-full">Пассивный (от предмета)</span>
-                  </div>
-                  <p className="text-sm text-gray-600 mt-1">{effect.description || 'Нет описания'}</p>
-                  <div className="flex flex-wrap gap-2 mt-1">
-                    {effect.attribute && (
-                      <span className="text-xs bg-white px-2 py-0.5 rounded-full">
-                        {effect.attribute}: {effect.modifier > 0 ? `+${effect.modifier}` : effect.modifier}
-                      </span>
-                    )}
-                    {effect.duration_turns && (
-                      <span className="text-xs bg-white px-2 py-0.5 rounded-full">{effect.duration_turns} ходов</span>
-                    )}
-                    {effect.duration_days && (
-                      <span className="text-xs bg-white px-2 py-0.5 rounded-full">{effect.duration_days} дней</span>
-                    )}
-                    {effect.is_permanent && (
-                      <span className="text-xs bg-white px-2 py-0.5 rounded-full">Постоянный</span>
-                    )}
-                  </div>
-                </div>
-                <div className="text-xs text-blue-500 italic mt-2">(действует, пока предмет в инвентаре)</div>
-              </div>
-            ))}
+            <h3 className="text-md font-semibold text-purple-700 mb-2 flex items-center gap-2">
+              <span className="text-xl">🌿</span> Эффекты расы
+            </h3>
+            <div className="space-y-3">
+              {raceEffects.map((effect, idx) => (
+                <EffectCard
+                  key={`race-${effect.id}-${idx}`}
+                  effect={effect}
+                  sourceType="race"
+                  sourceName={raceName || 'Раса'}
+                  showDescription
+                />
+              ))}
+            </div>
           </div>
         )}
 
-        {/* Активные эффекты (временные) */}
-        {activeEffects.map((effect, idx) => (
-          <div key={`active-${effect.id}-${idx}`} className="bg-gray-50 rounded-xl p-3 md:p-4 border">
-            <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
-              <div>
-                <h4 className="font-semibold">{effect.name}</h4>
-                <p className="text-sm text-gray-500">{effect.description}</p>
-                <div className="flex flex-wrap gap-2 mt-1">
-                  {effect.attribute && (
-                    <span className="text-xs bg-white px-2 py-0.5 rounded-full">
-                      {effect.attribute}: {effect.modifier > 0 ? `+${effect.modifier}` : effect.modifier}
-                    </span>
-                  )}
-                  {effect.duration_turns && (
-                    <span className="text-xs bg-white px-2 py-0.5 rounded-full">{effect.duration_turns} ходов</span>
-                  )}
-                </div>
-              </div>
-              <button onClick={() => handleRemoveEffect(effect.id)} className="text-red-500 text-sm">Удалить</button>
+        {/* Пассивные эффекты предметов (без изменений) */}
+        {itemPassiveEffects.length > 0 && (
+          <div>
+            <h3 className="text-md font-semibold text-blue-700 mb-2 flex items-center gap-2">
+              <span className="text-xl">📦</span> Пассивные эффекты предметов
+            </h3>
+            <div className="space-y-3">
+              {itemPassiveEffects.map((effect, idx) => (
+                <EffectCard
+                  key={`item-passive-${effect.id}-${idx}`}
+                  effect={effect}
+                  sourceType="item"
+                  sourceName={effect.source_item_name}
+                  showDescription
+                />
+              ))}
             </div>
           </div>
-        ))}
+        )}
+
+        {/* Пассивные способности (новый блок) */}
+        {passiveAbilityEffects.length > 0 && (
+          <div>
+            <h3 className="text-md font-semibold text-indigo-700 mb-2 flex items-center gap-2">
+              <span className="text-xl">⚡</span> Пассивные способности
+            </h3>
+            <div className="space-y-3">
+              {passiveAbilityEffects.map((effect, idx) => (
+                <EffectCard
+                  key={`passive-ability-${effect.id}-${idx}`}
+                  effect={effect}
+                  sourceType="ability"
+                  sourceName={effect.source_name}
+                  showDescription
+                  // без onDelete — нельзя удалить
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Временные эффекты (бывшие «Активные») */}
+        {temporaryEffects.length > 0 && (
+          <div>
+            <h3 className="text-md font-semibold text-gray-700 mb-2 flex items-center gap-2">
+              <span className="text-xl">🌀</span> Временные эффекты
+            </h3>
+            <div className="space-y-3">
+              {temporaryEffects.map((effect, idx) => (
+                <EffectCard
+                  key={`temporary-${effect.id}-${idx}`}
+                  effect={effect}
+                  sourceType={effect.source_type}
+                  sourceName={effect.source_name}
+                  showDescription
+                  onDelete={() => handleRemoveEffect(effect.id)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -212,7 +220,7 @@ export const PlayerEffectsManager = ({
       {effectsSubTab === 'list' ? (
         <div>
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold">🌀 Активные эффекты</h3>
+            <h3 className="text-lg font-semibold">🌀 Эффекты</h3>
             <button onClick={() => { setEffectsSubTab('add'); setSelectedEffects([]); }} className="px-3 py-1 bg-green-100 text-green-700 rounded-xl text-sm">➕ Добавить эффект</button>
           </div>
           {renderCurrentEffects()}

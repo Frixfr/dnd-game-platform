@@ -1,19 +1,31 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { NpcType, ItemType, AbilityType, EffectType, RaceType } from '../../types';
+import type { NPC, Item, Ability, Effect, Race, FullNPCData } from '../../types';
 import { useNpcStore } from '../../stores/npcStore';
+import { EffectCard } from './EffectCard';
 
 interface EditNpcModalProps {
-  npc: NpcType;
+  npc: NPC;
   onClose: () => void;
-  onNpcUpdated: (updatedNpc: NpcType) => void;
+  onNpcUpdated: (updatedNpc: NPC) => void;
 }
 
-type AllItemType = ItemType & { inInventory?: boolean };
-type AllAbilityType = AbilityType & { inAbilities?: boolean };
-type AllEffectType = EffectType & { inEffects?: boolean };
+type AllItemType = Item & { inInventory?: boolean };
+type AllAbilityType = Ability & { inAbilities?: boolean };
+type AllEffectType = Effect & { inEffects?: boolean };
+
+// Расширенный тип для formData, включающий дополнительные поля
+type NpcItemExtended = FullNPCData['items'][0];
+type NpcAbilityExtended = FullNPCData['abilities'][0];
+type NpcEffectExtended = FullNPCData['active_effects'][0];
+
+interface ExtendedNpcData extends NPC {
+  items: NpcItemExtended[];
+  abilities: NpcAbilityExtended[];
+  active_effects: NpcEffectExtended[];
+}
 
 export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) => {
-  const [formData, setFormData] = useState<NpcType>(() => ({
+  const [formData, setFormData] = useState<ExtendedNpcData>(() => ({
     ...npc,
     items: [],
     abilities: [],
@@ -40,7 +52,11 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
   const [deleting, setDeleting] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const [races, setRaces] = useState<RaceType[]>([]);
+  const [races, setRaces] = useState<Race[]>([]);
+
+  const [raceEffects, setRaceEffects] = useState<Effect[]>([]);
+  const [raceName, setRaceName] = useState<string | null>(null);
+  const [itemPassiveEffects, setItemPassiveEffects] = useState<(Effect & { source_item_name: string })[]>([]);
   
   const { fetchNpcs } = useNpcStore();
 
@@ -56,7 +72,7 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
         const response = await fetch(`/api/npcs/${npc.id}/details`);
         if (!response.ok) throw new Error('Ошибка загрузки полных данных');
         const data = await response.json();
-        const fullNpc = data.npc;
+        const fullNpc: FullNPCData = data.npc;
         setFormData({
           ...fullNpc,
           items: fullNpc.items || [],
@@ -64,10 +80,14 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
           active_effects: fullNpc.active_effects || []
         });
         const initialEquipStatus: { [key: number]: boolean } = {};
-        (fullNpc.items || []).forEach((item: ItemType) => {
-          initialEquipStatus[item.id] = item.is_equipped === 1;
+        (fullNpc.items || []).forEach((item: NpcItemExtended) => {
+          initialEquipStatus[item.id] = item.is_equipped; // уже boolean
         });
         setEquipStatus(initialEquipStatus);
+        setRaceEffects(fullNpc.race?.effects || []);
+        setRaceName(fullNpc.race?.name || null);
+        const passiveEffects = (fullNpc.items || []).flatMap((item: NpcItemExtended) => item.passive_effects || []);
+        setItemPassiveEffects(passiveEffects);
       } catch (err) {
         console.error('Ошибка загрузки деталей NPC:', err);
         setError('Не удалось загрузить данные NPC');
@@ -91,10 +111,10 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
     try {
       const response = await fetch('/api/items');
       if (!response.ok) throw new Error('Ошибка загрузки предметов');
-      const data = await response.json();
-      const itemsWithStatus = data.map((item: ItemType) => ({
+      const data: Item[] = await response.json();
+      const itemsWithStatus = data.map((item) => ({
         ...item,
-        inInventory: (formData.items || []).some(npcItem => npcItem.id === item.id)
+        inInventory: (formData.items || []).some((npcItem: NpcItemExtended) => npcItem.id === item.id)
       }));
       setAllItems(itemsWithStatus);
     } catch (err) {
@@ -110,10 +130,10 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
     try {
       const response = await fetch('/api/abilities');
       if (!response.ok) throw new Error('Ошибка загрузки способностей');
-      const data = await response.json();
-      const abilitiesWithStatus = data.map((ability: AbilityType) => ({
+      const data: Ability[] = await response.json();
+      const abilitiesWithStatus = data.map((ability) => ({
         ...ability,
-        inAbilities: (formData.abilities || []).some(npcAbility => npcAbility.id === ability.id)
+        inAbilities: (formData.abilities || []).some((npcAbility: NpcAbilityExtended) => npcAbility.id === ability.id)
       }));
       setAllAbilities(abilitiesWithStatus);
     } catch (err) {
@@ -129,10 +149,10 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
     try {
       const response = await fetch('/api/effects');
       if (!response.ok) throw new Error('Ошибка загрузки эффектов');
-      const data = await response.json();
-      const effectsWithStatus = data.map((effect: EffectType) => ({
+      const data: Effect[] = await response.json();
+      const effectsWithStatus = data.map((effect) => ({
         ...effect,
-        inEffects: (formData.active_effects || []).some(npcEffect => npcEffect.id === effect.id)
+        inEffects: (formData.active_effects || []).some((npcEffect: NpcEffectExtended) => npcEffect.id === effect.id)
       }));
       setAllEffects(effectsWithStatus);
     } catch (err) {
@@ -182,7 +202,7 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
       const result = await response.json();
       setAvatarPreview(result.avatarUrl);
       await updateNpcData();
-    } catch (err) {
+    } catch {
       setError("Не удалось загрузить аватарку");
     } finally {
       setUploadingAvatar(false);
@@ -198,7 +218,7 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
       if (!response.ok) throw new Error("Ошибка удаления");
       setAvatarPreview(null);
       await updateNpcData();
-    } catch (err) {
+    } catch {
       setError("Не удалось удалить аватарку");
     }
   };
@@ -279,12 +299,12 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
 
   const handleToggleAbilityActive = async (abilityId: number) => {
     try {
-      const ability = formData.abilities?.find(a => a.id === abilityId);
+      const ability = formData.abilities?.find((a: NpcAbilityExtended) => a.id === abilityId);
       if (!ability) return;
       const response = await fetch(`/api/npcs/${npc.id}/abilities/${abilityId}/toggle`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_active: ability.is_active === 1 ? 0 : 1 })
+        body: JSON.stringify({ is_active: !ability.is_active })
       });
       if (!response.ok) throw new Error('Ошибка изменения статуса способности');
       await updateNpcData();
@@ -380,7 +400,7 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
       const response = await fetch(`/api/npcs/${npc.id}/details`);
       if (!response.ok) throw new Error('Ошибка обновления данных');
       const data = await response.json();
-      const updatedNpc = data.npc;
+      const updatedNpc: FullNPCData = data.npc;
       setFormData({
         ...updatedNpc,
         items: updatedNpc.items || [],
@@ -645,11 +665,11 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
                       <span className="font-medium">Количество:</span> {item.quantity}
                     </span>
                   </div>
-                  {item.active_effect_name && (
-                    <p className="text-sm mt-2"><span className="font-medium">Активный эффект:</span> {item.active_effect_name}</p>
+                  {item.active_effect && (
+                    <p className="text-sm mt-2"><span className="font-medium">Активный эффект:</span> {item.active_effect.name}</p>
                   )}
-                  {item.passive_effect_name && (
-                    <p className="text-sm mt-1"><span className="font-medium">Пассивный эффект:</span> {item.passive_effect_name}</p>
+                  {item.passive_effects && item.passive_effects.length > 0 && (
+                    <p className="text-sm mt-1"><span className="font-medium">Пассивные эффекты:</span> {item.passive_effects.map(e => e.name).join(', ')}</p>
                   )}
                 </div>
                 <div className="flex flex-col gap-2">
@@ -778,9 +798,9 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
                       {ability.ability_type === 'active' ? 'Активная' : 'Пассивная'}
                     </span>
                     <span className={`text-xs px-2 py-1 rounded ${
-                      ability.is_active === 1 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                      ability.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
                     }`}>
-                      {ability.is_active === 1 ? 'Активна' : 'Неактивна'}
+                      {ability.is_active ? 'Активна' : 'Неактивна'}
                     </span>
                   </div>
                   <p className="text-sm text-gray-600 mt-1">{ability.description}</p>
@@ -795,15 +815,14 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
                 </div>
                 <div className="flex flex-col gap-2">
                   <button
-                    type="button"
                     onClick={() => handleToggleAbilityActive(ability.id)}
                     className={`px-3 py-1 text-sm rounded ${
-                      ability.is_active === 1
+                      ability.is_active
                         ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
                         : 'bg-green-100 text-green-800 hover:bg-green-200'
                     }`}
                   >
-                    {ability.is_active === 1 ? 'Деактивировать' : 'Активировать'}
+                    {ability.is_active ? 'Деактивировать' : 'Активировать'}
                   </button>
                   <button
                     type="button"
@@ -910,52 +929,57 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
     </div>
   );
 
-  const renderCurrentEffects = () => (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold mb-4">Текущие эффекты NPC</h3>
-      {(formData.active_effects || []).length === 0 ? (
-        <p className="text-gray-500">У NPC нет активных эффектов</p>
-      ) : (
-        <div className="space-y-3 max-h-96 overflow-y-auto">
-          {(formData.active_effects || []).map(effect => (
-            <div key={effect.id} className="border rounded-lg p-4 bg-gray-50">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h4 className="font-medium">{effect.name}</h4>
-                  <p className="text-sm text-gray-600 mt-1">{effect.description}</p>
-                  <div className="flex items-center gap-4 mt-2 flex-wrap">
-                    <span className="text-sm"><span className="font-medium">Атрибут:</span> {effect.attribute}</span>
-                    <span className="text-sm"><span className="font-medium">Модификатор:</span> {effect.modifier > 0 ? '+' : ''}{effect.modifier}</span>
-                    {effect.duration_turns !== null && (
-                      <span className="text-sm"><span className="font-medium">Длительность:</span> {effect.duration_turns} ход(ов)</span>
-                    )}
-                    {effect.duration_days !== null && (
-                      <span className="text-sm"><span className="font-medium">Дни:</span> {effect.duration_days}</span>
-                    )}
-                    {effect.is_permanent && (
-                      <span className="text-sm bg-green-100 text-green-800 px-2 py-1 rounded">Постоянный</span>
-                    )}
-                    {effect.remaining_turns !== null && (
-                      <span className="text-sm"><span className="font-medium">Осталось ходов:</span> {effect.remaining_turns}</span>
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveEffect(effect.id)}
-                    className="px-3 py-1 text-sm bg-red-100 text-red-800 rounded hover:bg-red-200"
-                  >
-                    Удалить
-                  </button>
-                </div>
-              </div>
+  const renderCurrentEffects = () => {
+    const hasEffects = (formData.active_effects || []).length > 0 || raceEffects.length > 0 || itemPassiveEffects.length > 0;
+    if (!hasEffects) {
+      return <p className="text-gray-500">Нет эффектов</p>;
+    }
+    return (
+      <div className="space-y-6 max-h-96 overflow-y-auto">
+        {/* Расовые эффекты */}
+        {raceEffects.length > 0 && (
+          <div>
+            <h4 className="font-semibold text-purple-700 mb-2">🌿 Эффекты расы</h4>
+            <div className="space-y-2">
+              {raceEffects.map(effect => (
+                <EffectCard key={effect.id} effect={effect} sourceType="race" sourceName={raceName} showDescription compact />
+              ))}
             </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+          </div>
+        )}
+        {/* Пассивные эффекты предметов */}
+        {itemPassiveEffects.length > 0 && (
+          <div>
+            <h4 className="font-semibold text-blue-700 mb-2">📦 Пассивные эффекты предметов</h4>
+            <div className="space-y-2">
+              {itemPassiveEffects.map(effect => (
+                <EffectCard key={effect.id} effect={effect} sourceType="item" sourceName={effect.source_item_name} showDescription compact />
+              ))}
+            </div>
+          </div>
+        )}
+        {/* Активные эффекты (временные) */}
+        {(formData.active_effects || []).length > 0 && (
+          <div>
+            <h4 className="font-semibold text-gray-700 mb-2">🌀 Временные эффекты</h4>
+            <div className="space-y-2">
+              {(formData.active_effects || []).map((effect: NpcEffectExtended) => (
+                <EffectCard
+                  key={effect.id}
+                  effect={effect}
+                  sourceType={effect.source_type}
+                  sourceName={effect.source_name}
+                  showDescription
+                  compact
+                  onDelete={() => handleRemoveEffect(effect.id)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const renderAddEffects = () => (
     <div className="space-y-4">

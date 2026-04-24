@@ -7,6 +7,8 @@ interface EffectCardProps {
   showDescription?: boolean;
   compact?: boolean;
   onDelete?: () => void;
+  sourceName?: string | null;
+  sourceType?: string | null;
 }
 
 const attributeLabels: Record<string, string> = {
@@ -35,7 +37,7 @@ const normalizeTags = (tags: string | string[] | null | undefined): string[] => 
   return [];
 };
 
-export const EffectCard = ({ effect, onClick, showDescription = true, compact = false, onDelete }: EffectCardProps) => {
+export const EffectCard = ({ effect, onClick, showDescription = true, compact = false, onDelete, sourceName, sourceType }: EffectCardProps) => {
   const tags = normalizeTags(effect.tags);
 
   const formatDuration = () => {
@@ -141,6 +143,16 @@ export const EffectCard = ({ effect, onClick, showDescription = true, compact = 
           </div>
           <span className="text-sm font-medium text-gray-800">{formatDuration()}</span>
         </div>
+
+        {sourceName && (
+          <div className="text-xs text-gray-400 flex items-center gap-1 mt-3 pt-2 border-t border-gray-100">
+            {sourceType === 'race' && '🌿'}
+            {sourceType === 'ability' && '✨'}
+            {sourceType === 'item' && '📦'}
+            {sourceType === 'admin' && '👑'}
+            <span>От {sourceName}</span>
+          </div>
+        )}        
       </div>
     </div>
   );

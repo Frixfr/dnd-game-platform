@@ -377,7 +377,7 @@ export const npcsService = {
       const path = await import("path");
       const oldPath = path.join(process.cwd(), originalFull.avatar_url);
       const ext = path.extname(originalFull.avatar_url);
-      const newFilename = `avatar-${Date.now()}-${Math.random().toString(36).substr(2, 8)}${ext}`;
+      const newFilename = `avatar-${Date.now()}-${Math.random().toString(36).substring(2, 10)}${ext}`;
       const newPath = path.join(process.cwd(), "uploads/avatars", newFilename);
       if (fs.existsSync(oldPath)) {
         fs.copyFileSync(oldPath, newPath);

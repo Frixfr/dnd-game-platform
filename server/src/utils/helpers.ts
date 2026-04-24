@@ -129,7 +129,7 @@ export async function getFullPlayerData(
     const player = await db("players").where("id", playerId).first();
     if (!player) return null;
 
-    // Способности
+    // ----- Способности (без изменений) -----
     const abilitiesRaw = await db("player_abilities")
       .where("player_id", playerId)
       .where("is_active", true)
@@ -189,7 +189,7 @@ export async function getFullPlayerData(
       return { ...ability, effect };
     });
 
-    // Предметы
+    // ----- Предметы (изменено: добавляем source_item_name в passive_effects) -----
     const itemsRaw = await db("player_items")
       .where("player_id", playerId)
       .join("items", "player_items.item_id", "items.id")
@@ -213,16 +213,22 @@ export async function getFullPlayerData(
     const items = await Promise.all(
       itemsRaw.map(async (item: any) => {
         const effects = await itemsService.getItemEffects(item.id);
+        const passive_effects = effects
+          .filter((e) => e.effect_type === "passive")
+          .map((e) => ({
+            ...e,
+            source_item_name: item.name, // добавляем имя предмета
+          }));
         return {
           ...item,
-          player_item_id: item.player_item_id, // ← явно сохраняем
+          player_item_id: item.player_item_id,
           active_effects: effects.filter((e) => e.effect_type === "active"),
-          passive_effects: effects.filter((e) => e.effect_type === "passive"),
+          passive_effects,
         };
       }),
     );
 
-    // Активные эффекты
+    // ----- Активные эффекты (добавляем source_name) -----
     const activeEffectsRaw = await db("player_active_effects")
       .where("player_id", playerId)
       .where(function () {
@@ -249,12 +255,34 @@ export async function getFullPlayerData(
         "player_active_effects.applied_at",
       );
 
-    const activeEffects = activeEffectsRaw.map((row: any) => ({
-      ...row,
-      tags: safeJsonParse(row.tags, []),
-    }));
+    // Добавляем source_name для каждого активного эффекта
+    const activeEffects = await Promise.all(
+      activeEffectsRaw.map(async (row: any) => {
+        let sourceName: string | null = null;
+        if (row.source_type === "ability" && row.source_id) {
+          const ability = await db("abilities")
+            .select("name")
+            .where("id", row.source_id)
+            .first();
+          sourceName = ability?.name || "Способность";
+        } else if (row.source_type === "item" && row.source_id) {
+          const item = await db("items")
+            .select("name")
+            .where("id", row.source_id)
+            .first();
+          sourceName = item?.name || "Предмет";
+        } else if (row.source_type === "admin") {
+          sourceName = "Мастер";
+        }
+        return {
+          ...row,
+          source_name: sourceName,
+          tags: safeJsonParse(row.tags, []),
+        };
+      }),
+    );
 
-    // Эффекты расы
+    // ----- Эффекты расы (отдельно, для передачи на фронт) -----
     let raceEffects: Effect[] = [];
     let raceData: {
       id: number;
@@ -281,6 +309,7 @@ export async function getFullPlayerData(
       }
     }
 
+    // ----- Сбор всех эффектов для расчёта финальных статов -----
     const allActiveEffects = [...activeEffects, ...raceEffects];
     const allPassiveEffects = items.flatMap((item) => item.passive_effects);
 
@@ -304,6 +333,7 @@ export async function getFullPlayerData(
   }
 }
 
+// Аналогичные изменения для getFullNpcData — повторяем ту же логику
 export async function getFullNpcData(
   npcId: string | number,
 ): Promise<FullNPCData | null> {
@@ -311,7 +341,7 @@ export async function getFullNpcData(
     const npc = await db("npcs").where("id", npcId).first();
     if (!npc) return null;
 
-    // Способности
+    // Способности (без изменений)
     const abilitiesRaw = await db("npc_abilities")
       .where("npc_id", npcId)
       .where("is_active", true)
@@ -371,7 +401,7 @@ export async function getFullNpcData(
       return { ...ability, effect };
     });
 
-    // Предметы
+    // Предметы с source_item_name
     const itemsRaw = await db("npc_items")
       .where("npc_id", npcId)
       .join("items", "npc_items.item_id", "items.id")
@@ -394,15 +424,21 @@ export async function getFullNpcData(
     const items = await Promise.all(
       itemsRaw.map(async (item: any) => {
         const effects = await itemsService.getItemEffects(item.id);
+        const passive_effects = effects
+          .filter((e) => e.effect_type === "passive")
+          .map((e) => ({
+            ...e,
+            source_item_name: item.name,
+          }));
         return {
           ...item,
           active_effects: effects.filter((e) => e.effect_type === "active"),
-          passive_effects: effects.filter((e) => e.effect_type === "passive"),
+          passive_effects,
         };
       }),
     );
 
-    // Активные эффекты
+    // Активные эффекты с source_name
     const activeEffectsRaw = await db("npc_active_effects")
       .where("npc_id", npcId)
       .where(function () {
@@ -429,10 +465,31 @@ export async function getFullNpcData(
         "npc_active_effects.applied_at",
       );
 
-    const activeEffects = activeEffectsRaw.map((row: any) => ({
-      ...row,
-      tags: safeJsonParse(row.tags, []),
-    }));
+    const activeEffects = await Promise.all(
+      activeEffectsRaw.map(async (row: any) => {
+        let sourceName: string | null = null;
+        if (row.source_type === "ability" && row.source_id) {
+          const ability = await db("abilities")
+            .select("name")
+            .where("id", row.source_id)
+            .first();
+          sourceName = ability?.name || "Способность";
+        } else if (row.source_type === "item" && row.source_id) {
+          const item = await db("items")
+            .select("name")
+            .where("id", row.source_id)
+            .first();
+          sourceName = item?.name || "Предмет";
+        } else if (row.source_type === "admin") {
+          sourceName = "Мастер";
+        }
+        return {
+          ...row,
+          source_name: sourceName,
+          tags: safeJsonParse(row.tags, []),
+        };
+      }),
+    );
 
     // Эффекты расы
     let raceEffects: Effect[] = [];

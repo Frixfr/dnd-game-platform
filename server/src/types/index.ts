@@ -181,11 +181,12 @@ export interface FullPlayerData extends Player {
     quantity: number;
     is_equipped: boolean;
     active_effect?: Effect | null;
-    passive_effect?: Effect | null;
+    passive_effects?: (Effect & { source_item_name: string })[]; // изменено
   })[];
   active_effects: (Effect & {
     source_type: string;
     source_id: number | null;
+    source_name?: string | null; // добавлено
     remaining_turns: number | null;
     remaining_days: number | null;
     applied_at: string;
@@ -211,11 +212,12 @@ export interface FullNPCData extends NPC {
     quantity: number;
     is_equipped: boolean;
     active_effect?: Effect | null;
-    passive_effect?: Effect | null;
+    passive_effects?: (Effect & { source_item_name: string })[]; // изменено
   })[];
   active_effects: (Effect & {
     source_type: string;
     source_id: number | null;
+    source_name?: string | null; // добавлено
     remaining_turns: number | null;
     remaining_days: number | null;
     applied_at: string;
