@@ -368,3 +368,9 @@ export type EffectType = Effect;
 export type RaceType = Race;
 
 export type RarityType = Item["rarity"];
+
+export type NpcType = NPC;
+export type StatType = keyof Pick<
+  NPC,
+  "strength" | "agility" | "intelligence" | "physique" | "wisdom" | "charisma"
+>;

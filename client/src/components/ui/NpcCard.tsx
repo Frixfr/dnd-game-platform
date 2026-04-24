@@ -7,6 +7,7 @@ interface NpcCardProps {
   onClick: () => void;
   disabled?: boolean;
   onDelete?: () => void;
+  onDuplicate?: () => void;
 }
 
 const statLabels: Record<StatType, string> = {
@@ -24,11 +25,11 @@ const aggressionConfig: Record<0 | 1 | 2, { label: string; color: string }> = {
   2: { label: 'Агрессивный', color: 'bg-red-100 text-red-800' },
 };
 
-export const NpcCard = ({ npc, onClick, disabled = false, onDelete }: NpcCardProps) => {
+export const NpcCard = ({ npc, onClick, disabled = false, onDelete, onDuplicate }: NpcCardProps) => {
   const healthPercent = (npc.health / npc.max_health) * 100;
   const initials = npc.name
     .split(' ')
-    .map(n => n[0])
+    .map((n: string) => n[0])
     .join('')
     .toUpperCase()
     .slice(0, 2);
@@ -93,6 +94,15 @@ export const NpcCard = ({ npc, onClick, disabled = false, onDelete }: NpcCardPro
 
           <div className="flex items-center gap-2">
             <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full">#{npc.id}</span>
+            {onDuplicate && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onDuplicate(); }}
+                className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-full transition-colors"
+                title="Дублировать"
+              >
+                ⎘
+              </button>
+            )}
             {onDelete && (
               <button
                 onClick={handleDelete}

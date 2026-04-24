@@ -508,4 +508,35 @@ export const npcsController = {
       res.status(500).json({ error: "Ошибка удаления аватарки" });
     }
   },
+
+  async duplicate(req: Request, res: Response) {
+    const id = String(req.params.id);
+    const { name } = req.body;
+
+    if (!name || typeof name !== "string" || name.trim().length === 0) {
+      return res.status(400).json({ error: "Имя обязательно" });
+    }
+    if (name.length > 50) {
+      return res
+        .status(400)
+        .json({ error: "Имя не должно превышать 50 символов" });
+    }
+
+    try {
+      const newNpc = await npcsService.duplicate(id, name.trim());
+      // Загрузить полные данные для сокета
+      const fullNpc = await npcsService.getFullDetails(String(newNpc.id));
+      getIO().emit("npc:created", fullNpc || newNpc);
+      res.status(201).json({ success: true, npc: fullNpc || newNpc });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        if (error.message.includes("уже существует")) {
+          return res.status(409).json({ error: error.message });
+        }
+        return res.status(400).json({ error: error.message });
+      }
+      console.error(error);
+      res.status(500).json({ error: "Ошибка дублирования NPC" });
+    }
+  },
 };

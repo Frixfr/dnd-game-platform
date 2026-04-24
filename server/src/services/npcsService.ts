@@ -360,4 +360,96 @@ export const npcsService = {
       .returning("*");
     return updated || null;
   },
+
+  async duplicate(id: string, newName: string): Promise<NPC> {
+    // 1. Получить полные данные исходного NPC
+    const originalFull = await getFullNpcData(id);
+    if (!originalFull) throw new Error("Исходный NPC не найден");
+
+    // 2. Проверить уникальность имени
+    const existing = await db("npcs").where({ name: newName }).first();
+    if (existing) throw new Error("NPC с таким именем уже существует");
+
+    // 3. Копирование аватарки (если есть)
+    let newAvatarUrl: string | null = null;
+    if (originalFull.avatar_url) {
+      const fs = await import("fs");
+      const path = await import("path");
+      const oldPath = path.join(process.cwd(), originalFull.avatar_url);
+      const ext = path.extname(originalFull.avatar_url);
+      const newFilename = `avatar-${Date.now()}-${Math.random().toString(36).substr(2, 8)}${ext}`;
+      const newPath = path.join(process.cwd(), "uploads/avatars", newFilename);
+      if (fs.existsSync(oldPath)) {
+        fs.copyFileSync(oldPath, newPath);
+        newAvatarUrl = `/uploads/avatars/${newFilename}`;
+      }
+    }
+
+    // 4. Создать нового NPC с теми же базовыми данными
+    const [newNpc] = await db("npcs")
+      .insert({
+        name: newName,
+        gender: originalFull.gender,
+        health: originalFull.health,
+        max_health: originalFull.max_health,
+        armor: originalFull.armor,
+        strength: originalFull.strength,
+        agility: originalFull.agility,
+        intelligence: originalFull.intelligence,
+        physique: originalFull.physique,
+        wisdom: originalFull.wisdom,
+        charisma: originalFull.charisma,
+        history: originalFull.history,
+        in_battle: originalFull.in_battle,
+        is_online: originalFull.is_online,
+        is_card_shown: originalFull.is_card_shown,
+        aggression: originalFull.aggression,
+        race_id: originalFull.race_id,
+        avatar_url: newAvatarUrl,
+      })
+      .returning("*");
+
+    // 5. Копировать предметы (npc_items)
+    const originalItems = await db("npc_items").where({ npc_id: id });
+    for (const item of originalItems) {
+      await db("npc_items").insert({
+        npc_id: newNpc.id,
+        item_id: item.item_id,
+        quantity: item.quantity,
+        is_equipped: item.is_equipped,
+        obtained_at: db.fn.now(),
+      });
+    }
+
+    // 6. Копировать способности (npc_abilities)
+    const originalAbilities = await db("npc_abilities").where({ npc_id: id });
+    for (const ability of originalAbilities) {
+      await db("npc_abilities").insert({
+        npc_id: newNpc.id,
+        ability_id: ability.ability_id,
+        is_active: ability.is_active,
+        remaining_cooldown_turns: ability.remaining_cooldown_turns,
+        remaining_cooldown_days: ability.remaining_cooldown_days,
+        obtained_at: db.fn.now(),
+      });
+    }
+
+    // 7. Копировать активные эффекты (npc_active_effects) только от admin/ability/item (не боевые)
+    const originalEffects = await db("npc_active_effects").where({
+      npc_id: id,
+    });
+    for (const effect of originalEffects) {
+      await db("npc_active_effects").insert({
+        npc_id: newNpc.id,
+        effect_id: effect.effect_id,
+        source_type: effect.source_type,
+        source_id: effect.source_id,
+        remaining_turns: effect.remaining_turns,
+        remaining_days: effect.remaining_days,
+        applied_at: db.fn.now(),
+      });
+    }
+
+    return newNpc;
+  },
 };
