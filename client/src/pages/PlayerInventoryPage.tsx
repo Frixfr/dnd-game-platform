@@ -75,6 +75,9 @@ export const PlayerInventoryPage = () => {
 
   const { executeUseItem, executeDiscardItem, executeTransferItem } = usePlayerStore();
   const { showError, showSuccess } = useNotification();
+  const [discardQuantity, setDiscardQuantity] = useState<number>(1);
+  const [showQuantityModal, setShowQuantityModal] = useState(false);
+  const [pendingDiscard, setPendingDiscard] = useState<{ playerItemId: number; itemName: string; maxQuantity: number } | null>(null);
 
   const fetchInventory = useCallback(async () => {
     try {
@@ -124,6 +127,16 @@ export const PlayerInventoryPage = () => {
     }
   };
 
+  const handleDiscardClick = (playerItemId: number, itemName: string, currentQuantity: number) => {
+    if (currentQuantity > 1) {
+      setPendingDiscard({ playerItemId, itemName, maxQuantity: currentQuantity });
+      setDiscardQuantity(1);
+      setShowQuantityModal(true);
+    } else {
+      setConfirmModal({ isOpen: true, playerItemId, itemName });
+    }
+  };
+
   const handleDiscard = async () => {
     if (!confirmModal.playerItemId) return;
     try {
@@ -135,6 +148,22 @@ export const PlayerInventoryPage = () => {
       showError(message);
     } finally {
       setConfirmModal({ isOpen: false, playerItemId: null, itemName: '' });
+    }
+  };
+
+  const handleDiscardWithQuantity = async () => {
+    if (!pendingDiscard) return;
+    try {
+      await executeDiscardItem(Number(playerId), pendingDiscard.playerItemId, discardQuantity);
+      showSuccess(`"${pendingDiscard.itemName}" выброшен в количестве ${discardQuantity}`);
+      await fetchInventory();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Неизвестная ошибка';
+      showError(message);
+    } finally {
+      setShowQuantityModal(false);
+      setPendingDiscard(null);
+      setDiscardQuantity(1);
     }
   };
 
@@ -176,7 +205,7 @@ export const PlayerInventoryPage = () => {
                 {item.is_deletable && !item.is_equipped && (
                   <>
                     <button
-                      onClick={() => setConfirmModal({ isOpen: true, playerItemId: item.player_item_id, itemName: item.name })}
+                      onClick={() => handleDiscardClick(item.player_item_id, item.name, item.quantity)}
                       className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700"
                     >
                       Выбросить
@@ -207,6 +236,27 @@ export const PlayerInventoryPage = () => {
         title="Подтверждение"
         message={`Вы уверены, что хотите выбросить "${confirmModal.itemName}"?`}
       />
+
+      {showQuantityModal && pendingDiscard && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl max-w-md w-full p-6">
+            <h3 className="text-xl font-bold mb-4">Выбросить предмет</h3>
+            <p className="mb-2">Выберите количество для "{pendingDiscard.itemName}" (до {pendingDiscard.maxQuantity})</p>
+            <input
+              type="number"
+              min={1}
+              max={pendingDiscard.maxQuantity}
+              value={discardQuantity}
+              onChange={(e) => setDiscardQuantity(Math.min(pendingDiscard.maxQuantity, Math.max(1, parseInt(e.target.value) || 1)))}
+              className="w-full px-3 py-2 border rounded-xl mb-4"
+            />
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setShowQuantityModal(false)} className="px-4 py-2 bg-gray-300 rounded-xl">Отмена</button>
+              <button onClick={handleDiscardWithQuantity} className="px-4 py-2 bg-red-600 text-white rounded-xl">Выбросить</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {transferModal.isOpen && (
         <TransferItemModal

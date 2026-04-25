@@ -174,7 +174,7 @@ export const playerItemsService = {
     return getFullPlayerData(playerId);
   },
 
-  async discardItem(playerId: number, playerItemId: number) {
+  async discardItem(playerId: number, playerItemId: number, quantity?: number) {
     const playerItem = await db("player_items")
       .where({ id: playerItemId, player_id: playerId })
       .first();
@@ -185,7 +185,20 @@ export const playerItemsService = {
       throw new Error("Этот предмет нельзя выбросить или передать");
     if (playerItem.is_equipped) throw new Error("Сначала снимите предмет");
 
-    await db("player_items").where({ id: playerItemId }).delete();
+    const qtyToDiscard = quantity ?? playerItem.quantity;
+    if (qtyToDiscard <= 0) throw new Error("Количество должно быть больше 0");
+    if (qtyToDiscard > playerItem.quantity)
+      throw new Error("Нельзя выбросить больше, чем есть");
+
+    if (qtyToDiscard === playerItem.quantity) {
+      // Удаляем весь предмет
+      await db("player_items").where({ id: playerItemId }).delete();
+    } else {
+      // Уменьшаем количество
+      await db("player_items")
+        .where({ id: playerItemId })
+        .update({ quantity: playerItem.quantity - qtyToDiscard });
+    }
 
     const player = await db("players").where("id", playerId).first();
     await logsService.create({
@@ -194,7 +207,7 @@ export const playerItemsService = {
       npc_id: null,
       entity_name: player.name,
       action_name: item.name,
-      details: JSON.stringify({ item_id: item.id }),
+      details: JSON.stringify({ item_id: item.id, quantity: qtyToDiscard }),
     });
 
     return getFullPlayerData(playerId);

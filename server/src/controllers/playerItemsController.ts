@@ -136,13 +136,25 @@ export const playerItemsController = {
   async discardItem(req: Request, res: Response) {
     const playerId = parseInt(String(req.params.playerId));
     const playerItemId = parseInt(String(req.params.playerItemId));
+    const { quantity } = req.body; // опционально, число
+
     if (isNaN(playerId) || isNaN(playerItemId)) {
       return res.status(400).json({ error: "Неверный идентификатор" });
     }
+    if (
+      quantity !== undefined &&
+      (typeof quantity !== "number" || quantity <= 0)
+    ) {
+      return res
+        .status(400)
+        .json({ error: "Количество должно быть положительным числом" });
+    }
+
     try {
       const updatedPlayer = await playerItemsService.discardItem(
         playerId,
         playerItemId,
+        quantity,
       );
       emitToPlayer(playerId, "player:updated", updatedPlayer);
       res.json({ success: true, player: updatedPlayer });

@@ -2,7 +2,7 @@
 import type { ItemType } from '../../types';
 
 interface ItemCardProps {
-  item: ItemType;
+  item: ItemType & { quantity?: number };
   onClick?: () => void;
   onDelete?: () => void;
 }
@@ -36,6 +36,11 @@ export const ItemCard = ({ item, onClick, onDelete }: ItemCardProps) => {
         <div className="flex justify-between items-start mb-3">
           <h3 className="text-xl font-bold text-gray-800 tracking-tight">{item.name}</h3>
           <div className="flex items-center gap-2">
+            {item.quantity !== undefined && item.quantity > 0 && (
+              <span className="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded-full">
+                ×{item.quantity}
+              </span>
+            )}
             <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full">#{item.id}</span>
             {onDelete && (
               <button
