@@ -9,6 +9,7 @@ interface EffectCardProps {
   onDelete?: () => void;
   sourceName?: string | null;
   sourceType?: string | null;
+  showId?: boolean; // добавлено
 }
 
 const attributeLabels: Record<string, string> = {
@@ -37,7 +38,7 @@ const normalizeTags = (tags: string | string[] | null | undefined): string[] => 
   return [];
 };
 
-export const EffectCard = ({ effect, onClick, showDescription = true, compact = false, onDelete, sourceName, sourceType }: EffectCardProps) => {
+export const EffectCard = ({ effect, onClick, showDescription = true, compact = false, onDelete, sourceName, sourceType, showId = true }: EffectCardProps) => {
   const tags = normalizeTags(effect.tags);
 
   const formatDuration = () => {
@@ -79,7 +80,9 @@ export const EffectCard = ({ effect, onClick, showDescription = true, compact = 
             {onDelete && (
               <button onClick={handleDelete} className="w-5 h-5 flex items-center justify-center text-gray-400 hover:text-red-500">×</button>
             )}
-            <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">#{effect.id}</span>
+            {showId && (
+              <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">#{effect.id}</span>
+            )}
             <span className={`text-lg font-bold ${modifierColor}`}>{effect.modifier > 0 ? '+' : ''}{effect.modifier}</span>
           </div>
         </div>
@@ -98,7 +101,9 @@ export const EffectCard = ({ effect, onClick, showDescription = true, compact = 
         <div className="flex justify-between items-start mb-3">
           <h3 className="text-xl font-bold text-gray-800 tracking-tight">{effect.name}</h3>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full">#{effect.id}</span>
+            {showId && (
+              <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full">#{effect.id}</span>
+            )}
             {onDelete && (
               <button
                 onClick={handleDelete}

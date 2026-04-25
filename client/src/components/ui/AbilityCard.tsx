@@ -7,9 +7,10 @@ interface AbilityCardProps {
   onClick?: () => void;
   disabled?: boolean;
   onDelete?: () => void;
+  showId?: boolean; // добавлено
 }
 
-export const AbilityCard = ({ ability, effect, onClick, disabled = false, onDelete }: AbilityCardProps) => {
+export const AbilityCard = ({ ability, effect, onClick, disabled = false, onDelete, showId = true }: AbilityCardProps) => {
   const formatCooldown = () => {
     const { cooldown_turns, cooldown_days } = ability;
     const parts = [];
@@ -36,11 +37,12 @@ export const AbilityCard = ({ ability, effect, onClick, disabled = false, onDele
       <div className={`relative h-2 bg-gradient-to-r ${topBarColor}`} />
 
       <div className="p-5">
-        {/* Заголовок + блок крестик/ID */}
         <div className="flex justify-between items-start mb-3">
           <h3 className="text-xl font-bold text-gray-800 tracking-tight">{ability.name}</h3>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full">#{ability.id}</span>
+            {showId && (
+              <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full">#{ability.id}</span>
+            )}
             {onDelete && (
               <button
                 onClick={handleDelete}

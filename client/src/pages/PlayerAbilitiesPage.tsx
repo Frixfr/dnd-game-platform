@@ -55,7 +55,7 @@ export const PlayerAbilitiesPage = () => {
 
             return (
               <div key={ability.id} className="relative">
-                <AbilityCard ability={ability} effect={ability.effect || undefined} />
+                <AbilityCard ability={ability} effect={ability.effect || undefined} showId={false} />
                 {ability.ability_type === 'active' && ability.is_active && (
                   <div className="mt-2">
                     {isOnCooldown && (

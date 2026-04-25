@@ -5,6 +5,7 @@ interface ItemCardProps {
   item: ItemType & { quantity?: number };
   onClick?: () => void;
   onDelete?: () => void;
+  showId?: boolean; // добавлено
 }
 
 const rarityConfig: Record<ItemType['rarity'], { label: string; gradient: string; badgeClass: string }> = {
@@ -17,7 +18,7 @@ const rarityConfig: Record<ItemType['rarity'], { label: string; gradient: string
   story: { label: 'Сюжетный', gradient: 'from-orange-400 to-orange-500', badgeClass: 'bg-orange-100 text-orange-800' },
 };
 
-export const ItemCard = ({ item, onClick, onDelete }: ItemCardProps) => {
+export const ItemCard = ({ item, onClick, onDelete, showId = true }: ItemCardProps) => {
   const config = rarityConfig[item.rarity];
 
   const handleDelete = (e: React.MouseEvent) => {
@@ -41,7 +42,9 @@ export const ItemCard = ({ item, onClick, onDelete }: ItemCardProps) => {
                 ×{item.quantity}
               </span>
             )}
-            <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full">#{item.id}</span>
+            {showId && (
+              <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full">#{item.id}</span>
+            )}
             {onDelete && (
               <button
                 onClick={handleDelete}

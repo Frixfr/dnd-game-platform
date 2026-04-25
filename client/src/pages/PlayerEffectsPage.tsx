@@ -35,7 +35,7 @@ export const PlayerEffectsPage = () => {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {raceEffects.map((effect, idx) => (
-              <EffectCard key={`race-${effect.id}-${idx}`} effect={effect} sourceType="race" sourceName={raceName} showDescription />
+              <EffectCard key={`race-${effect.id}-${idx}`} effect={effect} sourceType="race" sourceName={raceName} showDescription showId={false} />
             ))}
           </div>
         </div>
@@ -48,7 +48,7 @@ export const PlayerEffectsPage = () => {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {itemPassiveEffects.map((effect, idx) => (
-              <EffectCard key={`item-passive-${effect.id}-${idx}`} effect={effect} sourceType="item" sourceName={effect.source_item_name} showDescription />
+              <EffectCard key={`item-passive-${effect.id}-${idx}`} effect={effect} sourceType="item" sourceName={effect.source_item_name} showDescription showId={false} />
             ))}
           </div>
         </div>
@@ -61,7 +61,7 @@ export const PlayerEffectsPage = () => {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {passiveAbilityEffects.map((effect, idx) => (
-              <EffectCard key={`passive-ability-${effect.id}-${idx}`} effect={effect} sourceType="ability" sourceName={effect.source_name} showDescription />
+              <EffectCard key={`passive-ability-${effect.id}-${idx}`} effect={effect} sourceType="ability" sourceName={effect.source_name} showDescription showId={false} />
             ))}
           </div>
         </div>
@@ -74,7 +74,7 @@ export const PlayerEffectsPage = () => {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {temporaryEffects.map((effect, idx) => (
-              <EffectCard key={`temporary-${effect.id}-${idx}`} effect={effect} sourceType={effect.source_type} sourceName={effect.source_name} showDescription />
+              <EffectCard key={`temporary-${effect.id}-${idx}`} effect={effect} sourceType={effect.source_type} sourceName={effect.source_name} showDescription showId={false} />
             ))}
           </div>
         </div>

@@ -153,7 +153,7 @@ export const PlayerInventoryPage = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {items.map((item) => (
             <div key={item.player_item_id} className="relative">
-              <ItemCard item={item} />
+              <ItemCard item={item} showId={false} />
               <div className="flex gap-2 mt-2 justify-end">
                 {item.is_usable && (item.infinite_uses || item.quantity > 0) && (
                   <button
