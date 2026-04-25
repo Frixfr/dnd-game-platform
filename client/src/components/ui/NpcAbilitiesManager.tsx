@@ -1,7 +1,6 @@
 // client/src/components/ui/NpcAbilitiesManager.tsx
 import { useState, useEffect, useCallback } from 'react';
-import type { AbilityType } from '../../types';
-import type { FullNPCData } from '../../types';
+import type { AbilityType, FullNPCData } from '../../types';
 
 type NpcAbility = FullNPCData['abilities'][0];
 
@@ -21,6 +20,22 @@ export const NpcAbilitiesManager = ({ npcId, abilities, onDataChanged, showError
   const [selectedAbilities, setSelectedAbilities] = useState<number[]>([]);
   const [abilitySearch, setAbilitySearch] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const handleUseAbility = async (abilityId: number, abilityName: string) => {
+    if (!confirm(`Использовать способность "${abilityName}"?`)) return;
+    try {
+      const response = await fetch(`/api/npc-abilities/${npcId}/abilities/${abilityId}/use`, { method: 'POST' });
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text);
+      }
+      await onDataChanged();
+      showError(`✅ ${abilityName} использована!`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Ошибка использования способности';
+      showError(message);
+    }
+  };
 
   const loadAllAbilities = useCallback(async () => {
     setAbilitiesLoading(true);
@@ -88,33 +103,53 @@ export const NpcAbilitiesManager = ({ npcId, abilities, onDataChanged, showError
     if (!abilities.length) return <p className="text-center text-gray-500 py-8">✨ Нет способностей</p>;
     return (
       <div className="space-y-3 max-h-[60vh] overflow-y-auto">
-        {abilities.map(ability => (
-          <div key={ability.id} className="bg-gray-50 rounded-xl p-3 md:p-4 border">
-            <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
-              <div>
-                <h4 className="font-semibold">{ability.name}</h4>
-                <p className="text-sm text-gray-500">{ability.description}</p>
-                <div className="flex flex-wrap gap-2 mt-1">
-                  <span className="text-xs bg-white px-2 py-0.5 rounded-full">{ability.ability_type}</span>
-                  {ability.cooldown_turns > 0 && (
-                    <span className="text-xs bg-white px-2 py-0.5 rounded-full">Перезарядка: {ability.cooldown_turns}</span>
+        {abilities.map(ability => {
+          const isActiveAbility = ability.ability_type === 'active';
+          const remainingCooldown = ability.remaining_cooldown_turns || 0;
+          const canUse = isActiveAbility && ability.is_active && remainingCooldown === 0;
+
+          return (
+            <div key={ability.id} className="bg-gray-50 rounded-xl p-3 md:p-4 border">
+              <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
+                <div>
+                  <h4 className="font-semibold">{ability.name}</h4>
+                  <p className="text-sm text-gray-500">{ability.description}</p>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    <span className="text-xs bg-white px-2 py-0.5 rounded-full">{ability.ability_type}</span>
+                    {ability.cooldown_turns > 0 && (
+                      <span className="text-xs bg-white px-2 py-0.5 rounded-full">
+                        Перезарядка: {ability.cooldown_turns}{' '}
+                        {remainingCooldown > 0 && `(осталось ${remainingCooldown})`}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex flex-row sm:flex-col items-center gap-2">
+                  {isActiveAbility && (
+                    <button
+                      onClick={() => handleUseAbility(ability.id, ability.name)}
+                      disabled={!canUse}
+                      className={`text-sm px-3 py-1 rounded-full ${
+                        canUse ? 'bg-blue-500 text-white hover:bg-blue-600' : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      }`}
+                    >
+                      {remainingCooldown > 0 ? `⏳ ${remainingCooldown}` : 'Использовать'}
+                    </button>
                   )}
+                  <button
+                    onClick={() => handleToggleAbilityActive(ability.id)}
+                    className={`text-sm px-3 py-1 rounded-full ${ability.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-700'}`}
+                  >
+                    {ability.is_active ? 'Активна' : 'Неактивна'}
+                  </button>
+                  <button onClick={() => handleRemoveAbility(ability.id)} className="text-red-500 text-sm">
+                    Удалить
+                  </button>
                 </div>
               </div>
-              <div className="flex flex-row sm:flex-col items-center gap-2">
-                <button
-                  onClick={() => handleToggleAbilityActive(ability.id)}
-                  className={`text-sm px-3 py-1 rounded-full ${ability.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-700'}`}
-                >
-                  {ability.is_active ? 'Активна' : 'Неактивна'}
-                </button>
-                <button onClick={() => handleRemoveAbility(ability.id)} className="text-red-500 text-sm">
-                  Удалить
-                </button>
-              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     );
   };

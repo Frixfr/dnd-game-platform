@@ -1,6 +1,7 @@
 // client/src/components/ui/PlayerItemsManager.tsx
 import { useState, useEffect, useCallback } from 'react';
 import type { PlayerItemExtended, ItemType } from '../../types';
+import { usePlayerStore } from '../../stores/playerStore';
 
 interface PlayerItemsManagerProps {
   playerId: number;
@@ -19,11 +20,12 @@ export const PlayerItemsManager = ({ playerId, items, onDataChanged, showError }
   const [itemSearch, setItemSearch] = useState('');
   const [equipStatus, setEquipStatus] = useState<{ [key: number]: boolean }>({});
   const [loading, setLoading] = useState(false);
+  const { executeUseItem } = usePlayerStore();
 
   useEffect(() => {
     const initialEquipStatus: { [key: number]: boolean } = {};
     items.forEach(item => {
-      initialEquipStatus[item.id] = item.is_equipped === 1;
+      initialEquipStatus[item.id] = item.is_equipped;
     });
     setEquipStatus(initialEquipStatus);
   }, [items]);
@@ -71,6 +73,18 @@ export const PlayerItemsManager = ({ playerId, items, onDataChanged, showError }
     }
   };
 
+  const handleUseItem = async (playerItemId: number, itemName: string) => {
+    if (!confirm(`Использовать предмет "${itemName}"?`)) return;
+    try {
+      await executeUseItem(playerId, playerItemId);
+      await onDataChanged();
+      showError(`✅ ${itemName} использован!`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Ошибка использования предмета';
+      showError(message);
+    }
+  };
+
   const handleAddItems = async () => {
     const itemsToAdd = Object.entries(selectedItems).map(([id, qty]) => ({ item_id: parseInt(id), quantity: qty }));
     if (itemsToAdd.length === 0) { showError('Выберите предметы'); return; }
@@ -96,17 +110,42 @@ export const PlayerItemsManager = ({ playerId, items, onDataChanged, showError }
     if (!items.length) return <p className="text-center text-gray-500 py-8">📦 Нет предметов</p>;
     return (
       <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
-        {items.map(item => (
-          <div key={item.id} className="bg-gray-50 rounded-xl p-3 md:p-4 border">
-            <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
-              <div><h4 className="font-semibold">{item.name}</h4><p className="text-sm text-gray-500">{item.description}</p><div className="flex flex-wrap gap-2 mt-2"><span className="text-xs bg-white px-2 py-0.5 rounded-full">{item.rarity}</span><span className="text-xs bg-white px-2 py-0.5 rounded-full">×{item.quantity}</span></div></div>
-              <div className="flex flex-row sm:flex-col items-center gap-3 sm:items-end">
-                <label className="relative inline-flex items-center cursor-pointer"><input type="checkbox" className="sr-only peer" checked={equipStatus[item.id] || false} onChange={() => handleEquipToggle(item.id)} /><div className="w-9 h-5 bg-gray-200 rounded-full peer peer-checked:bg-green-500 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"></div><span className="ml-2 text-sm">Экип.</span></label>
-                <button onClick={() => handleRemoveItem(item.id)} className="text-red-500 text-sm">🗑️ Удалить</button>
+        {items.map(item => {
+          const hasActiveEffect = item.active_effects && item.active_effects.length > 0;
+          return (
+            <div key={item.id} className="bg-gray-50 rounded-xl p-3 md:p-4 border">
+              <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
+                <div>
+                  <h4 className="font-semibold">{item.name}</h4>
+                  <p className="text-sm text-gray-500">{item.description}</p>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    <span className="text-xs bg-white px-2 py-0.5 rounded-full">{item.rarity}</span>
+                    <span className="text-xs bg-white px-2 py-0.5 rounded-full">×{item.quantity}</span>
+                    {hasActiveEffect && (
+                      <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">⚡ Активный</span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex flex-row sm:flex-col items-center gap-3 sm:items-end">
+                  {hasActiveEffect && (
+                    <button
+                      onClick={() => handleUseItem(item.player_item_id || item.id, item.name)}
+                      className="px-3 py-1 bg-blue-500 text-white rounded-xl text-sm hover:bg-blue-600"
+                    >
+                      Использовать
+                    </button>
+                  )}
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" className="sr-only peer" checked={equipStatus[item.id] || false} onChange={() => handleEquipToggle(item.id)} />
+                    <div className="w-9 h-5 bg-gray-200 rounded-full peer peer-checked:bg-green-500 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
+                    <span className="ml-2 text-sm">Экип.</span>
+                  </label>
+                  <button onClick={() => handleRemoveItem(item.id)} className="text-red-500 text-sm">🗑️ Удалить</button>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     );
   };

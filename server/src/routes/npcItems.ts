@@ -6,5 +6,6 @@ router.get("/", npcItemsController.getAll);
 router.post("/", npcItemsController.create);
 router.delete("/", npcItemsController.delete);
 router.put("/:id/equip", npcItemsController.toggleEquip);
+router.post("/:npcId/items/:npcItemId/use", npcItemsController.useItem);
 
 export default router;

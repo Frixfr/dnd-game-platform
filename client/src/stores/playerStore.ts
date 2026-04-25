@@ -28,6 +28,7 @@ interface PlayerStore {
   deletePlayer: (playerId: number) => void;
   fetchAllPlayers: () => Promise<PlayerType[]>;
   executeUseItem: (playerId: number, playerItemId: number) => Promise<void>;
+  executeUseAbility: (playerId: number, abilityId: number) => Promise<void>;
   executeDiscardItem: (playerId: number, playerItemId: number) => Promise<void>;
   executeTransferItem: (
     playerId: number,
@@ -155,6 +156,19 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
     const response = await fetch(
       `/api/player-items/${playerId}/items/${playerItemId}/use`,
       { method: "POST" },
+    );
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text);
+    }
+  },
+
+  executeUseAbility: async (playerId: number, abilityId: number) => {
+    const response = await fetch(
+      `/api/players/${playerId}/abilities/${abilityId}/use`,
+      {
+        method: "POST",
+      },
     );
     if (!response.ok) {
       const text = await response.text();

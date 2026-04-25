@@ -518,6 +518,23 @@ export const playersController = {
     }
   },
 
+  async useAbility(req: Request, res: Response) {
+    const playerId = Number(req.params.playerId);
+    const abilityId = Number(req.params.abilityId);
+    if (isNaN(playerId) || isNaN(abilityId)) {
+      return res.status(400).json({ error: "Некорректные ID" });
+    }
+    try {
+      const result = await playersService.useAbility(playerId, abilityId);
+      // После использования способности обновляем данные игрока
+      const fullPlayer = await playersService.getFullDetails(playerId);
+      if (fullPlayer) getIO().emit("player:updated", fullPlayer);
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  },
+
   async uploadAvatar(req: Request, res: Response) {
     const id = Number(req.params.id);
     if (isNaN(id)) return res.status(400).json({ error: "Некорректный ID" });

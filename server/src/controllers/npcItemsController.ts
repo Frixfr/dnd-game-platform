@@ -110,4 +110,20 @@ export const npcItemsController = {
       res.status(500).json({ error: "Ошибка обновления экипировки" });
     }
   },
+
+  async useItem(req: Request, res: Response) {
+    const npcId = Number(req.params.npcId);
+    const npcItemId = Number(req.params.npcItemId);
+    if (isNaN(npcId) || isNaN(npcItemId)) {
+      return res.status(400).json({ error: "Некорректные ID" });
+    }
+    try {
+      const fullNpc = await npcItemsService.useItem(npcId, npcItemId);
+      // Эмитим обновление NPC через сокет
+      getIO().emit("npc:updated", fullNpc);
+      res.json({ success: true, npc: fullNpc });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  },
 };

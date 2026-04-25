@@ -907,4 +907,76 @@ export const playersService = {
 
     return result;
   },
+
+  async useAbility(
+    playerId: number,
+    abilityId: number,
+  ): Promise<{ success: boolean; message: string; effect?: any }> {
+    const player = await db("players").where({ id: playerId }).first();
+    if (!player) throw new Error("Игрок не найден");
+
+    const playerAbility = await db("player_abilities")
+      .where({ player_id: playerId, ability_id: abilityId })
+      .first();
+    if (!playerAbility) throw new Error("Способность не найдена у игрока");
+    if (!playerAbility.is_active) throw new Error("Способность неактивна");
+
+    const ability = await db("abilities").where({ id: abilityId }).first();
+    if (!ability) throw new Error("Способность не найдена");
+    if (ability.ability_type !== "active")
+      throw new Error("Можно использовать только активные способности");
+
+    // Проверка кулдауна
+    const remainingCooldown = playerAbility.remaining_cooldown_turns || 0;
+    if (remainingCooldown > 0) {
+      throw new Error(
+        `Способность на перезарядке: осталось ${remainingCooldown} ходов`,
+      );
+    }
+
+    // Применяем эффект способности (если есть)
+    let effectResult = null;
+    if (ability.effect_id) {
+      const effect = await db("effects")
+        .where({ id: ability.effect_id })
+        .first();
+      if (effect) {
+        // Добавляем эффект игроку
+        await db("player_active_effects").insert({
+          player_id: playerId,
+          effect_id: ability.effect_id,
+          source_type: "ability",
+          source_id: abilityId,
+          remaining_turns: effect.duration_turns,
+          remaining_days: effect.duration_days,
+          applied_at: db.fn.now(),
+        });
+        effectResult = effect;
+      }
+    }
+
+    // Устанавливаем кулдаун
+    await db("player_abilities")
+      .where({ player_id: playerId, ability_id: abilityId })
+      .update({
+        remaining_cooldown_turns: ability.cooldown_turns,
+        remaining_cooldown_days: ability.cooldown_days,
+      });
+
+    // Логирование
+    await logsService.create({
+      action_type: "ability_use",
+      player_id: playerId,
+      npc_id: null,
+      entity_name: player.name,
+      action_name: ability.name,
+      details: JSON.stringify({ ability_id: ability.id }),
+    });
+
+    return {
+      success: true,
+      message: "Способность применена",
+      effect: effectResult,
+    };
+  },
 };

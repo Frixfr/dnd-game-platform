@@ -1,7 +1,6 @@
 // client/src/components/ui/NpcItemsManager.tsx
 import { useState, useEffect, useCallback } from 'react';
-import type { ItemType } from '../../types';
-import type { FullNPCData } from '../../types';
+import type { ItemType, FullNPCData } from '../../types';
 
 type NpcItem = FullNPCData['items'][0];
 
@@ -74,6 +73,28 @@ export const NpcItemsManager = ({ npcId, items, onDataChanged, showError }: NpcI
     }
   };
 
+  const handleUseItem = async (npcItemId: number, itemName: string) => {
+    if (!npcItemId) {
+      showError('Ошибка: идентификатор предмета не найден');
+      return;
+    }
+    if (!confirm(`Использовать предмет "${itemName}"?`)) return;
+    try {
+      const response = await fetch(`/api/npc-items/${npcId}/items/${npcItemId}/use`, {
+        method: 'POST',
+      });
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text);
+      }
+      await onDataChanged();
+      showError(`✅ ${itemName} использован!`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Ошибка использования предмета';
+      showError(message);
+    }
+  };
+
   const handleAddItems = async () => {
     const itemsToAdd = Object.entries(selectedItems).map(([id, qty]) => ({ item_id: parseInt(id), quantity: qty }));
     if (itemsToAdd.length === 0) { showError('Выберите предметы'); return; }
@@ -99,33 +120,47 @@ export const NpcItemsManager = ({ npcId, items, onDataChanged, showError }: NpcI
     if (!items.length) return <p className="text-center text-gray-500 py-8">📦 Нет предметов</p>;
     return (
       <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
-        {items.map(item => (
-          <div key={item.id} className="bg-gray-50 rounded-xl p-3 md:p-4 border">
-            <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
-              <div>
-                <h4 className="font-semibold">{item.name}</h4>
-                <p className="text-sm text-gray-500">{item.description}</p>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  <span className="text-xs bg-white px-2 py-0.5 rounded-full">{item.rarity}</span>
-                  <span className="text-xs bg-white px-2 py-0.5 rounded-full">×{item.quantity}</span>
+        {items.map(item => {
+          const hasActiveEffect = item.active_effect !== null;
+          return (
+            <div key={item.id} className="bg-gray-50 rounded-xl p-3 md:p-4 border">
+              <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
+                <div>
+                  <h4 className="font-semibold">{item.name}</h4>
+                  <p className="text-sm text-gray-500">{item.description}</p>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    <span className="text-xs bg-white px-2 py-0.5 rounded-full">{item.rarity}</span>
+                    <span className="text-xs bg-white px-2 py-0.5 rounded-full">×{item.quantity}</span>
+                    {hasActiveEffect && (
+                      <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">⚡ Активный</span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex flex-row sm:flex-col items-center gap-3 sm:items-end">
+                  {hasActiveEffect && (
+                    <button
+                      onClick={() => handleUseItem(item.npc_item_id ?? item.id, item.name)}
+                      className="px-3 py-1 bg-blue-500 text-white rounded-xl text-sm hover:bg-blue-600"
+                    >
+                      Использовать
+                    </button>
+                  )}
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={equipStatus[item.id] || false}
+                      onChange={() => handleEquipToggle(item.id)}
+                    />
+                    <div className="w-9 h-5 bg-gray-200 rounded-full peer peer-checked:bg-green-500 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
+                    <span className="ml-2 text-sm">Экип.</span>
+                  </label>
+                  <button onClick={() => handleRemoveItem(item.id)} className="text-red-500 text-sm">🗑️ Удалить</button>
                 </div>
               </div>
-              <div className="flex flex-row sm:flex-col items-center gap-3 sm:items-end">
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="sr-only peer"
-                    checked={equipStatus[item.id] || false}
-                    onChange={() => handleEquipToggle(item.id)}
-                  />
-                  <div className="w-9 h-5 bg-gray-200 rounded-full peer peer-checked:bg-green-500 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
-                  <span className="ml-2 text-sm">Экип.</span>
-                </label>
-                <button onClick={() => handleRemoveItem(item.id)} className="text-red-500 text-sm">🗑️ Удалить</button>
-              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     );
   };

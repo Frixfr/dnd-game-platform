@@ -419,6 +419,7 @@ export async function getFullNpcData(
         "npc_items.quantity",
         "npc_items.is_equipped",
         "npc_items.obtained_at",
+        "npc_items.id as npc_item_id",
       );
 
     const items = await Promise.all(

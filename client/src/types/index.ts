@@ -197,8 +197,14 @@ export interface FullPlayerData extends Player {
 
 export interface FullNPCData extends NPC {
   final_stats: FinalStats;
-  abilities: (Ability & { effect?: Effect | null; is_active: boolean })[];
+  abilities: (Ability & {
+    effect?: Effect | null;
+    is_active: boolean;
+    remaining_cooldown_turns?: number | null;
+    remaining_cooldown_days?: number | null;
+  })[];
   items: (Item & {
+    npc_item_id?: number;
     quantity: number;
     is_equipped: boolean;
     active_effect?: Effect | null;
