@@ -1,5 +1,7 @@
 import { db } from "../db/index.js";
 import type { Ability, PaginatedResponse } from "../types/index.js";
+import { getFullPlayerData, getFullNpcData } from "../utils/helpers.js";
+import { getIO } from "../socket/index.js";
 
 export const abilitiesService = {
   async getAll(
@@ -44,11 +46,104 @@ export const abilitiesService = {
     id: string,
     data: Partial<Omit<Ability, "id" | "created_at">>,
   ): Promise<Ability | null> {
+    // 1. Получаем старую версию способности до обновления
+    const oldAbility = await db("abilities").where({ id }).first();
+    if (!oldAbility) return null;
+
+    // 2. Обновляем способность
     const [updated] = await db("abilities")
       .where({ id })
       .update({ ...data, updated_at: db.fn.now() })
       .returning("*");
-    return updated || null;
+    if (!updated) return null;
+
+    // 3. Проверяем, нужно ли синхронизировать пассивные эффекты:
+    //    - Способность была/стала пассивной
+    //    - Изменился effect_id
+    const wasPassive = oldAbility.ability_type === "passive";
+    const isPassive = updated.ability_type === "passive";
+    const effectChanged = oldAbility.effect_id !== updated.effect_id;
+
+    if ((wasPassive || isPassive) && effectChanged) {
+      // 4. Синхронизация для игроков
+      const playerLinks = await db("player_abilities")
+        .where({ ability_id: id, is_active: true })
+        .select("player_id");
+
+      for (const { player_id } of playerLinks) {
+        // Удаляем старый эффект, связанный со способностью
+        await db("player_active_effects")
+          .where({
+            player_id,
+            source_type: "ability",
+            source_id: id,
+          })
+          .delete();
+
+        // Если способность теперь пассивная и у неё есть эффект — создаём новый
+        if (isPassive && updated.effect_id) {
+          const effect = await db("effects")
+            .where("id", updated.effect_id)
+            .first();
+          if (effect) {
+            await db("player_active_effects").insert({
+              player_id,
+              effect_id: updated.effect_id,
+              source_type: "ability",
+              source_id: id,
+              remaining_turns: effect.duration_turns,
+              remaining_days: effect.duration_days,
+              applied_at: db.fn.now(),
+            });
+          }
+        }
+
+        // Отправляем обновлённые данные игрока через сокет
+        const fullPlayer = await getFullPlayerData(player_id);
+        if (fullPlayer) {
+          getIO().emit("player:updated", fullPlayer);
+        }
+      }
+
+      // 5. Синхронизация для NPC (аналогично)
+      const npcLinks = await db("npc_abilities")
+        .where({ ability_id: id, is_active: true })
+        .select("npc_id");
+
+      for (const { npc_id } of npcLinks) {
+        await db("npc_active_effects")
+          .where({
+            npc_id,
+            source_type: "ability",
+            source_id: id,
+          })
+          .delete();
+
+        if (isPassive && updated.effect_id) {
+          const effect = await db("effects")
+            .where("id", updated.effect_id)
+            .first();
+          if (effect) {
+            await db("npc_active_effects").insert({
+              npc_id,
+              effect_id: updated.effect_id,
+              source_type: "ability",
+              source_id: id,
+              remaining_turns: effect.duration_turns,
+              remaining_days: effect.duration_days,
+              applied_at: db.fn.now(),
+            });
+          }
+        }
+
+        const fullNpc = await getFullNpcData(npc_id);
+        if (fullNpc) {
+          getIO().emit("npc:updated", fullNpc);
+        }
+      }
+    }
+
+    return updated;
   },
 
   async delete(id: string): Promise<boolean> {
