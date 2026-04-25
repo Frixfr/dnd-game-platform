@@ -2,8 +2,27 @@ import { db } from "../db/index.js";
 import type { Race } from "../types/index.js";
 
 export const racesService = {
-  async getAll(): Promise<Race[]> {
-    return db("races").select("*");
+  async getAll(): Promise<(Race & { effects: any[] })[]> {
+    const races = await db("races").select("*");
+    if (races.length === 0) return races;
+
+    const raceIds = races.map((r) => r.id);
+    const effectsMap: Record<number, any[]> = {};
+
+    const raceEffects = await db("race_effects")
+      .whereIn("race_id", raceIds)
+      .join("effects", "race_effects.effect_id", "effects.id")
+      .select("race_effects.race_id", "effects.*");
+
+    for (const re of raceEffects) {
+      if (!effectsMap[re.race_id]) effectsMap[re.race_id] = [];
+      effectsMap[re.race_id].push(re);
+    }
+
+    return races.map((race) => ({
+      ...race,
+      effects: effectsMap[race.id] || [],
+    }));
   },
 
   async getById(id: string): Promise<Race | null> {

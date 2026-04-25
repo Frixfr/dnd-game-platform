@@ -226,6 +226,7 @@ export interface Race {
   name: string;
   description: string | null;
   created_at: string;
+  effects?: Effect[];
 }
 
 export interface RaceEffect {

@@ -1,6 +1,9 @@
 // client/src/components/ui/EditRaceModal.tsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { RaceType, EffectType } from '../../types';
+import { useEffectStore } from '../../stores/effectStore';
+import { SelectedEffectsList } from './SelectedEffectsList';
+import { useNotification } from '../../hooks/useNotification';
 
 interface EditRaceModalProps {
   race: RaceType | null;
@@ -16,47 +19,72 @@ export const EditRaceModal = ({ race, onClose, onRaceSaved }: EditRaceModalProps
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [effects, setEffects] = useState<EffectType[]>([]);
-  const [effectsLoading, setEffectsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedEffectId, setSelectedEffectId] = useState<string>('');
+  const { fetchAllEffects, effects } = useEffectStore();
+  const [effectsLoaded, setEffectsLoaded] = useState(false);
+  const { showError } = useNotification();
 
   useEffect(() => {
-    const loadEffects = async () => {
-      setEffectsLoading(true);
+    const load = async () => {
+      await fetchAllEffects();
+      setEffectsLoaded(true);
+    };
+    load();
+  }, [fetchAllEffects]);
+
+  useEffect(() => {
+    if (!race) return;
+    const loadRace = async () => {
       try {
-        const res = await fetch('/api/effects');
-        if (res.ok) setEffects(await res.json());
+        const res = await fetch(`/api/races/${race.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          setFormData({
+            name: data.race.name || '',
+            description: data.race.description || '',
+            effect_ids: data.race.effects?.map((e: EffectType) => e.id) || [],
+          });
+        }
       } catch {
-        console.error('Failed to load effects');
-      } finally {
-        setEffectsLoading(false);
+        setError('Не удалось загрузить расу');
       }
     };
-    loadEffects();
-  }, []);
-
-  useEffect(() => {
-    if (race) {
-      const loadRace = async () => {
-        try {
-          const res = await fetch(`/api/races/${race.id}`);
-          if (res.ok) {
-            const data = await res.json();
-            setFormData({
-              name: data.race.name || '',
-              description: data.race.description || '',
-              effect_ids: data.race.effects?.map((e: EffectType) => e.id) || [],
-            });
-          }
-        } catch {
-          setError('Не удалось загрузить расу');
-        }
-      };
-      loadRace();
-    } else {
-      setFormData({ name: '', description: '', effect_ids: [] });
-    }
+    loadRace();
   }, [race]);
+
+  // Фильтр только пассивных эффектов (is_permanent = 1)
+  const isPassiveEffect = (effect: EffectType) => !!effect.is_permanent;
+
+  const passiveEffects = useMemo(() => {
+    return effects.filter(isPassiveEffect);
+  }, [effects]);
+
+  const availableEffects = useMemo(() => {
+    const notSelected = passiveEffects.filter(e => !formData.effect_ids.includes(e.id));
+    if (!searchTerm.trim()) return notSelected;
+    const lower = searchTerm.toLowerCase();
+    return notSelected.filter(e => 
+      e.name.toLowerCase().includes(lower) ||
+      e.tags.some(tag => tag.toLowerCase().includes(lower))
+    );
+  }, [passiveEffects, formData.effect_ids, searchTerm]);
+
+  const handleAddEffect = () => {
+    const id = Number(selectedEffectId);
+    if (!id || isNaN(id)) return;
+    if (formData.effect_ids.includes(id)) {
+      setError('Этот эффект уже добавлен');
+      return;
+    }
+    setFormData(prev => ({ ...prev, effect_ids: [...prev.effect_ids, id] }));
+    setSelectedEffectId('');
+    setSearchTerm('');
+  };
+
+  const handleRemoveEffect = (id: number) => {
+    setFormData(prev => ({ ...prev, effect_ids: prev.effect_ids.filter(i => i !== id) }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,10 +95,9 @@ export const EditRaceModal = ({ race, onClose, onRaceSaved }: EditRaceModalProps
     setLoading(true);
     setError(null);
     try {
-      const url = race ? `/api/races/${race.id}` : '/api/races';
-      const method = race ? 'PUT' : 'POST';
+      const url = `/api/races/${race!.id}`;
       const res = await fetch(url, {
-        method,
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: formData.name.trim(),
@@ -85,30 +112,46 @@ export const EditRaceModal = ({ race, onClose, onRaceSaved }: EditRaceModalProps
       onRaceSaved();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ошибка сохранения');
+      const message = err instanceof Error ? err.message : 'Ошибка сохранения';
+      setError(message);
+      showError(message);
     } finally {
       setLoading(false);
     }
   };
 
-  // ИЗМЕНЕНО: поиск по названию ИЛИ по любому тегу (регистронезависимо)
-  const filteredEffects = effects.filter(e => {
-    const term = searchTerm.toLowerCase();
-    const matchesName = e.name.toLowerCase().includes(term);
-    const matchesTags = e.tags?.some(tag => tag.toLowerCase().includes(term)) ?? false;
-    return matchesName || matchesTags;
-  });
+  const handleDelete = async () => {
+    if (!race) return;
+    if (!confirm(`Удалить расу "${race.name}"?`)) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/races/${race.id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Ошибка удаления');
+      }
+      onRaceSaved();
+      onClose();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Ошибка удаления';
+      showError(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getEffectById = (id: number) => passiveEffects.find(e => e.id === id);
+
+  if (!race) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 md:p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-2 md:p-4 z-50" onClick={onClose}>
       <div
-        className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden"
+        className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-center p-5 border-b border-gray-100">
-          <h2 className="text-2xl font-bold text-gray-800">
-            {race ? 'Редактирование расы' : 'Создание расы'}
-          </h2>
+          <h2 className="text-2xl font-bold text-gray-800">✏️ Редактирование расы</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">
             &times;
           </button>
@@ -129,7 +172,7 @@ export const EditRaceModal = ({ race, onClose, onRaceSaved }: EditRaceModalProps
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-400 focus:outline-none"
-                placeholder="Например: Эльфы, Дварфы, Орки"
+                placeholder="Название расы"
                 disabled={loading}
               />
             </div>
@@ -141,95 +184,90 @@ export const EditRaceModal = ({ race, onClose, onRaceSaved }: EditRaceModalProps
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 className="w-full px-4 py-2 border border-gray-200 rounded-xl resize-none focus:ring-2 focus:ring-blue-400 focus:outline-none"
-                placeholder="Краткое описание расы, её особенности..."
+                placeholder="Описание расы..."
                 disabled={loading}
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">✨ Эффекты расы</label>
-              <div className="mb-3">
-                <input
-                  type="text"
-                  placeholder="🔍 Поиск эффектов (по названию или тегу)..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-xl"
-                />
-              </div>
-
-              {effectsLoading ? (
+            <div className="border border-gray-200 rounded-xl p-5 bg-gray-50 space-y-4">
+              <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+                <span className="text-lg">✨</span> Пассивные эффекты расы
+              </h3>
+              {!effectsLoaded ? (
                 <div className="text-center py-4 text-gray-500">Загрузка эффектов...</div>
-              ) : filteredEffects.length === 0 ? (
-                <div className="text-center py-4 text-gray-500 bg-gray-50 rounded-xl">
-                  {searchTerm ? 'Ничего не найдено' : 'Нет доступных эффектов. Сначала создайте эффекты.'}
-                </div>
               ) : (
-                <div className="space-y-2 max-h-64 overflow-y-auto border border-gray-100 rounded-xl p-2">
-                  {filteredEffects.map((effect) => (
-                    <label
-                      key={effect.id}
-                      className={`flex items-start p-3 rounded-xl cursor-pointer transition ${
-                        formData.effect_ids.includes(effect.id)
-                          ? 'bg-blue-50 border border-blue-200'
-                          : 'hover:bg-gray-50'
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={formData.effect_ids.includes(effect.id)}
-                        onChange={() =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            effect_ids: prev.effect_ids.includes(effect.id)
-                              ? prev.effect_ids.filter((id) => id !== effect.id)
-                              : [...prev.effect_ids, effect.id],
-                          }))
-                        }
-                        className="mt-1 mr-3 w-4 h-4"
-                      />
-                      <div className="flex-1">
-                        <div className="font-medium text-gray-800">{effect.name}</div>
-                        <div className="text-sm text-gray-500">
-                          {effect.attribute ? `${effect.attribute}: ${effect.modifier > 0 ? '+' : ''}${effect.modifier}` : 'Без атрибута'}
-                          {effect.is_permanent ? ' (постоянный)' : effect.duration_turns ? ` (${effect.duration_turns} ходов)` : ''}
-                        </div>
-                        {effect.description && (
-                          <div className="text-xs text-gray-400 mt-1">{effect.description}</div>
-                        )}
-                        {effect.tags && effect.tags.length > 0 && (
-                          <div className="text-xs text-gray-400 mt-1 flex gap-1 flex-wrap">
-                            {effect.tags.map(tag => (
-                              <span key={tag} className="bg-gray-100 px-1.5 py-0.5 rounded">#{tag}</span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </label>
-                  ))}
-                </div>
+                <>
+                  <SelectedEffectsList
+                    effects={formData.effect_ids.map(id => getEffectById(id)).filter((e): e is EffectType => !!e)}
+                    onRemove={handleRemoveEffect}
+                    emptyText="Нет добавленных пассивных эффектов"
+                  />
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      placeholder="🔍 Поиск по названию или тегам..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:outline-none text-sm"
+                    />
+                    <div className="flex gap-2">
+                      <select
+                        value={selectedEffectId}
+                        onChange={(e) => setSelectedEffectId(e.target.value)}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:outline-none text-sm"
+                        size={Math.min(5, availableEffects.length + 1)}
+                      >
+                        <option value="">-- Выберите пассивный эффект --</option>
+                        {availableEffects.map(effect => (
+                          <option key={effect.id} value={effect.id}>
+                            {effect.name} {effect.modifier !== 0 && (effect.modifier > 0 ? `+${effect.modifier}` : effect.modifier)}
+                            {effect.duration_turns && ` (${effect.duration_turns} ходов)`}
+                            {effect.duration_days && ` (${effect.duration_days} дней)`}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={handleAddEffect}
+                        disabled={!selectedEffectId}
+                        className="px-4 py-2 bg-green-500 text-white rounded-xl hover:bg-green-600 transition disabled:opacity-50"
+                      >
+                        + Добавить
+                      </button>
+                    </div>
+                    {availableEffects.length === 0 && searchTerm && (
+                      <p className="text-xs text-gray-500">Ничего не найдено</p>
+                    )}
+                  </div>
+                </>
               )}
-              <div className="mt-2 text-sm text-gray-500">
-                Выбрано эффектов: {formData.effect_ids.length}
-              </div>
             </div>
 
-            <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+            <div className="flex justify-between items-center pt-4 border-t border-gray-100">
               <button
                 type="button"
-                onClick={onClose}
-                className="px-4 py-2 border border-gray-200 rounded-xl hover:bg-gray-50"
-                disabled={loading}
+                onClick={handleDelete}
+                className="px-4 py-2 bg-red-500 text-white rounded-xl hover:bg-red-600 transition"
               >
-                Отмена
+                🗑️ Удалить расу
               </button>
-              <button
-                type="submit"
-                disabled={loading}
-                className="px-4 py-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600 disabled:opacity-50"
-              >
-                {loading ? 'Сохранение...' : race ? 'Сохранить изменения' : 'Создать расу'}
-              </button>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 border border-gray-200 rounded-xl hover:bg-gray-50"
+                  disabled={loading}
+                >
+                  Отмена
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-4 py-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600 disabled:opacity-50"
+                >
+                  {loading ? 'Сохранение...' : 'Сохранить изменения'}
+                </button>
+              </div>
             </div>
           </form>
         </div>
