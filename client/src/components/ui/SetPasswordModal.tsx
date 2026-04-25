@@ -31,8 +31,9 @@ const SetPasswordModal: React.FC<SetPasswordModalProps> = ({ playerName, onSetPa
     setError('');
     try {
       await onSetPassword(password);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Неизвестная ошибка';
+      setError(message);
     } finally {
       setLoading(false);
     }

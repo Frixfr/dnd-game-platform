@@ -1,8 +1,6 @@
 // server/src/services/mapsService.ts
 import { db } from "../db/index.js";
 import sharp from "sharp";
-import path from "path";
-import fs from "fs/promises";
 import type {
   Map,
   MapToken,

@@ -104,6 +104,8 @@ export interface Item {
   is_usable: boolean;
   infinite_uses: boolean;
   effects?: (Effect & { effect_type: "active" | "passive" })[];
+  active_effects?: Effect[];
+  passive_effects?: Effect[];
 }
 
 export interface NPC {

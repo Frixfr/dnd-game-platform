@@ -38,8 +38,9 @@ const PlayerAuthModal: React.FC<PlayerAuthModalProps> = ({ onClose, onSelectAvai
       }
       setSelectedPlayer(data.player);
       navigate(`/player/${data.player.id}`);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Ошибка входа';
+      setError(message);
     } finally {
       setLoading(false);
     }

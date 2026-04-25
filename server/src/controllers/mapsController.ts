@@ -5,7 +5,7 @@ import { getIO } from "../socket/index.js";
 
 export const mapsController = {
   // Получить все карты
-  async getAllMaps(req: Request, res: Response) {
+  async getAllMaps(_req: Request, res: Response) {
     try {
       const maps = await mapsService.getAllMaps();
       res.json(maps);
@@ -110,7 +110,7 @@ export const mapsController = {
   },
 
   // Получить активную карту для игроков
-  async getActiveMap(req: Request, res: Response) {
+  async getActiveMap(_req: Request, res: Response) {
     try {
       const map = await mapsService.getActiveMapForPlayers();
       if (!map) {
@@ -199,7 +199,7 @@ export const mapsController = {
     }
   },
 
-  async getAvailableEntities(req: Request, res: Response) {
+  async getAvailableEntities(_req: Request, res: Response) {
     try {
       const data = await mapsService.getAvailableEntities();
       res.json(data);

@@ -6,7 +6,29 @@ import ConfirmModal from '../components/ui/ConfirmModal';
 import { TransferItemModal } from '../components/ui/TransferItemModal';
 import { usePlayerStore } from '../stores/playerStore';
 import { useNotification } from '../hooks/useNotification';
-import type { PlayerItemExtended, EffectType, RarityType } from '../types';
+import type { EffectType, RarityType } from '../types';
+
+// Локальный тип – полностью совместим с Item (добавлены недостающие поля)
+interface InventoryItem {
+  id: number;
+  player_item_id: number;
+  name: string;
+  description: string | null;
+  rarity: RarityType;
+  base_quantity: number;
+  quantity: number;
+  is_equipped: boolean;
+  is_deletable: boolean;
+  is_usable: boolean;
+  infinite_uses: boolean;
+  active_effects?: EffectType[];
+  passive_effects?: EffectType[];
+  // ⬇️ добавляем поля, которых не хватало для совместимости с Item (они не используются в ItemCard)
+  active_effect_id: null;
+  passive_effect_id: null;
+  created_at: string;
+  updated_at: string;
+}
 
 interface PlayerDetailsResponse {
   items: Array<{
@@ -28,7 +50,7 @@ interface PlayerDetailsResponse {
 
 export const PlayerInventoryPage = () => {
   const { playerId } = useParams();
-  const [items, setItems] = useState<PlayerItemExtended[]>([]);
+  const [items, setItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
@@ -59,7 +81,7 @@ export const PlayerInventoryPage = () => {
       const res = await fetch(`/api/players/${playerId}/details`);
       if (!res.ok) throw new Error('Ошибка загрузки');
       const data: PlayerDetailsResponse = await res.json();
-      const mapped: PlayerItemExtended[] = (data.items || []).map((item) => ({
+      const mapped: InventoryItem[] = (data.items || []).map((item) => ({
         id: item.id,
         player_item_id: item.player_item_id,
         name: item.name,
@@ -67,16 +89,15 @@ export const PlayerInventoryPage = () => {
         rarity: (item.rarity as RarityType) || 'common',
         base_quantity: item.base_quantity,
         quantity: item.quantity,
-        is_equipped: item.is_equipped === 1 || item.is_equipped === true ? 1 : 0,
+        is_equipped: Boolean(item.is_equipped),
         is_deletable: item.is_deletable,
         is_usable: item.is_usable,
         infinite_uses: item.infinite_uses,
-        active_effects: item.active_effects || [],
-        passive_effects: item.passive_effects || [],
+        active_effects: item.active_effects,
+        passive_effects: item.passive_effects,
+        // ⬇️ заполняем недостающие поля значениями по умолчанию
         active_effect_id: null,
         passive_effect_id: null,
-        active_effect: null,
-        passive_effect: null,
         created_at: '',
         updated_at: '',
       }));
@@ -141,6 +162,7 @@ export const PlayerInventoryPage = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {items.map((item) => (
             <div key={item.player_item_id} className="relative">
+              {/* ✅ Теперь item полностью совместим с типом Item */}
               <ItemCard item={item} />
               <div className="flex gap-2 mt-2 justify-end">
                 {item.is_usable && (item.infinite_uses || (item.quantity && item.quantity > 0)) && (

@@ -3,7 +3,7 @@ import { racesService } from "../services/racesService.js";
 import { getIO } from "../socket/index.js";
 
 export const racesController = {
-  async getAll(req: Request, res: Response) {
+  async getAll(_req: Request, res: Response) {
     try {
       const races = await racesService.getAll();
       res.json(races);

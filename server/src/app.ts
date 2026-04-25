@@ -46,7 +46,7 @@ app.use(express.json({ limit: "10mb" }));
 app.use("/uploads", express.static("uploads"));
 
 // Health check
-app.get("/api/health", (req, res) => {
+app.get("/api/health", (_req, res) => {
   res.json({ status: "OK", timestamp: new Date().toISOString() });
 });
 

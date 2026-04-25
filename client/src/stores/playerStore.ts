@@ -2,6 +2,7 @@
 import { create } from "zustand";
 import type { PlayerType } from "../types";
 import { socket } from "../lib/socket";
+import { socket as globalSocket } from "../lib/socket";
 
 interface PaginatedResponse<T> {
   data: T[];
@@ -15,6 +16,7 @@ interface PlayerStore {
   playersTotal: number;
   currentPage: number;
   limit: number;
+  socket: typeof globalSocket;
   initializeSocket: () => void;
   setPlayers: (
     players: PlayerType[],
@@ -46,6 +48,7 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
   playersTotal: 0,
   currentPage: 1,
   limit: 20,
+  socket: globalSocket,
 
   initializeSocket: () => {
     if (playerSocketInitialized) return;

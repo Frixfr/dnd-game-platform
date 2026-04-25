@@ -1,5 +1,5 @@
 // client/src/pages/PlayerAbilitiesPage.tsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { AbilityCard } from '../components/ui/AbilityCard';
 import type { PlayerAbilityExtended } from '../types';
@@ -27,12 +27,11 @@ export const PlayerAbilitiesPage = () => {
   const [usingAbilityId, setUsingAbilityId] = useState<number | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  const fetchAbilities = async () => {
+  const fetchAbilities = useCallback(async () => {
     try {
       const response = await fetch(`/api/players/${playerId}/details`);
       if (!response.ok) throw new Error();
       const data = await response.json();
-      // Приводим способности к правильному типу
       const mappedAbilities: PlayerAbilityExtended[] = (data.abilities || []).map((a: ApiAbility) => ({
         ...a,
         is_active: a.is_active === 1 || a.is_active === true,
@@ -45,11 +44,11 @@ export const PlayerAbilitiesPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [playerId]);
 
   useEffect(() => {
     fetchAbilities();
-  }, [playerId]);
+  }, [fetchAbilities]);
 
   const handleUseAbility = async (abilityId: number) => {
     setUsingAbilityId(abilityId);

@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { combatService } from "../services/combatService.js";
 
 export const combatController = {
-  async getActiveSession(req: Request, res: Response) {
+  async getActiveSession(_req: Request, res: Response) {
     try {
       const session = await combatService.getActiveSession();
       if (!session) {
@@ -16,7 +16,7 @@ export const combatController = {
     }
   },
 
-  async startNewSession(req: Request, res: Response) {
+  async startNewSession(_req: Request, res: Response) {
     try {
       const session = await combatService.startNewSession();
       // FIX: added emitCombatUpdate
@@ -165,7 +165,7 @@ export const combatController = {
     }
   },
 
-  async advanceDay(req: Request, res: Response) {
+  async advanceDay(_req: Request, res: Response) {
     try {
       await combatService.advanceDay();
       res.json({
