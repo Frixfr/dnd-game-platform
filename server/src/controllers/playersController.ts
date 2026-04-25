@@ -21,6 +21,7 @@ const ALLOWED_UPDATE_FIELDS = new Set([
   "is_card_shown",
   "race_id",
   "access_password",
+  "notes",
 ]);
 
 export const playersController = {

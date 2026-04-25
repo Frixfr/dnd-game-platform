@@ -21,6 +21,7 @@ export interface Player {
   race_id: number | null;
   access_password?: string | null;
   avatar_url?: string | null;
+  notes?: string | null;
 }
 
 export interface Effect {

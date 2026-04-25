@@ -478,6 +478,15 @@ export async function initializeDatabase() {
       console.log("Таблица combat_participants создана");
     }
 
+    // Добавление колонки notes в таблицу players
+    const hasNotesColumn = await db.schema.hasColumn("players", "notes");
+    if (!hasNotesColumn) {
+      await db.schema.alterTable("players", (table) => {
+        table.text("notes").nullable();
+      });
+      console.log("Добавлена колонка notes в таблицу players");
+    }
+
     // Индексы
     await db
       .raw(

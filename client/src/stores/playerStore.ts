@@ -29,6 +29,7 @@ interface PlayerStore {
   fetchAllPlayers: () => Promise<PlayerType[]>;
   executeUseItem: (playerId: number, playerItemId: number) => Promise<void>;
   executeUseAbility: (playerId: number, abilityId: number) => Promise<void>;
+  updatePlayerNotes: (playerId: number, notes: string) => Promise<void>;
   executeDiscardItem: (playerId: number, playerItemId: number) => Promise<void>;
   executeTransferItem: (
     playerId: number,
@@ -204,6 +205,26 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
     if (!response.ok) {
       const text = await response.text();
       throw new Error(text);
+    }
+  },
+
+  updatePlayerNotes: async (playerId: number, notes: string) => {
+    const response = await fetch(`/api/players/${playerId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ notes: notes.trim() || null }),
+    });
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text);
+    }
+    const result = await response.json();
+    if (result.player) {
+      set((state) => ({
+        players: state.players.map((p) =>
+          p.id === playerId ? result.player : p,
+        ),
+      }));
     }
   },
 }));

@@ -30,6 +30,7 @@ import { useRaceStore } from './stores/raceStore';
 import { MapsPage } from "./pages/MapsPage";
 import { useMapStore } from './stores/mapStore';
 import { PublicMapPage } from './pages/PublicMapPage';
+import { PlayerNotesPage } from './pages/PlayerNotesPage';
 
 const App: React.FC = () => {
   // Инициализируем сокет один раз при старте приложения
@@ -78,6 +79,7 @@ const App: React.FC = () => {
             <Route path="abilities" element={<PlayerAbilitiesPage />} />
             <Route path="effects" element={<PlayerEffectsPage />} />
             <Route path="map" element={<PlayerMapPage />} />
+            <Route path="notes" element={<PlayerNotesPage />} />
           </Route>
         </Routes>
       </Router>
