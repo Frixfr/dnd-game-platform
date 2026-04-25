@@ -33,6 +33,7 @@ interface CombatStore {
     entityId: number,
     abilityId: number,
   ) => Promise<void>;
+  advanceDay: () => Promise<void>;
 }
 
 let combatSocketInitialized = false;
@@ -210,6 +211,16 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
       }
     } catch (error) {
       console.error("Ошибка использования способности:", error);
+    }
+  },
+
+  advanceDay: async () => {
+    try {
+      const res = await fetch("/api/combat/advance-day", { method: "POST" });
+      if (!res.ok) throw new Error("Ошибка при завершении дня");
+    } catch (error) {
+      console.error(error);
+      alert("Не удалось завершить день");
     }
   },
 }));

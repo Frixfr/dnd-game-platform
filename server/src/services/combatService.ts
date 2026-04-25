@@ -167,23 +167,12 @@ export const combatService = {
   },
 
   async advanceDay(): Promise<void> {
-    const playersWithEffects = await db("player_active_effects")
-      .whereNotNull("remaining_days")
-      .where("remaining_days", ">", 0)
-      .select("player_id")
-      .groupBy("player_id");
-
+    // 1. Уменьшаем дневные кулдауны эффектов
     await db("player_active_effects")
       .whereNotNull("remaining_days")
       .where("remaining_days", ">", 0)
       .decrement("remaining_days", 1);
     await db("player_active_effects").where("remaining_days", 0).delete();
-
-    const npcsWithEffects = await db("npc_active_effects")
-      .whereNotNull("remaining_days")
-      .where("remaining_days", ">", 0)
-      .select("npc_id")
-      .groupBy("npc_id");
 
     await db("npc_active_effects")
       .whereNotNull("remaining_days")
@@ -191,52 +180,63 @@ export const combatService = {
       .decrement("remaining_days", 1);
     await db("npc_active_effects").where("remaining_days", 0).delete();
 
-    const playersWithCooldown = await db("player_abilities")
+    // 2. Уменьшаем дневные кулдауны способностей
+    await db("player_abilities")
       .whereNotNull("remaining_cooldown_days")
       .where("remaining_cooldown_days", ">", 0)
+      .decrement("remaining_cooldown_days", 1);
+    await db("player_abilities")
+      .where("remaining_cooldown_days", "<", 0)
+      .update({ remaining_cooldown_days: 0 });
+
+    await db("npc_abilities")
+      .whereNotNull("remaining_cooldown_days")
+      .where("remaining_cooldown_days", ">", 0)
+      .decrement("remaining_cooldown_days", 1);
+    await db("npc_abilities")
+      .where("remaining_cooldown_days", "<", 0)
+      .update({ remaining_cooldown_days: 0 });
+
+    // 3. Сбрасываем ходовые кулдауны в 0
+    await db("player_abilities")
+      .update({ remaining_cooldown_turns: 0 })
+      .whereNotNull("remaining_cooldown_turns");
+    await db("npc_abilities")
+      .update({ remaining_cooldown_turns: 0 })
+      .whereNotNull("remaining_cooldown_turns");
+
+    // 4. Удаляем все временные эффекты (действующие по ходам)
+    await db("player_active_effects")
+      .whereNotNull("remaining_turns")
+      .where("remaining_turns", ">", 0)
+      .delete();
+    await db("npc_active_effects")
+      .whereNotNull("remaining_turns")
+      .where("remaining_turns", ">", 0)
+      .delete();
+
+    // 5. Собираем ID всех затронутых игроков и NPC для сокет-обновлений
+    const affectedPlayers = await db("player_abilities")
       .select("player_id")
+      .union(db("player_active_effects").select("player_id"))
       .groupBy("player_id");
 
-    await db("player_abilities")
-      .whereNotNull("remaining_cooldown_days")
-      .where("remaining_cooldown_days", ">", 0)
-      .decrement("remaining_cooldown_days", 1);
-    await db("player_abilities")
-      .where("remaining_cooldown_days", "<", 0)
-      .update({ remaining_cooldown_days: 0 });
-
-    const npcsWithCooldown = await db("npc_abilities")
-      .whereNotNull("remaining_cooldown_days")
-      .where("remaining_cooldown_days", ">", 0)
+    const affectedNpcs = await db("npc_abilities")
       .select("npc_id")
+      .union(db("npc_active_effects").select("npc_id"))
       .groupBy("npc_id");
 
-    await db("npc_abilities")
-      .whereNotNull("remaining_cooldown_days")
-      .where("remaining_cooldown_days", ">", 0)
-      .decrement("remaining_cooldown_days", 1);
-    await db("npc_abilities")
-      .where("remaining_cooldown_days", "<", 0)
-      .update({ remaining_cooldown_days: 0 });
-
     const io = getIO();
-
-    const allPlayerIds = new Set<number>();
-    playersWithEffects.forEach((p) => allPlayerIds.add(p.player_id));
-    playersWithCooldown.forEach((p) => allPlayerIds.add(p.player_id));
-    for (const playerId of allPlayerIds) {
-      const fullData = await getFullPlayerData(String(playerId));
+    for (const row of affectedPlayers) {
+      const fullData = await getFullPlayerData(String(row.player_id));
       if (fullData) io.emit("player:updated", fullData);
     }
-
-    const allNpcIds = new Set<number>();
-    npcsWithEffects.forEach((n) => allNpcIds.add(n.npc_id));
-    npcsWithCooldown.forEach((n) => allNpcIds.add(n.npc_id));
-    for (const npcId of allNpcIds) {
-      const fullData = await getFullNpcData(String(npcId));
+    for (const row of affectedNpcs) {
+      const fullData = await getFullNpcData(String(row.npc_id));
       if (fullData) io.emit("npc:updated", fullData);
     }
 
+    // 6. Обновляем активную боевую сессию, если есть
     const activeSession = await this.getActiveSession();
     if (activeSession) {
       await this.emitCombatUpdate(activeSession.id);

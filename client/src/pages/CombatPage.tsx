@@ -5,7 +5,7 @@ import { useNpcStore } from "../stores/npcStore";
 import { CombatantCard } from "../components/ui/CombatantCard";
 import { EditPlayerModal } from "../components/ui/EditPlayerModal";
 import { EditNpcModal } from "../components/ui/EditNpcModal";
-import type { EffectType, PlayerType, NpcType } from "../types";
+import type { PlayerType, NpcType } from "../types";
 
 export const CombatPage = () => {
   const {
@@ -18,42 +18,23 @@ export const CombatPage = () => {
     addParticipant,
     removeParticipant,
     reorderParticipants,
-    endRound,
-    updateHealth,
     nextTurn,
+    advanceDay,
   } = useCombatStore();
   const { players, fetchPlayers } = usePlayerStore();
   const { npcs, fetchNpcs } = useNpcStore();
   const [showAddModal, setShowAddModal] = useState(false);
-  const [selectedEffect, setSelectedEffect] = useState<{
-    participantId: number;
-    entityType: "player" | "npc";
-    entityId: number;
-  } | null>(null);
-  const [effectsList, setEffectsList] = useState<EffectType[]>([]);
-  const [effectSearch, setEffectSearch] = useState("");
-  
+
   // Состояние для редактируемого участника
   const [editingParticipant, setEditingParticipant] = useState<{
     participant: typeof participants[0];
   } | null>(null);
-  
-  const filteredEffects = effectsList.filter(effect => {
-    const searchLower = effectSearch.toLowerCase();
-    const nameMatch = effect.name.toLowerCase().includes(searchLower);
-    const tagsMatch = effect.tags?.some(tag => tag.toLowerCase().includes(searchLower)) || false;
-    return nameMatch || tagsMatch;
-  });
-  const { callUseAbility } = useCombatStore();
 
   useEffect(() => {
     initializeSocket();
     fetchActiveSession();
     fetchPlayers();
     fetchNpcs();
-    fetch("/api/effects")
-      .then((res) => res.json())
-      .then(setEffectsList);
   }, [initializeSocket, fetchActiveSession, fetchPlayers, fetchNpcs]);
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -84,35 +65,14 @@ export const CombatPage = () => {
     setShowAddModal(false);
   };
 
-  const handleHealthChange = async (participant: typeof participants[0], newHealth: number) => {
-    await updateHealth(participant.entity_type, participant.entity_id, newHealth);
+  const handleRemoveParticipant = async (participantId: number) => {
+    await removeParticipant(participantId);
   };
 
-  const handleAddEffect = (participant: typeof participants[0]) => {
-    setSelectedEffect({
-      participantId: participant.id,
-      entityType: participant.entity_type,
-      entityId: participant.entity_id,
-    });
-  };
-
-  const handleEffectSubmit = async (effectId: number, durationTurns?: number) => {
-    if (!selectedEffect) return;
-    await useCombatStore.getState().addEffect(
-      selectedEffect.entityType,
-      selectedEffect.entityId,
-      effectId,
-      durationTurns
-    );
-    setSelectedEffect(null);
-  };
-
-  // Обработчик открытия модалки редактирования
   const handleEditParticipant = (participant: typeof participants[0]) => {
     setEditingParticipant({ participant });
   };
 
-  // Обновление данных боя после редактирования игрока/NPC
   const handleEntityUpdated = async () => {
     await fetchActiveSession(); // перезагружаем бой, чтобы обновить характеристики в карточке
     setEditingParticipant(null);
@@ -135,7 +95,7 @@ export const CombatPage = () => {
               Начать битву
             </button>
           ) : (
-            <>              
+            <>
               <button
                 onClick={() => setShowAddModal(true)}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -144,15 +104,15 @@ export const CombatPage = () => {
               </button>
               <button
                 onClick={nextTurn}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+              >
                 Передать ход
               </button>
               <button
-                onClick={endRound}
-                className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
+                onClick={advanceDay}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
               >
-                Завершить раунд
+                Завершить день
               </button>
             </>
           )}
@@ -181,18 +141,9 @@ export const CombatPage = () => {
               <CombatantCard
                 participant={participant}
                 isCurrentTurn={participant.is_current_turn}
-                onHealthChange={(newHealth) => handleHealthChange(participant, newHealth)}
-                onAddEffect={() => handleAddEffect(participant)}
-                onRemove={() => removeParticipant(participant.id)}
-                onUseAbility={async (abilityId) => {
-                    if (participant.entity_type === "npc") {
-                    await callUseAbility(participant.entity_type, participant.entity_id, abilityId);
-                    } else {
-                    alert("Игрок сам использует свои способности через свой интерфейс");
-                    }
-                }}
+                onRemove={() => handleRemoveParticipant(participant.id)}
                 onEdit={() => handleEditParticipant(participant)}
-                />
+              />
             </div>
           ))}
         </div>
@@ -244,49 +195,6 @@ export const CombatPage = () => {
           </div>
         </div>
       )}
-
-      {/* Модалка добавления эффекта */}
-      {selectedEffect && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl max-w-md w-full p-6">
-            <h2 className="text-xl font-bold mb-4">Добавить эффект</h2>
-            <input
-                type="text"
-                placeholder="Поиск по названию или тегам..."
-                value={effectSearch}
-                onChange={(e) => setEffectSearch(e.target.value)}
-                className="w-full px-3 py-2 border rounded mb-3"
-            />
-            <div className="max-h-96 overflow-y-auto">
-                {filteredEffects.map((effect) => (
-                <div key={effect.id} className="mb-2 p-2 border rounded">
-                    <div className="font-semibold">{effect.name}</div>
-                    <div className="text-sm text-gray-600">{effect.description}</div>
-                    {effect.tags && effect.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-1">
-                        {effect.tags.map(tag => (
-                        <span key={tag} className="text-xs bg-gray-100 px-1 rounded">#{tag}</span>
-                        ))}
-                    </div>
-                    )}
-                    <div className="text-xs text-gray-500 mt-1">
-                    {effect.duration_turns ? `${effect.duration_turns} ходов` : "Постоянный"}
-                    </div>
-                    <button
-                    onClick={() => handleEffectSubmit(effect.id, effect.duration_turns ?? undefined)}
-                    className="mt-2 px-3 py-1 bg-purple-600 text-white text-sm rounded"
-                    >
-                    Применить
-                    </button>
-                </div>
-                ))}
-            </div>
-            <button onClick={() => setSelectedEffect(null)} className="mt-4 px-4 py-2 bg-gray-300 rounded">
-                Отмена
-            </button>
-            </div>
-        </div>
-        )}
 
       {/* Модалка редактирования игрока/NPC */}
       {editingParticipant && (
