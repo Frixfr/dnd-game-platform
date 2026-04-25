@@ -1,5 +1,8 @@
+// server/src/services/playerEffectsService.ts
+
 import { db } from "../db/index.js";
 import { logsService } from "./logsService.js";
+import { emitPlayerUpdate } from "../socket/index.js";
 
 export const playerEffectsService = {
   async getAll(filters: {
@@ -62,11 +65,11 @@ export const playerEffectsService = {
         }),
       });
     }
+    await emitPlayerUpdate(data.player_id);
     return newEffect;
   },
 
   async delete(player_id: number, effect_id: number) {
-    // Удаляем только эффекты с source_type = 'admin'
     const deleted = await db("player_active_effects")
       .where({ player_id, effect_id, source_type: "admin" })
       .delete();
@@ -77,6 +80,7 @@ export const playerEffectsService = {
       if (!exists) throw new Error("Not found");
       throw new Error("Cannot delete non-admin effect");
     }
+    await emitPlayerUpdate(player_id);
     return true;
   },
 };

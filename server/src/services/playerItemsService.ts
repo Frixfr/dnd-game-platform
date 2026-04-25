@@ -1,8 +1,11 @@
+// server/src/services/playerItemsService.ts
+
 import { db } from "../db/index.js";
 import { logsService } from "./logsService.js";
 import { playerEffectsService } from "./playerEffectsService.js";
 import { itemsService } from "./itemsService.js";
 import { getFullPlayerData } from "../utils/helpers.js";
+import { emitPlayerUpdate } from "../socket/index.js";
 
 export const playerItemsService = {
   async getAll(filters: {
@@ -50,6 +53,7 @@ export const playerItemsService = {
           is_equipped: is_equipped || existing.is_equipped,
         })
         .returning("*");
+      await emitPlayerUpdate(player_id);
       return updated;
     }
 
@@ -62,6 +66,7 @@ export const playerItemsService = {
         obtained_at: db.fn.now(),
       })
       .returning("*");
+    await emitPlayerUpdate(player_id);
     return newItem;
   },
 
@@ -70,6 +75,7 @@ export const playerItemsService = {
       .where({ player_id, item_id })
       .delete();
     if (deleted === 0) throw new Error("Not found");
+    await emitPlayerUpdate(player_id);
     return true;
   },
 
@@ -118,6 +124,7 @@ export const playerItemsService = {
       .where({ id })
       .update({ is_equipped })
       .returning("*");
+    await emitPlayerUpdate(playerItem.player_id);
     return updated;
   },
 
@@ -171,6 +178,7 @@ export const playerItemsService = {
       }),
     });
 
+    await emitPlayerUpdate(playerId);
     return getFullPlayerData(playerId);
   },
 
@@ -191,10 +199,8 @@ export const playerItemsService = {
       throw new Error("Нельзя выбросить больше, чем есть");
 
     if (qtyToDiscard === playerItem.quantity) {
-      // Удаляем весь предмет
       await db("player_items").where({ id: playerItemId }).delete();
     } else {
-      // Уменьшаем количество
       await db("player_items")
         .where({ id: playerItemId })
         .update({ quantity: playerItem.quantity - qtyToDiscard });
@@ -210,6 +216,7 @@ export const playerItemsService = {
       details: JSON.stringify({ item_id: item.id, quantity: qtyToDiscard }),
     });
 
+    await emitPlayerUpdate(playerId);
     return getFullPlayerData(playerId);
   },
 
@@ -242,7 +249,6 @@ export const playerItemsService = {
     if (!targetPlayer.is_online) throw new Error("Игрок не в сети");
 
     await db.transaction(async (trx) => {
-      // Уменьшаем количество у отправителя
       if (playerItem.quantity === quantity) {
         await trx("player_items").where({ id: playerItemId }).delete();
       } else {
@@ -250,7 +256,6 @@ export const playerItemsService = {
           .where({ id: playerItemId })
           .update({ quantity: playerItem.quantity - quantity });
       }
-      // Добавляем получателю
       const existing = await trx("player_items")
         .where({ player_id: targetPlayerId, item_id: playerItem.item_id })
         .first();
@@ -285,6 +290,8 @@ export const playerItemsService = {
       }),
     });
 
+    await emitPlayerUpdate(playerId);
+    await emitPlayerUpdate(targetPlayerId);
     const [sender, target] = await Promise.all([
       getFullPlayerData(playerId),
       getFullPlayerData(targetPlayerId),

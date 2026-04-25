@@ -1,5 +1,5 @@
 // client/src/components/ui/EditPlayerModal.tsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { PlayerType, RaceType, EffectType, PlayerItemExtended, PlayerAbilityExtended } from '../../types';
 import { usePlayerStore } from '../../stores/playerStore';
 import { PlayerStatsForm } from './PlayerStatsForm';
@@ -8,6 +8,7 @@ import { PlayerAbilitiesManager } from './PlayerAbilitiesManager';
 import { PlayerEffectsManager } from './PlayerEffectsManager';
 import { useMediaQuery } from './useMediaQuery';
 import { useErrorHandler } from '../../hooks/useErrorHandler';
+import { socket } from '../../lib/socket';
 
 interface EditPlayerModalProps {
   player: PlayerType;
@@ -36,12 +37,33 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
   const [selectedRaceEffects, setSelectedRaceEffects] = useState<EffectType[]>([]);
   const { fetchPlayers } = usePlayerStore();
 
-  // Загрузка списка рас
+  const loadFullPlayer = useCallback(async () => {
+    setLoadingDetails(true);
+    try {
+      const response = await fetch(`/api/players/${player.id}/details`);
+      if (!response.ok) throw new Error('Ошибка загрузки');
+      const fullPlayer = await response.json();
+      setFormData({
+        ...fullPlayer,
+        items: fullPlayer.items || [],
+        abilities: fullPlayer.abilities || [],
+        active_effects: fullPlayer.active_effects || []
+      });
+      if (fullPlayer.avatar_url) setAvatarPreview(fullPlayer.avatar_url);
+    } catch {
+      showError('Не удалось загрузить данные игрока');
+    } finally {
+      setLoadingDetails(false);
+    }
+  }, [player.id, showError]);
+
   useEffect(() => {
-    fetch('/api/races').then(res => res.json()).then(setRaces);
+    fetch('/api/races')
+      .then(res => res.json())
+      .then(setRaces)
+      .catch(() => {});
   }, []);
 
-  // Загрузка эффектов расы при изменении race_id
   useEffect(() => {
     if (formData.race_id) {
       fetch(`/api/races/${formData.race_id}`)
@@ -56,46 +78,36 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
     }
   }, [formData.race_id]);
 
-  // Загрузка полных данных игрока
   useEffect(() => {
-    const loadFullPlayer = async () => {
-      setLoadingDetails(true);
-      try {
-        const response = await fetch(`/api/players/${player.id}/details`);
-        if (!response.ok) throw new Error('Ошибка загрузки');
-        const fullPlayer = await response.json();
+    loadFullPlayer();
+  }, [loadFullPlayer]);
+
+  // Подписка на сокет-события для автоматического обновления при изменении игрока
+  useEffect(() => {
+    const handlePlayerUpdate = (updatedPlayer: PlayerType) => {
+      if (updatedPlayer.id === player.id) {
+        // Обновляем локальное состояние
         setFormData({
-          ...fullPlayer,
-          items: fullPlayer.items || [],
-          abilities: fullPlayer.abilities || [],
-          active_effects: fullPlayer.active_effects || []
+          ...updatedPlayer,
+          items: updatedPlayer.items || [],
+          abilities: updatedPlayer.abilities || [],
+          active_effects: updatedPlayer.active_effects || []
         });
-        if (fullPlayer.avatar_url) setAvatarPreview(fullPlayer.avatar_url);
-      } catch {
-        showError('Не удалось загрузить данные игрока');
-      } finally {
-        setLoadingDetails(false);
+        if (updatedPlayer.avatar_url) setAvatarPreview(updatedPlayer.avatar_url);
+        // Обновляем глобальный стор (дашборд), но не закрываем модальное окно
+        fetchPlayers();
+        // НЕ вызываем onPlayerUpdated, чтобы модалка не закрывалась
       }
     };
-    loadFullPlayer();
-  }, [player.id, showError]);
+    socket.on('player:updated', handlePlayerUpdate);
+    return () => {
+      socket.off('player:updated', handlePlayerUpdate);
+    };
+  }, [player.id, fetchPlayers]);
 
-  const updatePlayerData = async () => {
-    try {
-      const response = await fetch(`/api/players/${player.id}/details`);
-      if (!response.ok) throw new Error();
-      const updated = await response.json();
-      setFormData({
-        ...updated,
-        items: updated.items || [],
-        abilities: updated.abilities || [],
-        active_effects: updated.active_effects || []
-      });
-      await fetchPlayers();
-    } catch {
-      showError('Не удалось обновить данные игрока');
-    }
-  };
+  const updatePlayerData = useCallback(async () => {
+    await loadFullPlayer();
+  }, [loadFullPlayer]);
 
   const uploadAvatar = async (file: File) => {
     setUploadingAvatar(true);

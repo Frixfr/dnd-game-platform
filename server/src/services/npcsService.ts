@@ -1,7 +1,10 @@
+// server/src/services/npcsService.ts
+
 import { db } from "../db/index.js";
 import { getFullNpcData, ensureFrightenedEffect } from "../utils/helpers.js";
 import type { NPC, FullNPCData, PaginatedResponse } from "../types/index.js";
 import { npcAbilitiesService } from "./npcAbilitiesService.js";
+import { getIO, emitNpcUpdate } from "../socket/index.js";
 
 export const npcsService = {
   async getAll(
@@ -38,6 +41,7 @@ export const npcsService = {
 
   async create(data: Omit<NPC, "id" | "created_at">): Promise<NPC> {
     const [npc] = await db("npcs").insert(data).returning("*");
+    await emitNpcUpdate(npc.id);
     return npc;
   },
 
@@ -46,11 +50,13 @@ export const npcsService = {
       .where({ id })
       .update(data)
       .returning("*");
+    if (updated) await emitNpcUpdate(updated.id);
     return updated || null;
   },
 
   async delete(id: string): Promise<boolean> {
     const deleted = await db("npcs").where({ id }).delete();
+    if (deleted) getIO().emit("npc:deleted", Number(id));
     return deleted > 0;
   },
 
@@ -83,6 +89,7 @@ export const npcsService = {
         applied_at: db.fn.now(),
       });
     }
+    await emitNpcUpdate(Number(npcId));
     return { npc: updated };
   },
 
@@ -102,6 +109,7 @@ export const npcsService = {
       .where("id", npcId)
       .update({ aggression: newAggression })
       .returning("*");
+    await emitNpcUpdate(Number(npcId));
     return updated;
   },
 
@@ -141,6 +149,7 @@ export const npcsService = {
       .where("id", npcId)
       .update({ aggression: 1 })
       .returning("*");
+    await emitNpcUpdate(Number(npcId));
     return updated;
   },
 
@@ -151,10 +160,9 @@ export const npcsService = {
       .where("id", npcId)
       .update({ aggression })
       .returning("*");
+    await emitNpcUpdate(Number(npcId));
     return updated;
   },
-
-  // Добавить в npcsService (после существующих методов)
 
   async addItemsBatch(
     npcId: number,
@@ -203,6 +211,7 @@ export const npcsService = {
         });
       }
     }
+    await emitNpcUpdate(npcId);
     return { success: true, message: "Операция завершена", results };
   },
 
@@ -240,11 +249,10 @@ export const npcsService = {
         }
       }
     }
-    const successful = results.filter((r) => r.success).length;
-    const failed = results.length - successful;
+    await emitNpcUpdate(npcId);
     return {
       success: true,
-      message: `Успешно: ${successful}, ошибок: ${failed}`,
+      message: `Успешно: ${results.filter((r) => r.success).length}, ошибок: ${results.filter((r) => !r.success).length}`,
       results,
     };
   },
@@ -289,6 +297,7 @@ export const npcsService = {
         data: newEffect,
       });
     }
+    await emitNpcUpdate(npcId);
     return { success: true, message: "Операция завершена", results };
   },
 
@@ -297,11 +306,13 @@ export const npcsService = {
       .where({ npc_id: npcId, item_id: itemId })
       .delete();
     if (deleted === 0) throw new Error("Предмет не найден у NPC");
+    await emitNpcUpdate(npcId);
     return true;
   },
 
   async removeAbility(npcId: number, abilityId: number) {
     await npcAbilitiesService.delete(npcId, abilityId);
+    await emitNpcUpdate(npcId);
     return true;
   },
 
@@ -311,6 +322,7 @@ export const npcsService = {
       .delete();
     if (deleted === 0)
       throw new Error("Эффект не найден или не может быть удален");
+    await emitNpcUpdate(npcId);
     return true;
   },
 
@@ -320,16 +332,17 @@ export const npcsService = {
       .update({ is_equipped })
       .returning("*");
     if (!updated) throw new Error("Предмет не найден");
+    await emitNpcUpdate(npcId);
     return updated;
   },
 
   async toggleAbility(npcId: number, abilityId: number, is_active: boolean) {
-    // Используем единый метод toggleActive из npcAbilitiesService
     const updated = await npcAbilitiesService.toggleActive(
       npcId,
       abilityId,
       is_active,
     );
+    await emitNpcUpdate(npcId);
     return updated;
   },
 
@@ -341,6 +354,7 @@ export const npcsService = {
       .where({ id })
       .update({ avatar_url: avatarUrl })
       .returning("*");
+    if (updated) await emitNpcUpdate(id);
     return updated || null;
   },
 
@@ -358,19 +372,17 @@ export const npcsService = {
       .where({ id })
       .update({ avatar_url: null })
       .returning("*");
+    if (updated) await emitNpcUpdate(id);
     return updated || null;
   },
 
   async duplicate(id: string, newName: string): Promise<NPC> {
-    // 1. Получить полные данные исходного NPC
     const originalFull = await getFullNpcData(id);
     if (!originalFull) throw new Error("Исходный NPC не найден");
 
-    // 2. Проверить уникальность имени
     const existing = await db("npcs").where({ name: newName }).first();
     if (existing) throw new Error("NPC с таким именем уже существует");
 
-    // 3. Копирование аватарки (если есть)
     let newAvatarUrl: string | null = null;
     if (originalFull.avatar_url) {
       const fs = await import("fs");
@@ -385,7 +397,6 @@ export const npcsService = {
       }
     }
 
-    // 4. Создать нового NPC с теми же базовыми данными
     const [newNpc] = await db("npcs")
       .insert({
         name: newName,
@@ -409,7 +420,6 @@ export const npcsService = {
       })
       .returning("*");
 
-    // 5. Копировать предметы (npc_items)
     const originalItems = await db("npc_items").where({ npc_id: id });
     for (const item of originalItems) {
       await db("npc_items").insert({
@@ -421,7 +431,6 @@ export const npcsService = {
       });
     }
 
-    // 6. Копировать способности (npc_abilities)
     const originalAbilities = await db("npc_abilities").where({ npc_id: id });
     for (const ability of originalAbilities) {
       await db("npc_abilities").insert({
@@ -434,7 +443,6 @@ export const npcsService = {
       });
     }
 
-    // 7. Копировать активные эффекты (npc_active_effects) только от admin/ability/item (не боевые)
     const originalEffects = await db("npc_active_effects").where({
       npc_id: id,
     });
@@ -450,6 +458,7 @@ export const npcsService = {
       });
     }
 
+    await emitNpcUpdate(newNpc.id);
     return newNpc;
   },
 };

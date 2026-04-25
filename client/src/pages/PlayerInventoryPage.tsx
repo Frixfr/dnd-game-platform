@@ -1,14 +1,14 @@
 // client/src/pages/PlayerInventoryPage.tsx
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { ItemCard } from '../components/ui/ItemCard';
 import ConfirmModal from '../components/ui/ConfirmModal';
 import { TransferItemModal } from '../components/ui/TransferItemModal';
 import { usePlayerStore } from '../stores/playerStore';
+import { usePlayerSessionStore } from '../stores/playerSessionStore';
 import { useNotification } from '../hooks/useNotification';
-import type { EffectType, RarityType } from '../types';
+import type { EffectType, RarityType, PlayerItemExtended } from '../types';
 
-// Локальный тип – полностью совместим с Item (добавлены недостающие поля)
 interface InventoryItem {
   id: number;
   player_item_id: number;
@@ -23,35 +23,38 @@ interface InventoryItem {
   infinite_uses: boolean;
   active_effects?: EffectType[];
   passive_effects?: EffectType[];
-  // ⬇️ добавляем поля, которых не хватало для совместимости с Item (они не используются в ItemCard)
   active_effect_id: null;
   passive_effect_id: null;
   created_at: string;
   updated_at: string;
 }
 
-interface PlayerDetailsResponse {
-  items: Array<{
-    player_item_id: number;
-    id: number;
-    name: string;
-    description: string | null;
-    rarity: string;
-    base_quantity: number;
-    quantity: number;
-    is_equipped: number | boolean;
-    is_deletable: boolean;
-    is_usable: boolean;
-    infinite_uses: boolean;
-    active_effects?: EffectType[];
-    passive_effects?: EffectType[];
-  }>;
-}
+const mapPlayerItemToInventoryItem = (item: PlayerItemExtended): InventoryItem => ({
+  id: item.id,
+  player_item_id: item.player_item_id ?? item.id,
+  name: item.name,
+  description: item.description,
+  rarity: item.rarity,
+  base_quantity: item.base_quantity,
+  quantity: item.quantity,
+  is_equipped: item.is_equipped,
+  is_deletable: item.is_deletable,
+  is_usable: item.is_usable,
+  infinite_uses: item.infinite_uses,
+  active_effects: item.active_effects,
+  passive_effects: item.passive_effects,
+  active_effect_id: null,
+  passive_effect_id: null,
+  created_at: item.created_at,
+  updated_at: item.updated_at,
+});
 
 export const PlayerInventoryPage = () => {
   const { playerId } = useParams();
-  const [items, setItems] = useState<InventoryItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { selectedPlayer } = usePlayerSessionStore();
+  const { executeUseItem, executeDiscardItem, executeTransferItem } = usePlayerStore();
+  const { showError, showSuccess } = useNotification();
+
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
     playerItemId: number | null;
@@ -72,55 +75,17 @@ export const PlayerInventoryPage = () => {
     itemName: '',
     currentQuantity: 0,
   });
-
-  const { executeUseItem, executeDiscardItem, executeTransferItem } = usePlayerStore();
-  const { showError, showSuccess } = useNotification();
   const [discardQuantity, setDiscardQuantity] = useState<number>(1);
   const [showQuantityModal, setShowQuantityModal] = useState(false);
   const [pendingDiscard, setPendingDiscard] = useState<{ playerItemId: number; itemName: string; maxQuantity: number } | null>(null);
 
-  const fetchInventory = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/players/${playerId}/details`);
-      if (!res.ok) throw new Error('Ошибка загрузки');
-      const data: PlayerDetailsResponse = await res.json();
-      const mapped: InventoryItem[] = (data.items || []).map((item) => ({
-        id: item.id,
-        player_item_id: item.player_item_id,
-        name: item.name,
-        description: item.description,
-        rarity: (item.rarity as RarityType) || 'common',
-        base_quantity: item.base_quantity,
-        quantity: item.quantity,
-        is_equipped: Boolean(item.is_equipped),
-        is_deletable: item.is_deletable,
-        is_usable: item.is_usable,
-        infinite_uses: item.infinite_uses,
-        active_effects: item.active_effects,
-        passive_effects: item.passive_effects,
-        // ⬇️ заполняем недостающие поля значениями по умолчанию
-        active_effect_id: null,
-        passive_effect_id: null,
-        created_at: '',
-        updated_at: '',
-      }));
-      setItems(mapped);
-    } catch {
-      showError('Не удалось загрузить инвентарь');
-    } finally {
-      setLoading(false);
-    }
-  }, [playerId, showError]);
-
-  useEffect(() => {
-    fetchInventory();
-  }, [fetchInventory]);
+  const loading = !selectedPlayer || selectedPlayer.id !== Number(playerId);
+  const items: InventoryItem[] = (selectedPlayer?.items || []).map(mapPlayerItemToInventoryItem);
 
   const handleUse = async (playerItemId: number, itemName: string) => {
     try {
       await executeUseItem(Number(playerId), playerItemId);
       showSuccess(`"${itemName}" использован`);
-      await fetchInventory();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Неизвестная ошибка';
       showError(message);
@@ -142,7 +107,6 @@ export const PlayerInventoryPage = () => {
     try {
       await executeDiscardItem(Number(playerId), confirmModal.playerItemId);
       showSuccess(`"${confirmModal.itemName}" выброшен`);
-      await fetchInventory();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Неизвестная ошибка';
       showError(message);
@@ -156,7 +120,6 @@ export const PlayerInventoryPage = () => {
     try {
       await executeDiscardItem(Number(playerId), pendingDiscard.playerItemId, discardQuantity);
       showSuccess(`"${pendingDiscard.itemName}" выброшен в количестве ${discardQuantity}`);
-      await fetchInventory();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Неизвестная ошибка';
       showError(message);
@@ -172,7 +135,6 @@ export const PlayerInventoryPage = () => {
     try {
       await executeTransferItem(Number(playerId), transferModal.playerItemId, targetPlayerId, quantity);
       showSuccess(`"${transferModal.itemName}" передан в количестве ${quantity}`);
-      await fetchInventory();
       setTransferModal({ isOpen: false, playerItemId: null, itemName: '', currentQuantity: 0 });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Неизвестная ошибка';
@@ -191,10 +153,9 @@ export const PlayerInventoryPage = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {items.map((item) => (
             <div key={item.player_item_id} className="relative">
-              {/* ✅ Теперь item полностью совместим с типом Item */}
               <ItemCard item={item} />
               <div className="flex gap-2 mt-2 justify-end">
-                {item.is_usable && (item.infinite_uses || (item.quantity && item.quantity > 0)) && (
+                {item.is_usable && (item.infinite_uses || item.quantity > 0) && (
                   <button
                     onClick={() => handleUse(item.player_item_id, item.name)}
                     className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700"
@@ -215,7 +176,7 @@ export const PlayerInventoryPage = () => {
                         isOpen: true,
                         playerItemId: item.player_item_id,
                         itemName: item.name,
-                        currentQuantity: item.quantity
+                        currentQuantity: item.quantity,
                       })}
                       className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
                     >

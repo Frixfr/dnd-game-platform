@@ -2,7 +2,6 @@
 import { create } from "zustand";
 import type { PlayerType } from "../types";
 import { socket } from "../lib/socket";
-import { socket as globalSocket } from "../lib/socket";
 
 interface PaginatedResponse<T> {
   data: T[];
@@ -16,7 +15,7 @@ interface PlayerStore {
   playersTotal: number;
   currentPage: number;
   limit: number;
-  socket: typeof globalSocket;
+  socket: typeof socket;
   initializeSocket: () => void;
   setPlayers: (
     players: PlayerType[],
@@ -52,16 +51,26 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
   playersTotal: 0,
   currentPage: 1,
   limit: 20,
-  socket: globalSocket,
+  socket,
 
   initializeSocket: () => {
     if (playerSocketInitialized) return;
     playerSocketInitialized = true;
 
+    // Диагностика подключения
+    socket.on("connect", () => {
+      console.log("✅ [playerStore] Socket connected");
+    });
+    socket.on("connect_error", (err) => {
+      console.error("❌ [playerStore] Socket connection error:", err);
+    });
+    socket.on("disconnect", (reason) => {
+      console.warn("⚠️ [playerStore] Socket disconnected:", reason);
+    });
+
     socket.on("player:created", (newPlayer: PlayerType) => {
-      console.log("Игрок создан (сокет)");
+      console.log("📢 [playerStore] player:created", newPlayer.id);
       set((state) => {
-        // Если мы на первой странице и есть место, добавляем в начало
         if (state.currentPage === 1 && state.players.length < state.limit) {
           return {
             players: [newPlayer, ...state.players],
@@ -74,24 +83,30 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
     });
 
     socket.on("player:updated", (updatedPlayer: PlayerType) => {
-      console.log("Игрок обновлён (сокет)");
-      set((state) => ({
-        players: state.players.map((p) =>
-          p.id === updatedPlayer.id ? updatedPlayer : p,
-        ),
-      }));
+      console.log("🔄 [playerStore] player:updated", updatedPlayer.id);
+      set((state) => {
+        const index = state.players.findIndex((p) => p.id === updatedPlayer.id);
+        if (index === -1) {
+          // Если игрока нет в текущем списке (другая страница) – ничего не делаем
+          console.log("Игрок не в текущем списке, пропускаем обновление");
+          return {};
+        }
+        const newPlayers = [...state.players];
+        newPlayers[index] = updatedPlayer;
+        return { players: newPlayers };
+      });
     });
 
     socket.on("player:deleted", (playerId: number) => {
-      console.log("Игрок удалён (сокет)");
+      console.log("🗑️ [playerStore] player:deleted", playerId);
       set((state) => ({
         players: state.players.filter((p) => p.id !== playerId),
         playersTotal: state.playersTotal - 1,
       }));
     });
 
+    // При повторном подключении перезагружаем текущую страницу
     socket.on("connect", async () => {
-      console.log("Socket connected (players)");
       const { currentPage, limit, fetchPlayers } = get();
       await fetchPlayers(currentPage, limit);
     });
@@ -99,7 +114,7 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
 
   fetchPlayers: async (page = 1, limit = 20) => {
     try {
-      // Добавляем параметр full=true для получения final_stats
+      console.log("📡 Загрузка игроков, страница", page);
       const response = await fetch(
         `/api/players?full=true&page=${page}&limit=${limit}`,
       );
@@ -121,11 +136,9 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
 
   fetchAllPlayers: async () => {
     try {
-      // Для списка всех игроков тоже лучше использовать full=true
       const response = await fetch("/api/players?full=true&limit=9999");
       if (response.ok) {
         const result = await response.json();
-        // Ответ с пагинацией: { data, total, page, limit }
         const players = result.data || result;
         return players;
       }
@@ -163,7 +176,9 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
   executeUseItem: async (playerId: number, playerItemId: number) => {
     const response = await fetch(
       `/api/player-items/${playerId}/items/${playerItemId}/use`,
-      { method: "POST" },
+      {
+        method: "POST",
+      },
     );
     if (!response.ok) {
       const text = await response.text();

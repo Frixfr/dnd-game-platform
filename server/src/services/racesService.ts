@@ -1,5 +1,8 @@
+// server/src/services/racesService.ts
+
 import { db } from "../db/index.js";
 import type { Race } from "../types/index.js";
+import { emitPlayerUpdate, emitNpcUpdate } from "../socket/index.js";
 
 export const racesService = {
   async getAll(): Promise<(Race & { effects: any[] })[]> {
@@ -61,7 +64,6 @@ export const racesService = {
     data: Partial<Race>,
     effectIds?: number[],
   ): Promise<Race | null> {
-    // Валидация существования эффектов
     if (effectIds !== undefined && effectIds.length > 0) {
       const existingEffects = await db("effects")
         .whereIn("id", effectIds)
@@ -79,7 +81,6 @@ export const racesService = {
       .returning("*");
 
     if (updated && effectIds !== undefined) {
-      // Обновляем связи с эффектами
       await db("race_effects").where("race_id", id).delete();
       if (effectIds.length) {
         const raceEffects = effectIds.map((effect_id) => ({
@@ -88,12 +89,21 @@ export const racesService = {
         }));
         await db("race_effects").insert(raceEffects);
       }
+
+      // Обновляем всех игроков и NPC, у которых эта раса
+      const players = await db("players").where("race_id", id).select("id");
+      for (const p of players) {
+        await emitPlayerUpdate(p.id);
+      }
+      const npcs = await db("npcs").where("race_id", id).select("id");
+      for (const n of npcs) {
+        await emitNpcUpdate(n.id);
+      }
     }
     return updated || null;
   },
 
   async delete(id: string): Promise<boolean> {
-    // Проверка использования в players или npcs
     const usedByPlayer = await db("players").where("race_id", id).first();
     if (usedByPlayer) throw new Error("Race is used by players");
     const usedByNpc = await db("npcs").where("race_id", id).first();

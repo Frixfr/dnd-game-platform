@@ -2,6 +2,7 @@
 
 import { Server as SocketServer, ServerOptions, Socket } from "socket.io";
 import { Server as HttpServer } from "http";
+import { getFullPlayerData, getFullNpcData } from "../utils/helpers.js";
 
 let io: SocketServer;
 
@@ -60,4 +61,18 @@ export const emitToAll = (event: string, data: any) => {
 export function emitToPlayer(playerId: number, event: string, data: any) {
   const io = getIO();
   io.to(`player:${playerId}`).emit(event, data);
+}
+
+export async function emitPlayerUpdate(playerId: number): Promise<void> {
+  const fullData = await getFullPlayerData(String(playerId));
+  if (fullData) {
+    getIO().emit("player:updated", fullData);
+  }
+}
+
+export async function emitNpcUpdate(npcId: number): Promise<void> {
+  const fullData = await getFullNpcData(String(npcId));
+  if (fullData) {
+    getIO().emit("npc:updated", fullData);
+  }
 }

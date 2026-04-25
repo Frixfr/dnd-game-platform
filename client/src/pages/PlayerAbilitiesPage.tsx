@@ -1,54 +1,18 @@
 // client/src/pages/PlayerAbilitiesPage.tsx
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { AbilityCard } from '../components/ui/AbilityCard';
+import { usePlayerSessionStore } from '../stores/playerSessionStore';
 import type { PlayerAbilityExtended } from '../types';
-
-// Тип данных способности, возвращаемых API (поля из ability + доп. поля для игрока)
-interface ApiAbility {
-  id: number;
-  name: string;
-  description: string | null;
-  ability_type: 'active' | 'passive';
-  cooldown_turns: number;
-  cooldown_days: number;
-  effect_id: number | null;
-  created_at: string;
-  updated_at: string;
-  is_active: number | boolean; // из player_abilities
-  effect?: unknown; // эффект, если подгружен
-  remaining_cooldown_turns?: number; // из запроса (опционально)
-}
 
 export const PlayerAbilitiesPage = () => {
   const { playerId } = useParams();
-  const [abilities, setAbilities] = useState<PlayerAbilityExtended[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { selectedPlayer } = usePlayerSessionStore();
   const [usingAbilityId, setUsingAbilityId] = useState<number | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  const fetchAbilities = useCallback(async () => {
-    try {
-      const response = await fetch(`/api/players/${playerId}/details`);
-      if (!response.ok) throw new Error();
-      const data = await response.json();
-      const mappedAbilities: PlayerAbilityExtended[] = (data.abilities || []).map((a: ApiAbility) => ({
-        ...a,
-        is_active: a.is_active === 1 || a.is_active === true,
-        effect: a.effect || null,
-        remaining_cooldown_turns: a.remaining_cooldown_turns ?? 0,
-      }));
-      setAbilities(mappedAbilities);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }, [playerId]);
-
-  useEffect(() => {
-    fetchAbilities();
-  }, [fetchAbilities]);
+  const loading = !selectedPlayer || selectedPlayer.id !== Number(playerId);
+  const abilities: PlayerAbilityExtended[] = selectedPlayer?.abilities || [];
 
   const handleUseAbility = async (abilityId: number) => {
     setUsingAbilityId(abilityId);
@@ -65,7 +29,6 @@ export const PlayerAbilitiesPage = () => {
       }
       const result = await response.json();
       setMessage(`Способность использована! Эффект ${result.effect_applied ? 'применён' : 'не применён'}.`);
-      await fetchAbilities();
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Неизвестная ошибка';
       setMessage(errorMessage);
@@ -86,7 +49,7 @@ export const PlayerAbilitiesPage = () => {
         <p className="text-center text-gray-500 py-12">Нет способностей</p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {abilities.map(ability => {
+          {abilities.map((ability) => {
             const isOnCooldown = (ability.remaining_cooldown_turns ?? 0) > 0;
             const cooldownTurns = ability.remaining_cooldown_turns ?? 0;
 

@@ -1,37 +1,24 @@
-import { useState, useEffect } from 'react';
+// client/src/pages/PlayerEffectsPage.tsx
 import { useParams } from 'react-router-dom';
 import { EffectCard } from '../components/ui/EffectCard';
+import { usePlayerSessionStore } from '../stores/playerSessionStore';
 import type { EffectType, PlayerItemExtended, PlayerEffectExtended } from '../types';
 
 export const PlayerEffectsPage = () => {
   const { playerId } = useParams();
-  const [allEffects, setAllEffects] = useState<PlayerEffectExtended[]>([]);
-  const [raceEffects, setRaceEffects] = useState<EffectType[]>([]);
-  const [raceName, setRaceName] = useState<string | null>(null);
-  const [itemPassiveEffects, setItemPassiveEffects] = useState<(EffectType & { source_item_name: string })[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { selectedPlayer } = usePlayerSessionStore();
 
-  useEffect(() => {
-    const fetchFullData = async () => {
-      try {
-        const response = await fetch(`/api/players/${playerId}/details`);
-        if (!response.ok) throw new Error();
-        const data = await response.json();
-        setAllEffects(data.active_effects || []);
-        setRaceEffects(data.race?.effects || []);
-        setRaceName(data.race?.name || null);
-        const passiveEffects = (data.items || []).flatMap((item: PlayerItemExtended) => item.passive_effects || []) as (EffectType & { source_item_name: string })[];
-        setItemPassiveEffects(passiveEffects);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchFullData();
-  }, [playerId]);
+  const loading = !selectedPlayer || selectedPlayer.id !== Number(playerId);
+  if (loading) return <div className="text-center py-12">Загрузка эффектов...</div>;
+  if (!selectedPlayer) return null;
 
-  // Разделяем эффекты от пассивных способностей и временные
+  const allEffects: PlayerEffectExtended[] = selectedPlayer.active_effects || [];
+  const raceEffects: EffectType[] = selectedPlayer.race?.effects || [];
+  const raceName = selectedPlayer.race?.name || null;
+  const itemPassiveEffects = (selectedPlayer.items || []).flatMap(
+    (item: PlayerItemExtended) => item.passive_effects || []
+  ) as (EffectType & { source_item_name: string })[];
+
   const passiveAbilityEffects = allEffects.filter(
     (effect) => effect.source_type === 'ability' && effect.remaining_turns === null && effect.remaining_days === null
   );
@@ -39,11 +26,8 @@ export const PlayerEffectsPage = () => {
     (effect) => !(effect.source_type === 'ability' && effect.remaining_turns === null && effect.remaining_days === null)
   );
 
-  if (loading) return <div className="text-center py-12">Загрузка эффектов...</div>;
-
   return (
     <div className="max-w-4xl mx-auto space-y-8">
-      {/* Расовые эффекты */}
       {raceEffects.length > 0 && (
         <div>
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
@@ -57,7 +41,6 @@ export const PlayerEffectsPage = () => {
         </div>
       )}
 
-      {/* Пассивные эффекты предметов */}
       {itemPassiveEffects.length > 0 && (
         <div>
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
@@ -71,7 +54,6 @@ export const PlayerEffectsPage = () => {
         </div>
       )}
 
-      {/* Пассивные способности */}
       {passiveAbilityEffects.length > 0 && (
         <div>
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
@@ -85,7 +67,6 @@ export const PlayerEffectsPage = () => {
         </div>
       )}
 
-      {/* Временные эффекты */}
       {temporaryEffects.length > 0 && (
         <div>
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">

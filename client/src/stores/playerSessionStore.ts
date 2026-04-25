@@ -8,7 +8,7 @@ interface PlayerSessionStore {
   selectedPlayer: PlayerType | null;
   setSelectedPlayer: (player: PlayerType | null) => void;
   clearSession: () => void;
-  initializeSessionSocket: () => void; // добавлено
+  initializeSessionSocket: () => void;
 }
 
 let sessionSocketInitialized = false;
@@ -23,16 +23,15 @@ export const usePlayerSessionStore = create<PlayerSessionStore>()(
         if (sessionSocketInitialized) return;
         sessionSocketInitialized = true;
 
-        // Обновляем данные игрока при любом изменении (мастером, боем и т.д.)
         socket.on("player:updated", (updatedPlayer: PlayerType) => {
           const current = get().selectedPlayer;
           if (current && current.id === updatedPlayer.id) {
             console.log("Обновление выбранного игрока через сокет");
-            set({ selectedPlayer: updatedPlayer });
+            // ✅ Создаём новый объект, чтобы React точно заметил изменение
+            set({ selectedPlayer: { ...updatedPlayer } });
           }
         });
 
-        // Если игрока удалили — выходим из сессии
         socket.on("player:deleted", (playerId: number) => {
           const current = get().selectedPlayer;
           if (current && current.id === playerId) {

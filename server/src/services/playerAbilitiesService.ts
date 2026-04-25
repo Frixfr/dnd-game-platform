@@ -1,7 +1,8 @@
+// server/src/services/playerAbilitiesService.ts
+
 import { db } from "../db/index.js";
 import { logsService } from "./logsService.js";
-import { getFullPlayerData } from "../utils/helpers.js"; // ← добавить
-import { getIO } from "../socket/index.js"; // ← добавить
+import { emitPlayerUpdate } from "../socket/index.js";
 
 export const playerAbilitiesService = {
   async getAll(filters: {
@@ -51,7 +52,6 @@ export const playerAbilitiesService = {
       result = newLink;
     }
 
-    // Логика для пассивных способностей (создание/удаление эффекта у игрока)
     if (ability.ability_type === "passive" && ability.effect_id && is_active) {
       const effect = await db("effects").where("id", ability.effect_id).first();
       if (effect) {
@@ -91,6 +91,7 @@ export const playerAbilitiesService = {
         .delete();
     }
 
+    await emitPlayerUpdate(player_id);
     return result;
   },
 
@@ -105,6 +106,7 @@ export const playerAbilitiesService = {
         .where({ player_id, source_type: "ability", source_id: ability_id })
         .delete();
     }
+    await emitPlayerUpdate(player_id);
     return true;
   },
 
@@ -121,7 +123,6 @@ export const playerAbilitiesService = {
       .returning("*");
     if (!updated) throw new Error("Player ability not found");
 
-    // Обновляем пассивный эффект при переключении активности
     if (ability.ability_type === "passive" && ability.effect_id) {
       if (is_active) {
         const effect = await db("effects")
@@ -153,6 +154,7 @@ export const playerAbilitiesService = {
           .delete();
       }
     }
+    await emitPlayerUpdate(player_id);
     return updated;
   },
 
@@ -171,7 +173,6 @@ export const playerAbilitiesService = {
     if (ability.ability_type !== "active")
       throw new Error("Можно использовать только активные способности");
 
-    // Проверка кулдауна
     const remainingCooldown = playerAbility.remaining_cooldown_turns || 0;
     if (remainingCooldown > 0) {
       throw new Error(
@@ -179,7 +180,6 @@ export const playerAbilitiesService = {
       );
     }
 
-    // Применяем эффект способности (если есть)
     let effectResult = null;
     if (ability.effect_id) {
       const effect = await db("effects")
@@ -198,7 +198,6 @@ export const playerAbilitiesService = {
       }
     }
 
-    // Устанавливаем кулдаун
     await db("player_abilities")
       .where({ player_id: playerId, ability_id: abilityId })
       .update({
@@ -206,7 +205,6 @@ export const playerAbilitiesService = {
         remaining_cooldown_days: ability.cooldown_days,
       });
 
-    // Логирование
     const player = await db("players").where({ id: playerId }).first();
     if (player) {
       await logsService.create({
@@ -222,13 +220,7 @@ export const playerAbilitiesService = {
       });
     }
 
-    // === НОВЫЙ КОД: эмит обновлённых данных игрока ===
-    const fullPlayerData = await getFullPlayerData(String(playerId));
-    if (fullPlayerData) {
-      getIO().emit("player:updated", fullPlayerData);
-    }
-    // =============================================
-
+    await emitPlayerUpdate(playerId);
     return {
       success: true,
       message: "Способность применена",
