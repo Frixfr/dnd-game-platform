@@ -1,15 +1,21 @@
 // client/src/components/ui/EffectCard.tsx
 import type { EffectType } from '../../types';
 
+// Расширенный тип для активных эффектов (есть remaining_turns/days)
+type EffectWithRemaining = EffectType & {
+  remaining_turns?: number | null;
+  remaining_days?: number | null;
+};
+
 interface EffectCardProps {
-  effect: EffectType;
+  effect: EffectWithRemaining;
   onClick?: () => void;
   showDescription?: boolean;
   compact?: boolean;
   onDelete?: () => void;
   sourceName?: string | null;
   sourceType?: string | null;
-  showId?: boolean; // добавлено
+  showId?: boolean;
 }
 
 const attributeLabels: Record<string, string> = {
@@ -24,7 +30,6 @@ const attributeLabels: Record<string, string> = {
   charisma: 'Харизма',
 };
 
-// Функция для нормализации tags (строка -> массив)
 const normalizeTags = (tags: string | string[] | null | undefined): string[] => {
   if (Array.isArray(tags)) return tags;
   if (typeof tags === 'string') {
@@ -43,6 +48,18 @@ export const EffectCard = ({ effect, onClick, showDescription = true, compact = 
 
   const formatDuration = () => {
     if (effect.is_permanent) return 'Постоянный';
+    
+    // Приоритет: оставшееся время активного эффекта
+    if (effect.remaining_turns !== undefined && effect.remaining_turns !== null) {
+      if (effect.remaining_turns > 0) return `${effect.remaining_turns} ход${effect.remaining_turns === 1 ? '' : effect.remaining_turns < 5 ? 'а' : 'ов'}`;
+      if (effect.remaining_turns === 0) return 'Завершён (удалится)';
+    }
+    if (effect.remaining_days !== undefined && effect.remaining_days !== null) {
+      if (effect.remaining_days > 0) return `${effect.remaining_days} ${effect.remaining_days === 1 ? 'день' : effect.remaining_days < 5 ? 'дня' : 'дней'}`;
+      if (effect.remaining_days === 0) return 'Завершён (удалится)';
+    }
+    
+    // Иначе стандартная длительность из шаблона эффекта
     const parts = [];
     if (effect.duration_turns) parts.push(`${effect.duration_turns} ход${effect.duration_turns === 1 ? '' : effect.duration_turns < 5 ? 'а' : 'ов'}`);
     if (effect.duration_days) parts.push(`${effect.duration_days} ${effect.duration_days === 1 ? 'день' : effect.duration_days < 5 ? 'дня' : 'дней'}`);
@@ -144,7 +161,7 @@ export const EffectCard = ({ effect, onClick, showDescription = true, compact = 
         <div className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
           <div className="flex items-center gap-2">
             <span className="text-lg">{effect.is_permanent ? '∞' : '⏳'}</span>
-            <span className="text-sm text-gray-600">{effect.is_permanent ? 'Постоянный' : 'Длительность'}</span>
+            <span className="text-sm text-gray-600">{effect.is_permanent ? 'Постоянный' : 'Осталось'}</span>
           </div>
           <span className="text-sm font-medium text-gray-800">{formatDuration()}</span>
         </div>

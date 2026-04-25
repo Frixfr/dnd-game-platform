@@ -3,10 +3,23 @@ import { useParams } from 'react-router-dom';
 import { EffectCard } from '../components/ui/EffectCard';
 import { usePlayerSessionStore } from '../stores/playerSessionStore';
 import type { EffectType, PlayerItemExtended, PlayerEffectExtended } from '../types';
+import { useEffect } from 'react';
 
 export const PlayerEffectsPage = () => {
   const { playerId } = useParams();
   const { selectedPlayer } = usePlayerSessionStore();
+
+  useEffect(() => {
+    console.log("PlayerEffectsPage: selectedPlayer changed", 
+      selectedPlayer?.id, 
+      selectedPlayer?.active_effects?.map(e => ({ 
+        id: e.id, 
+        name: e.name, 
+        remaining_turns: e.remaining_turns,
+        remaining_days: e.remaining_days 
+      }))
+    );
+  }, [selectedPlayer]);
 
   const loading = !selectedPlayer || selectedPlayer.id !== Number(playerId);
   if (loading) return <div className="text-center py-12">Загрузка эффектов...</div>;
