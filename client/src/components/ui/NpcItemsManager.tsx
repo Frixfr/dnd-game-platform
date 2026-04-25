@@ -167,7 +167,12 @@ export const NpcItemsManager = ({ npcId, items, onDataChanged, showError }: NpcI
 
   const renderAddItems = () => {
     const filtered = allItems.filter(i => i.name.toLowerCase().includes(itemSearch.toLowerCase()));
-    const ownedIds = new Set(items.map(i => i.id));
+    // Создаём карту текущего количества предметов у NPC
+    const currentQuantityMap: Record<number, number> = {};
+    items.forEach(item => {
+      currentQuantityMap[item.id] = item.quantity;
+    });
+
     return (
       <div className="space-y-4">
         <input
@@ -182,33 +187,31 @@ export const NpcItemsManager = ({ npcId, items, onDataChanged, showError }: NpcI
         ) : (
           <div className="space-y-2 max-h-[50vh] overflow-y-auto">
             {filtered.map(item => {
-              const owned = ownedIds.has(item.id);
-              const qty = selectedItems[item.id] || 1;
+              const owned = item.id in currentQuantityMap;
+              const currentQty = currentQuantityMap[item.id] || 0;
+              const qtyToAdd = selectedItems[item.id] || 1;
               return (
                 <div key={item.id} className="bg-gray-50 p-3 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                   <div>
                     <p className="font-medium">{item.name}</p>
                     <p className="text-xs text-gray-500">{item.rarity}</p>
+                    {owned && <p className="text-xs text-green-600">Уже есть: {currentQty} шт.</p>}
                   </div>
-                  {!owned ? (
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        min={1}
-                        value={qty}
-                        onChange={e => setSelectedItems(prev => ({ ...prev, [item.id]: parseInt(e.target.value) || 1 }))}
-                        className="w-16 px-2 py-1 border rounded"
-                      />
-                      <button
-                        onClick={() => setSelectedItems(prev => ({ ...prev, [item.id]: (prev[item.id] || 1) }))}
-                        className="px-3 py-1 bg-blue-100 rounded-xl"
-                      >
-                        ➕ Добавить
-                      </button>
-                    </div>
-                  ) : (
-                    <span className="text-green-600 text-sm">✓ Уже есть</span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={1}
+                      value={qtyToAdd}
+                      onChange={e => setSelectedItems(prev => ({ ...prev, [item.id]: parseInt(e.target.value) || 1 }))}
+                      className="w-16 px-2 py-1 border rounded"
+                    />
+                    <button
+                      onClick={() => setSelectedItems(prev => ({ ...prev, [item.id]: (prev[item.id] || 1) }))}
+                      className="px-3 py-1 bg-blue-100 rounded-xl"
+                    >
+                      {owned ? '➕ Добавить ещё' : '➕ Добавить'}
+                    </button>
+                  </div>
                 </div>
               );
             })}
