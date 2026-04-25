@@ -17,9 +17,22 @@ export const combatService = {
   },
 
   async startNewSession(): Promise<CombatSession> {
-    await db("combat_sessions")
-      .where({ is_active: true })
-      .update({ is_active: false, ended_at: db.fn.now() });
+    // Получаем старую активную сессию (если есть)
+    const oldSession = await this.getActiveSession();
+    if (oldSession) {
+      // Для всех участников старой сессии сбрасываем флаг "в бою"
+      const participants = await db("combat_participants").where({
+        session_id: oldSession.id,
+      });
+      for (const p of participants) {
+        await this.updateInBattleStatus(p.entity_type, p.entity_id, false);
+      }
+      // Деактивируем старую сессию
+      await db("combat_sessions")
+        .where({ id: oldSession.id })
+        .update({ is_active: false, ended_at: db.fn.now() });
+    }
+
     const [session] = await db("combat_sessions")
       .insert({ is_active: true, created_at: db.fn.now() })
       .returning("*");
@@ -55,11 +68,26 @@ export const combatService = {
         is_current_turn: false,
       })
       .returning("*");
+
+    // Устанавливаем флаг "в бою"
+    await this.updateInBattleStatus(entityType, entityId, true);
+
     return participant;
   },
 
   async removeParticipant(participantId: number): Promise<void> {
-    await db("combat_participants").where({ id: participantId }).delete();
+    const participant = await db("combat_participants")
+      .where({ id: participantId })
+      .first();
+    if (participant) {
+      // Сначала сбрасываем флаг "в бою"
+      await this.updateInBattleStatus(
+        participant.entity_type,
+        participant.entity_id,
+        false,
+      );
+      await db("combat_participants").where({ id: participantId }).delete();
+    }
   },
 
   async reorderParticipants(
@@ -338,6 +366,11 @@ export const combatService = {
     const nextIndex = (currentIndex + 1) % participants.length;
     const nextParticipant = participants[nextIndex];
     await this.setCurrentTurn(sessionId, nextParticipant.id);
+
+    // Если после перехода хода мы вернулись к первому участнику -> раунд завершён
+    if (nextIndex === 0) {
+      await this.endRound(sessionId);
+    }
   },
 
   async useAbility(
@@ -352,5 +385,22 @@ export const combatService = {
       await npcAbilitiesService.useAbility(entityId, abilityId);
     }
     await this.emitCombatUpdate(sessionId);
+  },
+
+  async updateInBattleStatus(
+    entityType: "player" | "npc",
+    entityId: number,
+    inBattle: boolean,
+  ): Promise<void> {
+    const value = inBattle ? 1 : 0;
+    if (entityType === "player") {
+      await db("players").where({ id: entityId }).update({ in_battle: value });
+      const full = await getFullPlayerData(String(entityId));
+      if (full) getIO().emit("player:updated", full);
+    } else {
+      await db("npcs").where({ id: entityId }).update({ in_battle: value });
+      const full = await getFullNpcData(String(entityId));
+      if (full) getIO().emit("npc:updated", full);
+    }
   },
 };

@@ -131,9 +131,28 @@ export const PlayerStatsForm = ({
       <div className="bg-gray-50 rounded-xl p-4 md:p-5 border border-gray-100">
         <h3 className="text-md font-semibold text-gray-700 mb-3">🏷️ Статусы</h3>
         <div className="flex flex-wrap gap-4">
-          <label className="flex items-center gap-2"><input type="checkbox" name="in_battle" checked={formData.in_battle} onChange={handleInputChange} className="w-4 h-4" disabled={loading} />⚔️ В бою</label>
-          <label className="flex items-center gap-2"><input type="checkbox" name="is_online" checked={formData.is_online} onChange={handleInputChange} className="w-4 h-4" disabled={loading} />🟢 Онлайн</label>
-          <label className="flex items-center gap-2"><input type="checkbox" name="is_card_shown" checked={formData.is_card_shown} onChange={handleInputChange} className="w-4 h-4" disabled={loading} />🃏 Показывать карточку</label>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              name="is_online"
+              checked={formData.is_online}
+              onChange={handleInputChange}
+              className="w-4 h-4"
+              disabled={loading}
+            />
+            🟢 Онлайн
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              name="is_card_shown"
+              checked={formData.is_card_shown}
+              onChange={handleInputChange}
+              className="w-4 h-4"
+              disabled={loading}
+            />
+            🃏 Показывать карточку
+          </label>
         </div>
       </div>
 

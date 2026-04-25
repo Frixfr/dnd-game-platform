@@ -170,7 +170,6 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
           wisdom: Number(formData.wisdom),
           charisma: Number(formData.charisma),
           history: formData.history || null,
-          in_battle: formData.in_battle ? 1 : 0,
           is_online: formData.is_online ? 1 : 0,
           is_card_shown: formData.is_card_shown ? 1 : 0,
           aggression: Number(formData.aggression),
@@ -402,15 +401,6 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={formData.in_battle}
-            onChange={(e) => setFormData({ ...formData, in_battle: e.target.checked })}
-            disabled={loading}
-          />
-          <span className="text-sm">В бою</span>
-        </label>
         <label className="flex items-center gap-2">
           <input
             type="checkbox"
