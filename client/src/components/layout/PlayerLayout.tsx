@@ -4,6 +4,7 @@ import { Outlet, useParams, useNavigate } from 'react-router-dom';
 import PlayerSidebar from './PlayerSidebar';
 import PlayerHeader from './PlayerHeader';
 import { usePlayerSessionStore } from '../../stores/playerSessionStore';
+import { socket } from '../../lib/socket';
 
 const PlayerLayout: React.FC = () => {
   const { playerId } = useParams();
@@ -36,6 +37,25 @@ const PlayerLayout: React.FC = () => {
       navigate('/');
     }
   }, [selectedPlayer, playerId, navigate, hydrated]);
+
+  // === НОВЫЙ ЭФФЕКТ ДЛЯ СОКЕТОВ ===
+  useEffect(() => {
+    // Инициализируем подписку стора на сокет-события
+    usePlayerSessionStore.getState().initializeSessionSocket();
+    
+    // Отправляем событие для входа в персональную комнату
+    if (playerId) {
+      socket.emit("join-player", playerId);
+    }
+    
+    // При размонтировании выходим из комнаты
+    return () => {
+      if (playerId) {
+        socket.emit("leave", `player:${playerId}`);
+      }
+    };
+  }, [playerId]);
+  // ================================
 
   useEffect(() => {
     const handleResize = () => {
