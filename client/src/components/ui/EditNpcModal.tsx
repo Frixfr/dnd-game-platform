@@ -1,17 +1,18 @@
 // client/src/components/ui/EditNpcModal.tsx
 import { useState, useEffect } from 'react';
-import type { NPC, RaceType, EffectType, FullNPCData } from '../../types';
+import type { NpcType, RaceType, EffectType, FullNPCData } from '../../types';
 import { useNpcStore } from '../../stores/npcStore';
 import { NpcItemsManager } from './NpcItemsManager';
 import { NpcAbilitiesManager } from './NpcAbilitiesManager';
 import { NpcEffectsManager } from './NpcEffectsManager';
+import { NpcStatsForm } from './NpcStatsForm';
 import { useMediaQuery } from './useMediaQuery';
 import { useErrorHandler } from '../../hooks/useErrorHandler';
 
 interface EditNpcModalProps {
-  npc: NPC;
+  npc: NpcType;
   onClose: () => void;
-  onNpcUpdated: (updatedNpc: NPC) => void;
+  onNpcUpdated: (updatedNpc: NpcType) => void;
 }
 
 type MainTab = 'stats' | 'items' | 'abilities' | 'effects';
@@ -48,8 +49,11 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
 
   // Загрузка списка рас
   useEffect(() => {
-    fetch('/api/races').then(res => res.json()).then(setRaces);
-  }, []);
+    fetch('/api/races')
+      .then(res => res.json())
+      .then(setRaces)
+      .catch(() => showError('Не удалось загрузить список рас'));
+  }, [showError]);
 
   // Загрузка эффектов расы при изменении race_id
   useEffect(() => {
@@ -170,7 +174,6 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
           wisdom: Number(formData.wisdom),
           charisma: Number(formData.charisma),
           history: formData.history || null,
-          is_online: formData.is_online ? 1 : 0,
           is_card_shown: formData.is_card_shown ? 1 : 0,
           aggression: Number(formData.aggression),
           race_id: formData.race_id ?? null,
@@ -205,256 +208,46 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
     }
   };
 
-  const renderStatsForm = () => (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Avatar */}
-        <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
-          <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
-            {avatarPreview ? (
-              <img src={avatarPreview} alt="avatar" className="w-full h-full object-cover" />
-            ) : (
-              <span className="text-3xl text-gray-400">👤</span>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <label className="cursor-pointer text-sm bg-white px-3 py-1 rounded border text-gray-700">
-              Загрузить
-              <input type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} disabled={loading || uploadingAvatar} />
-            </label>
-            {avatarPreview && (
-              <button
-                type="button"
-                onClick={deleteAvatar}
-                disabled={loading || uploadingAvatar}
-                className="text-sm bg-red-50 px-3 py-1 rounded border border-red-200 text-red-600 hover:bg-red-100"
-              >
-                Удалить
-              </button>
-            )}
-          </div>
-          {uploadingAvatar && <span className="text-sm text-gray-500">Загрузка...</span>}
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Имя NPC *</label>
-          <input
-            type="text"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            className="w-full px-3 py-2 border rounded"
-            required
-            maxLength={50}
-            disabled={loading}
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Пол</label>
-          <select
-            value={formData.gender}
-            onChange={(e) => setFormData({ ...formData, gender: e.target.value as 'male' | 'female' })}
-            className="w-full px-3 py-2 border rounded"
-            disabled={loading}
-          >
-            <option value="male">Мужской</option>
-            <option value="female">Женский</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Раса</label>
-          <select
-            value={formData.race_id || ''}
-            onChange={(e) => setFormData({ ...formData, race_id: e.target.value ? Number(e.target.value) : null })}
-            className="w-full px-3 py-2 border rounded"
-          >
-            <option value="">Нет</option>
-            {races.map(race => (
-              <option key={race.id} value={race.id}>{race.name}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Текущее здоровье</label>
-          <input
-            type="number"
-            value={formData.health}
-            onChange={(e) => setFormData({ ...formData, health: parseInt(e.target.value) || 0 })}
-            min="0"
-            max={formData.max_health}
-            className="w-full px-3 py-2 border rounded"
-            disabled={loading}
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Максимальное здоровье</label>
-          <input
-            type="number"
-            value={formData.max_health}
-            onChange={(e) => setFormData({ ...formData, max_health: parseInt(e.target.value) || 1 })}
-            min="1"
-            className="w-full px-3 py-2 border rounded"
-            disabled={loading}
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Броня</label>
-          <input
-            type="number"
-            value={formData.armor}
-            onChange={(e) => setFormData({ ...formData, armor: parseInt(e.target.value) || 0 })}
-            className="w-full px-3 py-2 border rounded"
-            disabled={loading}
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Сила</label>
-          <input
-            type="number"
-            value={formData.strength}
-            onChange={(e) => setFormData({ ...formData, strength: parseInt(e.target.value) || 0 })}
-            className="w-full px-3 py-2 border rounded"
-            disabled={loading}
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Ловкость</label>
-          <input
-            type="number"
-            value={formData.agility}
-            onChange={(e) => setFormData({ ...formData, agility: parseInt(e.target.value) || 0 })}
-            className="w-full px-3 py-2 border rounded"
-            disabled={loading}
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Интеллект</label>
-          <input
-            type="number"
-            value={formData.intelligence}
-            onChange={(e) => setFormData({ ...formData, intelligence: parseInt(e.target.value) || 0 })}
-            className="w-full px-3 py-2 border rounded"
-            disabled={loading}
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Телосложение</label>
-          <input
-            type="number"
-            value={formData.physique}
-            onChange={(e) => setFormData({ ...formData, physique: parseInt(e.target.value) || 0 })}
-            className="w-full px-3 py-2 border rounded"
-            disabled={loading}
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Мудрость</label>
-          <input
-            type="number"
-            value={formData.wisdom}
-            onChange={(e) => setFormData({ ...formData, wisdom: parseInt(e.target.value) || 0 })}
-            className="w-full px-3 py-2 border rounded"
-            disabled={loading}
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Харизма</label>
-          <input
-            type="number"
-            value={formData.charisma}
-            onChange={(e) => setFormData({ ...formData, charisma: parseInt(e.target.value) || 0 })}
-            className="w-full px-3 py-2 border rounded"
-            disabled={loading}
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Агрессия</label>
-          <select
-            value={formData.aggression}
-            onChange={(e) => setFormData({ ...formData, aggression: Number(e.target.value) as 0 | 1 | 2 })}
-            className="w-full px-3 py-2 border rounded"
-            disabled={loading}
-          >
-            <option value={0}>Мирный</option>
-            <option value={1}>Нейтральный</option>
-            <option value={2}>Агрессивный</option>
-          </select>
-        </div>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">История</label>
-        <textarea
-          value={formData.history || ''}
-          onChange={(e) => setFormData({ ...formData, history: e.target.value })}
-          rows={3}
-          className="w-full px-3 py-2 border rounded"
-          disabled={loading}
-        />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={formData.is_online}
-            onChange={(e) => setFormData({ ...formData, is_online: e.target.checked })}
-            disabled={loading}
-          />
-          <span className="text-sm">В сети</span>
-        </label>
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={formData.is_card_shown}
-            onChange={(e) => setFormData({ ...formData, is_card_shown: e.target.checked })}
-            disabled={loading}
-          />
-          <span className="text-sm">Показывать карточку</span>
-        </label>
-      </div>
-
-      <div className="flex justify-between items-center pt-6 border-t">
-        <button
-          type="button"
-          onClick={handleDeleteNpc}
-          className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50"
-          disabled={loading || deleting}
-        >
-          {deleting ? 'Удаление...' : 'Удалить NPC'}
-        </button>
-        <div className="flex space-x-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 border rounded hover:bg-gray-50"
-            disabled={loading || deleting}
-          >
-            Отмена
-          </button>
-          <button
-            type="submit"
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
-            disabled={loading || deleting}
-          >
-            {loading ? 'Сохранение...' : 'Сохранить'}
-          </button>
-        </div>
-      </div>
-    </form>
-  );
+  // Функция обновления только основных полей NPC (без abilities, items, active_effects)
+  const updateNpcFormData = (newNpcData: NpcType) => {
+    setFormData((prev) => ({
+      ...prev,
+      ...newNpcData,
+      abilities: prev.abilities,
+      items: prev.items,
+      active_effects: prev.active_effects,
+      final_stats: {
+        health: newNpcData.health,
+        max_health: newNpcData.max_health,
+        armor: newNpcData.armor,
+        strength: newNpcData.strength,
+        agility: newNpcData.agility,
+        intelligence: newNpcData.intelligence,
+        physique: newNpcData.physique,
+        wisdom: newNpcData.wisdom,
+        charisma: newNpcData.charisma,
+      },
+    }));
+  };
 
   const renderRightContent = () => {
     switch (activeMainTab) {
       case 'stats':
-        return renderStatsForm();
+        return (
+          <NpcStatsForm
+            formData={formData as NpcType}
+            setFormData={updateNpcFormData}
+            races={races}
+            loading={loading}
+            uploadingAvatar={uploadingAvatar}
+            avatarPreview={avatarPreview}
+            onAvatarChange={handleAvatarChange}
+            onAvatarDelete={deleteAvatar}
+            onSubmit={handleSubmit}
+            onDelete={handleDeleteNpc}
+            deleting={deleting}
+          />
+        );
       case 'items':
         return (
           <NpcItemsManager
