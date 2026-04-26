@@ -20,6 +20,10 @@ const rarityConfig: Record<ItemType['rarity'], { label: string; gradient: string
 
 export const ItemCard = ({ item, onClick, onDelete, showId = true }: ItemCardProps) => {
   const config = rarityConfig[item.rarity];
+  const activeEffects = item.active_effects ?? (item.effects?.filter(e => e.effect_type === 'active') ?? []);
+  const passiveEffects = item.passive_effects ?? (item.effects?.filter(e => e.effect_type === 'passive') ?? []);
+  const activeCount = activeEffects.length;
+  const passiveCount = passiveEffects.length;
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -61,15 +65,20 @@ export const ItemCard = ({ item, onClick, onDelete, showId = true }: ItemCardPro
           <p className="text-sm text-gray-600 mb-4 line-clamp-2">{item.description}</p>
         )}
 
-        {(item.active_effects && item.active_effects.length > 0) && (
-          <div className="text-sm mb-1">
-            <span className="font-semibold text-blue-600">Активные:</span> {item.active_effects.map(e => e.name).join(", ")}
+        {activeCount > 0 && (
+          <div className="text-sm mb-1 flex items-center gap-1">
+            <span className="font-semibold text-blue-600">Активные эффекты:</span>
+            <span className="text-gray-700">{activeCount}</span>
           </div>
         )}
-        {(item.passive_effects && item.passive_effects.length > 0) && (
-          <div className="text-sm">
-            <span className="font-semibold text-green-600">Пассивные:</span> {item.passive_effects.map(e => e.name).join(", ")}
+        {passiveCount > 0 && (
+          <div className="text-sm flex items-center gap-1">
+            <span className="font-semibold text-green-600">Пассивные эффекты:</span>
+            <span className="text-gray-700">{passiveCount}</span>
           </div>
+        )}
+        {activeCount === 0 && passiveCount === 0 && (
+          <span className="text-xs text-gray-400">Без эффектов</span>
         )}
       </div>
     </div>
