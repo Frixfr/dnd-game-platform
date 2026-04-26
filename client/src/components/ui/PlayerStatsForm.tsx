@@ -13,6 +13,7 @@ interface PlayerStatsFormProps {
   onSubmit: (e: React.FormEvent) => void;
   onDelete: () => void;
   deleting: boolean;
+  onClose?: () => void;
 }
 
 const statFields = ['strength', 'agility', 'intelligence', 'physique', 'wisdom', 'charisma'] as const;
@@ -29,6 +30,7 @@ export const PlayerStatsForm = ({
   onSubmit,
   onDelete,
   deleting,
+  onClose,
 }: PlayerStatsFormProps) => {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -159,7 +161,7 @@ export const PlayerStatsForm = ({
       <div className="flex flex-col-reverse sm:flex-row justify-between items-center gap-3 pt-4 border-t">
         <button type="button" onClick={onDelete} className="w-full sm:w-auto px-4 py-2 bg-red-500 text-white rounded-xl hover:bg-red-600 disabled:opacity-50" disabled={loading || deleting}>{deleting ? 'Удаление...' : '🗑️ Удалить игрока'}</button>
         <div className="flex gap-3 w-full sm:w-auto">
-          <button type="button" onClick={() => {}} className="flex-1 sm:flex-none px-4 py-2 border rounded-xl hover:bg-gray-50" disabled={loading}>Отмена</button>
+          <button type="button" onClick={onClose} className="flex-1 sm:flex-none px-4 py-2 border rounded-xl hover:bg-gray-50" disabled={loading}>Отмена</button>
           <button type="submit" className="flex-1 sm:flex-none px-4 py-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600" disabled={loading}>{loading ? 'Сохранение...' : '💾 Сохранить'}</button>
         </div>
       </div>

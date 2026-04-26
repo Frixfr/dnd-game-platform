@@ -73,6 +73,8 @@ export const MasterDashboardPage = () => {
     try {
       const response = await fetch(`/api/players/${playerToDelete.id}`, { method: 'DELETE' });
       if (!response.ok) throw new Error('Ошибка удаления');
+      // Явно обновляем список на текущей странице
+      await fetchPlayers(currentPage, limit);
     } catch (error) {
       console.error(error);
       showError('Не удалось удалить игрока');

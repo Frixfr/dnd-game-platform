@@ -204,6 +204,7 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
             onSubmit={handleSubmit}
             onDelete={handleDeletePlayer}
             deleting={deleting}
+            onClose={onClose}
           />
         );
       case 'items':

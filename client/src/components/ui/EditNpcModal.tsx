@@ -246,6 +246,7 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
             onSubmit={handleSubmit}
             onDelete={handleDeleteNpc}
             deleting={deleting}
+            onClose={onClose}
           />
         );
       case 'items':

@@ -95,6 +95,8 @@ export const NpcsPage = () => {
     try {
       const response = await fetch(`/api/npcs/${npcToDelete.id}`, { method: 'DELETE' });
       if (!response.ok) throw new Error('Ошибка удаления');
+      // Явно обновляем список на текущей странице
+      await fetchNpcs(currentPage, limit);
     } catch (error) {
       console.error(error);
       showError('Не удалось удалить NPC');
