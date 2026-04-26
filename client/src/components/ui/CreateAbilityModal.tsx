@@ -204,50 +204,52 @@ export const CreateAbilityModal = ({
               </div>
             </div>
             
-            {/* Время отката */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Время отката (ходы)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="999"
-                  value={formData.cooldown_turns}
-                  onChange={(e) => setFormData({
-                    ...formData, 
-                    cooldown_turns: Math.max(0, parseInt(e.target.value) || 0)
-                  })}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="0"
-                />
-                <div className="text-xs text-gray-500 mt-1">
-                  Количество ходов до повторного использования
+            {/* Время отката (только для активных способностей) */}
+            {formData.ability_type === 'active' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Время отката (ходы)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="999"
+                    value={formData.cooldown_turns}
+                    onChange={(e) => setFormData({
+                      ...formData, 
+                      cooldown_turns: Math.max(0, parseInt(e.target.value) || 0)
+                    })}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="0"
+                  />
+                  <div className="text-xs text-gray-500 mt-1">
+                    Количество ходов до повторного использования
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Время отката (дни)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="365"
+                    value={formData.cooldown_days}
+                    onChange={(e) => setFormData({
+                      ...formData, 
+                      cooldown_days: Math.max(0, parseInt(e.target.value) || 0)
+                    })}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="0"
+                  />
+                  <div className="text-xs text-gray-500 mt-1">
+                    Количество дней до повторного использования
+                  </div>
                 </div>
               </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Время отката (дни)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="365"
-                  value={formData.cooldown_days}
-                  onChange={(e) => setFormData({
-                    ...formData, 
-                    cooldown_days: Math.max(0, parseInt(e.target.value) || 0)
-                  })}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="0"
-                />
-                <div className="text-xs text-gray-500 mt-1">
-                  Количество дней до повторного использования
-                </div>
-              </div>
-            </div>
+            )}
             
             {/* Выбор эффекта */}
             <div>
