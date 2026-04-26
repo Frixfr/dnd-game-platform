@@ -55,7 +55,7 @@ export const CombatPage = () => {
   };
 
   const availablePlayers = players.filter(
-    (p) => !participants.some((part) => part.entity_type === "player" && part.entity_id === p.id)
+    (p) => p.is_online && !participants.some((part) => part.entity_type === "player" && part.entity_id === p.id)
   );
   const availableNpcs = npcs.filter(
     (n) => !participants.some((part) => part.entity_type === "npc" && part.entity_id === n.id)
