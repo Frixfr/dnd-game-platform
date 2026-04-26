@@ -1,13 +1,14 @@
-// Минималистичное модальное окно в сине-серой палитре
+// client/src/components/ui/Modal.tsx
 import React, { useEffect } from 'react';
 
 interface ModalProps {
   children: React.ReactNode;
   onClose: () => void;
   title?: string;
+  maxWidth?: string; // Tailwind max-w-* класс, например 'max-w-2xl'
 }
 
-const Modal: React.FC<ModalProps> = ({ children, onClose, title }) => {
+const Modal: React.FC<ModalProps> = ({ children, onClose, title, maxWidth = 'max-w-sm' }) => {
   useEffect(() => {
     document.body.style.overflow = 'hidden';
     return () => {
@@ -27,7 +28,7 @@ const Modal: React.FC<ModalProps> = ({ children, onClose, title }) => {
       onClick={handleOverlayClick}
     >
       <div
-        className="bg-white rounded-xl shadow-xl w-full max-w-sm border border-slate-200"
+        className={`bg-white rounded-xl shadow-xl w-full ${maxWidth} border border-slate-200`}
         onClick={(e) => e.stopPropagation()}
       >
         {title && (

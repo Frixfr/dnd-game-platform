@@ -5,6 +5,7 @@ import { useNpcStore } from "../stores/npcStore";
 import { CombatantCard } from "../components/ui/CombatantCard";
 import { EditPlayerModal } from "../components/ui/EditPlayerModal";
 import { EditNpcModal } from "../components/ui/EditNpcModal";
+import AddCombatantModal from "../components/ui/AddCombatantModal"; // импорт новой модалки
 import type { PlayerType, NpcType } from "../types";
 
 export const CombatPage = () => {
@@ -149,52 +150,15 @@ export const CombatPage = () => {
         </div>
       )}
 
-      {/* Модалка добавления участника */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-md w-full p-6">
-            <h2 className="text-xl font-bold mb-4">Добавить участника</h2>
-            <div className="mb-4">
-              <h3 className="font-semibold mb-2">Игроки</h3>
-              {availablePlayers.length === 0 ? (
-                <p className="text-gray-500">Нет доступных игроков</p>
-              ) : (
-                availablePlayers.map((p) => (
-                  <button
-                    key={p.id}
-                    onClick={() => handleAddParticipant("player", p.id)}
-                    className="block w-full text-left p-2 hover:bg-gray-100 rounded"
-                  >
-                    {p.name} (❤️ {p.health}/{p.max_health})
-                  </button>
-                ))
-              )}
-            </div>
-            <div className="mb-4">
-              <h3 className="font-semibold mb-2">NPC</h3>
-              {availableNpcs.length === 0 ? (
-                <p className="text-gray-500">Нет доступных NPC</p>
-              ) : (
-                availableNpcs.map((n) => (
-                  <button
-                    key={n.id}
-                    onClick={() => handleAddParticipant("npc", n.id)}
-                    className="block w-full text-left p-2 hover:bg-gray-100 rounded"
-                  >
-                    {n.name} (❤️ {n.health}/{n.max_health})
-                  </button>
-                ))
-              )}
-            </div>
-            <button
-              onClick={() => setShowAddModal(false)}
-              className="mt-2 px-4 py-2 bg-gray-300 rounded"
-            >
-              Закрыть
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Красивая модалка добавления участника */}
+      <AddCombatantModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        availablePlayers={availablePlayers}
+        availableNpcs={availableNpcs}
+        onAddPlayer={(playerId) => handleAddParticipant("player", playerId)}
+        onAddNpc={(npcId) => handleAddParticipant("npc", npcId)}
+      />
 
       {/* Модалка редактирования игрока/NPC */}
       {editingParticipant && (
