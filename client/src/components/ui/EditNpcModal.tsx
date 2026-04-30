@@ -8,6 +8,7 @@ import { NpcEffectsManager } from './NpcEffectsManager';
 import { NpcStatsForm } from './NpcStatsForm';
 import { useMediaQuery } from './useMediaQuery';
 import { useErrorHandler } from '../../hooks/useErrorHandler';
+import { useConfirm } from '../../hooks/useConfirm';
 
 interface EditNpcModalProps {
   npc: NpcType;
@@ -20,6 +21,7 @@ type MainTab = 'stats' | 'items' | 'abilities' | 'effects';
 export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) => {
   const isMobile = useMediaQuery('(max-width: 768px)');
   const { showError } = useErrorHandler();
+  const { confirm, ConfirmModalComponent } = useConfirm();
   const [formData, setFormData] = useState<FullNPCData>(() => ({
     ...npc,
     final_stats: {
@@ -47,7 +49,6 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
   const [selectedRaceEffects, setSelectedRaceEffects] = useState<EffectType[]>([]);
   const { fetchNpcs } = useNpcStore();
 
-  // Загрузка списка рас
   useEffect(() => {
     fetch('/api/races')
       .then(res => res.json())
@@ -55,7 +56,6 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
       .catch(() => showError('Не удалось загрузить список рас'));
   }, [showError]);
 
-  // Загрузка эффектов расы при изменении race_id
   useEffect(() => {
     if (formData.race_id) {
       fetch(`/api/races/${formData.race_id}`)
@@ -70,7 +70,6 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
     }
   }, [formData.race_id]);
 
-  // Загрузка полных данных NPC
   useEffect(() => {
     const abortController = new AbortController();
     const loadFullNpc = async () => {
@@ -80,7 +79,12 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
         if (!response.ok) throw new Error('Ошибка загрузки');
         const result = await response.json();
         const fullNpc: FullNPCData = result.npc;
-        setFormData({ ...fullNpc, abilities: fullNpc.abilities || [], items: fullNpc.items || [], active_effects: fullNpc.active_effects || [] });
+        setFormData({
+          ...fullNpc,
+          abilities: fullNpc.abilities || [],
+          items: fullNpc.items || [],
+          active_effects: fullNpc.active_effects || []
+        });
         if (fullNpc.avatar_url) setAvatarPreview(fullNpc.avatar_url);
       } catch (err) {
         if ((err as Error).name === 'AbortError') return;
@@ -131,18 +135,22 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
     }
   };
 
-  const deleteAvatar = async () => {
-    if (!confirm("Удалить аватарку?")) return;
-    try {
-      const response = await fetch(`/api/npcs/${npc.id}/avatar`, {
-        method: "DELETE",
-      });
-      if (!response.ok) throw new Error("Ошибка удаления");
-      setAvatarPreview(null);
-      await updateNpcData();
-    } catch {
-      showError("Не удалось удалить аватарку");
-    }
+  const deleteAvatar = () => {
+    confirm({
+      message: "Удалить аватарку?",
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/npcs/${npc.id}/avatar`, {
+            method: "DELETE",
+          });
+          if (!response.ok) throw new Error("Ошибка удаления");
+          setAvatarPreview(null);
+          await updateNpcData();
+        } catch {
+          showError("Не удалось удалить аватарку");
+        }
+      }
+    });
   };
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -191,22 +199,25 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
     }
   };
 
-  const handleDeleteNpc = async () => {
-    if (!confirm('Удалить NPC навсегда?')) return;
-    setDeleting(true);
-    try {
-      const response = await fetch(`/api/npcs/${npc.id}`, { method: 'DELETE' });
-      if (!response.ok) throw new Error();
-      await fetchNpcs();
-      onClose();
-    } catch {
-      showError('Ошибка удаления');
-    } finally {
-      setDeleting(false);
-    }
+  const handleDeleteNpc = () => {
+    confirm({
+      message: 'Удалить NPC навсегда?',
+      onConfirm: async () => {
+        setDeleting(true);
+        try {
+          const response = await fetch(`/api/npcs/${npc.id}`, { method: 'DELETE' });
+          if (!response.ok) throw new Error();
+          await fetchNpcs();
+          onClose();
+        } catch {
+          showError('Ошибка удаления');
+        } finally {
+          setDeleting(false);
+        }
+      }
+    });
   };
 
-  // Функция обновления только основных полей NPC (без abilities, items, active_effects)
   const updateNpcFormData = (newNpcData: NpcType) => {
     setFormData((prev) => ({
       ...prev,
@@ -342,6 +353,7 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
           {renderRightContent()}
         </div>
       </div>
+      {ConfirmModalComponent}
     </div>
   );
 };

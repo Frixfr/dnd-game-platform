@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { PlayerItemExtended, ItemType } from '../../types';
 import { usePlayerStore } from '../../stores/playerStore';
+import { useConfirm } from '../../hooks/useConfirm';
 
 interface PlayerItemsManagerProps {
   playerId: number;
@@ -13,6 +14,7 @@ interface PlayerItemsManagerProps {
 type ItemsSubTab = 'list' | 'add';
 
 export const PlayerItemsManager = ({ playerId, items, onDataChanged, showError }: PlayerItemsManagerProps) => {
+  const { confirm, ConfirmModalComponent } = useConfirm();
   const [itemsSubTab, setItemsSubTab] = useState<ItemsSubTab>('list');
   const [allItems, setAllItems] = useState<ItemType[]>([]);
   const [itemsLoading, setItemsLoading] = useState(false);
@@ -21,14 +23,13 @@ export const PlayerItemsManager = ({ playerId, items, onDataChanged, showError }
   const [loading, setLoading] = useState(false);
   const { executeUseItem } = usePlayerStore();
 
-  const loadAllItems = useCallback(async (signal: AbortSignal) => {
+  const loadAllItems = useCallback(async () => {
     setItemsLoading(true);
     try {
-      const response = await fetch('/api/items', { signal });
+      const response = await fetch('/api/items');
       if (!response.ok) throw new Error();
       setAllItems(await response.json());
-    } catch (err) {
-      if ((err as Error).name === 'AbortError') return;
+    } catch {
       showError('Не удалось загрузить предметы');
     } finally {
       setItemsLoading(false);
@@ -36,33 +37,37 @@ export const PlayerItemsManager = ({ playerId, items, onDataChanged, showError }
   }, [showError]);
 
   useEffect(() => {
-    if (itemsSubTab === 'add') {
-      const abortController = new AbortController();
-      loadAllItems(abortController.signal);
-      return () => abortController.abort();
-    }
+    if (itemsSubTab === 'add') loadAllItems();
   }, [itemsSubTab, loadAllItems]);
 
-  const handleRemoveItem = async (itemId: number) => {
-    if (!confirm('Удалить предмет?')) return;
-    try {
-      await fetch(`/api/players/${playerId}/items/${itemId}`, { method: 'DELETE' });
-      await onDataChanged();
-    } catch {
-      showError('Ошибка удаления');
-    }
+  const handleRemoveItem = (itemId: number) => {
+    confirm({
+      message: 'Удалить предмет?',
+      onConfirm: async () => {
+        try {
+          await fetch(`/api/players/${playerId}/items/${itemId}`, { method: 'DELETE' });
+          await onDataChanged();
+        } catch {
+          showError('Ошибка удаления');
+        }
+      }
+    });
   };
 
-  const handleUseItem = async (playerItemId: number, itemName: string) => {
-    if (!confirm(`Использовать предмет "${itemName}"?`)) return;
-    try {
-      await executeUseItem(playerId, playerItemId);
-      await onDataChanged();
-      showError(`✅ ${itemName} использован!`);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Ошибка использования предмета';
-      showError(message);
-    }
+  const handleUseItem = (playerItemId: number, itemName: string) => {
+    confirm({
+      message: `Использовать предмет "${itemName}"?`,
+      onConfirm: async () => {
+        try {
+          await executeUseItem(playerId, playerItemId);
+          await onDataChanged();
+          showError(`✅ ${itemName} использован!`);
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : 'Ошибка использования предмета';
+          showError(message);
+        }
+      }
+    });
   };
 
   const handleAddItems = async () => {
@@ -127,7 +132,6 @@ export const PlayerItemsManager = ({ playerId, items, onDataChanged, showError }
 
   const renderAddItems = () => {
     const filtered = allItems.filter(i => i.name.toLowerCase().includes(itemSearch.toLowerCase()));
-    // Создаём карту текущего количества предметов у игрока
     const currentQuantityMap: Record<number, number> = {};
     items.forEach(item => {
       currentQuantityMap[item.id] = item.quantity;
@@ -189,6 +193,7 @@ export const PlayerItemsManager = ({ playerId, items, onDataChanged, showError }
           {renderCurrentItems()}
         </div>
       ) : renderAddItems()}
+      {ConfirmModalComponent}
     </div>
   );
 };

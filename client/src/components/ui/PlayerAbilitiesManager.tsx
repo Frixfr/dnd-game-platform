@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { PlayerAbilityExtended, AbilityType } from '../../types';
 import { usePlayerStore } from '../../stores/playerStore';
+import { useConfirm } from '../../hooks/useConfirm';
 
 interface PlayerAbilitiesManagerProps {
   playerId: number;
@@ -13,6 +14,7 @@ interface PlayerAbilitiesManagerProps {
 type AbilitiesSubTab = 'list' | 'add';
 
 export const PlayerAbilitiesManager = ({ playerId, abilities, onDataChanged, showError }: PlayerAbilitiesManagerProps) => {
+  const { confirm, ConfirmModalComponent } = useConfirm();
   const [abilitiesSubTab, setAbilitiesSubTab] = useState<AbilitiesSubTab>('list');
   const [allAbilities, setAllAbilities] = useState<AbilityType[]>([]);
   const [abilitiesLoading, setAbilitiesLoading] = useState(false);
@@ -21,14 +23,13 @@ export const PlayerAbilitiesManager = ({ playerId, abilities, onDataChanged, sho
   const [loading, setLoading] = useState(false);
   const { executeUseAbility } = usePlayerStore();
 
-  const loadAllAbilities = useCallback(async (signal: AbortSignal) => {
+  const loadAllAbilities = useCallback(async () => {
     setAbilitiesLoading(true);
     try {
-      const response = await fetch('/api/abilities', { signal });
+      const response = await fetch('/api/abilities');
       if (!response.ok) throw new Error();
       setAllAbilities(await response.json());
-    } catch (err) {
-      if ((err as Error).name === 'AbortError') return;
+    } catch {
       showError('Не удалось загрузить способности');
     } finally {
       setAbilitiesLoading(false);
@@ -36,11 +37,7 @@ export const PlayerAbilitiesManager = ({ playerId, abilities, onDataChanged, sho
   }, [showError]);
 
   useEffect(() => {
-    if (abilitiesSubTab === 'add') {
-      const abortController = new AbortController();
-      loadAllAbilities(abortController.signal);
-      return () => abortController.abort();
-    }
+    if (abilitiesSubTab === 'add') loadAllAbilities();
   }, [abilitiesSubTab, loadAllAbilities]);
 
   const handleToggleAbilityActive = async (abilityId: number) => {
@@ -58,26 +55,34 @@ export const PlayerAbilitiesManager = ({ playerId, abilities, onDataChanged, sho
     }
   };
 
-  const handleRemoveAbility = async (abilityId: number) => {
-    if (!confirm('Удалить способность?')) return;
-    try {
-      await fetch(`/api/players/${playerId}/abilities/${abilityId}`, { method: 'DELETE' });
-      await onDataChanged();
-    } catch {
-      showError('Ошибка удаления');
-    }
+  const handleRemoveAbility = (abilityId: number) => {
+    confirm({
+      message: 'Удалить способность?',
+      onConfirm: async () => {
+        try {
+          await fetch(`/api/players/${playerId}/abilities/${abilityId}`, { method: 'DELETE' });
+          await onDataChanged();
+        } catch {
+          showError('Ошибка удаления');
+        }
+      }
+    });
   };
 
-  const handleUseAbility = async (abilityId: number, abilityName: string) => {
-    if (!confirm(`Использовать способность "${abilityName}"?`)) return;
-    try {
-      await executeUseAbility(playerId, abilityId);
-      await onDataChanged();
-      showError(`✅ ${abilityName} использована!`);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Ошибка использования способности';
-      showError(message);
-    }
+  const handleUseAbility = (abilityId: number, abilityName: string) => {
+    confirm({
+      message: `Использовать способность "${abilityName}"?`,
+      onConfirm: async () => {
+        try {
+          await executeUseAbility(playerId, abilityId);
+          await onDataChanged();
+          showError(`✅ ${abilityName} использована!`);
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : 'Ошибка использования способности';
+          showError(message);
+        }
+      }
+    });
   };
 
   const handleAddAbilities = async () => {
@@ -194,6 +199,7 @@ export const PlayerAbilitiesManager = ({ playerId, abilities, onDataChanged, sho
           {renderCurrentAbilities()}
         </div>
       ) : renderAddAbilities()}
+      {ConfirmModalComponent}
     </div>
   );
 };

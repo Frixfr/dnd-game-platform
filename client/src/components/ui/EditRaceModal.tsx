@@ -4,6 +4,7 @@ import type { RaceType, EffectType } from '../../types';
 import { useEffectStore } from '../../stores/effectStore';
 import { SelectedEffectsList } from './SelectedEffectsList';
 import { useNotification } from '../../hooks/useNotification';
+import { useConfirm } from '../../hooks/useConfirm';
 
 interface EditRaceModalProps {
   race: RaceType | null;
@@ -12,6 +13,7 @@ interface EditRaceModalProps {
 }
 
 export const EditRaceModal = ({ race, onClose, onRaceSaved }: EditRaceModalProps) => {
+  const { confirm, ConfirmModalComponent } = useConfirm();
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -35,10 +37,9 @@ export const EditRaceModal = ({ race, onClose, onRaceSaved }: EditRaceModalProps
 
   useEffect(() => {
     if (!race) return;
-    const abortController = new AbortController();
     const loadRace = async () => {
       try {
-        const res = await fetch(`/api/races/${race.id}`, { signal: abortController.signal });
+        const res = await fetch(`/api/races/${race.id}`);
         if (res.ok) {
           const data = await res.json();
           setFormData({
@@ -47,16 +48,13 @@ export const EditRaceModal = ({ race, onClose, onRaceSaved }: EditRaceModalProps
             effect_ids: data.race.effects?.map((e: EffectType) => e.id) || [],
           });
         }
-      } catch (err) {
-        if ((err as Error).name === 'AbortError') return;
+      } catch {
         setError('Не удалось загрузить расу');
       }
     };
     loadRace();
-    return () => abortController.abort();
   }, [race]);
 
-  // Фильтр только пассивных эффектов (is_permanent = 1)
   const isPassiveEffect = (effect: EffectType) => !!effect.is_permanent;
 
   const passiveEffects = useMemo(() => {
@@ -123,24 +121,28 @@ export const EditRaceModal = ({ race, onClose, onRaceSaved }: EditRaceModalProps
     }
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!race) return;
-    if (!confirm(`Удалить расу "${race.name}"?`)) return;
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/races/${race.id}`, { method: 'DELETE' });
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || 'Ошибка удаления');
+    confirm({
+      message: `Удалить расу "${race.name}"?`,
+      onConfirm: async () => {
+        setLoading(true);
+        try {
+          const res = await fetch(`/api/races/${race.id}`, { method: 'DELETE' });
+          if (!res.ok) {
+            const errData = await res.json();
+            throw new Error(errData.error || 'Ошибка удаления');
+          }
+          onRaceSaved();
+          onClose();
+        } catch (err) {
+          const message = err instanceof Error ? err.message : 'Ошибка удаления';
+          showError(message);
+        } finally {
+          setLoading(false);
+        }
       }
-      onRaceSaved();
-      onClose();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Ошибка удаления';
-      showError(message);
-    } finally {
-      setLoading(false);
-    }
+    });
   };
 
   const getEffectById = (id: number) => passiveEffects.find(e => e.id === id);
@@ -275,6 +277,7 @@ export const EditRaceModal = ({ race, onClose, onRaceSaved }: EditRaceModalProps
           </form>
         </div>
       </div>
+      {ConfirmModalComponent}
     </div>
   );
 };

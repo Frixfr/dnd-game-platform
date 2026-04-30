@@ -8,6 +8,7 @@ import { PlayerAbilitiesManager } from './PlayerAbilitiesManager';
 import { PlayerEffectsManager } from './PlayerEffectsManager';
 import { useMediaQuery } from './useMediaQuery';
 import { useErrorHandler } from '../../hooks/useErrorHandler';
+import { useConfirm } from '../../hooks/useConfirm';
 import { socket } from '../../lib/socket';
 
 interface EditPlayerModalProps {
@@ -21,6 +22,7 @@ type MainTab = 'stats' | 'items' | 'abilities' | 'effects';
 export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayerModalProps) => {
   const isMobile = useMediaQuery('(max-width: 768px)');
   const { showError } = useErrorHandler();
+  const { confirm, ConfirmModalComponent } = useConfirm();
   const [formData, setFormData] = useState<PlayerType>(() => ({
     ...player,
     items: [],
@@ -57,7 +59,7 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
       setLoadingDetails(false);
     }
   }, [player.id, showError]);
-  
+
   useEffect(() => {
     fetch('/api/races')
       .then(res => res.json())
@@ -85,11 +87,9 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
     return () => abortController.abort();
   }, [loadFullPlayer]);
 
-  // Подписка на сокет-события для автоматического обновления при изменении игрока
   useEffect(() => {
     const handlePlayerUpdate = (updatedPlayer: PlayerType) => {
       if (updatedPlayer.id === player.id) {
-        // Обновляем локальное состояние
         setFormData({
           ...updatedPlayer,
           items: updatedPlayer.items || [],
@@ -97,9 +97,7 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
           active_effects: updatedPlayer.active_effects || []
         });
         if (updatedPlayer.avatar_url) setAvatarPreview(updatedPlayer.avatar_url);
-        // Обновляем глобальный стор (дашборд), но не закрываем модальное окно
         fetchPlayers();
-        // НЕ вызываем onPlayerUpdated, чтобы модалка не закрывалась
       }
     };
     socket.on('player:updated', handlePlayerUpdate);
@@ -133,18 +131,22 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
     }
   };
 
-  const deleteAvatar = async () => {
-    if (!confirm("Удалить аватарку?")) return;
-    try {
-      const response = await fetch(`/api/players/${player.id}/avatar`, {
-        method: "DELETE",
-      });
-      if (!response.ok) throw new Error("Ошибка удаления");
-      setAvatarPreview(null);
-      await updatePlayerData();
-    } catch {
-      showError("Не удалось удалить аватарку");
-    }
+  const deleteAvatar = () => {
+    confirm({
+      message: "Удалить аватарку?",
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/players/${player.id}/avatar`, {
+            method: "DELETE",
+          });
+          if (!response.ok) throw new Error("Ошибка удаления");
+          setAvatarPreview(null);
+          await updatePlayerData();
+        } catch {
+          showError("Не удалось удалить аватарку");
+        }
+      }
+    });
   };
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -177,19 +179,23 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
     }
   };
 
-  const handleDeletePlayer = async () => {
-    if (!confirm('Удалить игрока навсегда?')) return;
-    setDeleting(true);
-    try {
-      const response = await fetch(`/api/players/${player.id}`, { method: 'DELETE' });
-      if (!response.ok) throw new Error();
-      await fetchPlayers();
-      onClose();
-    } catch {
-      showError('Ошибка удаления');
-    } finally {
-      setDeleting(false);
-    }
+  const handleDeletePlayer = () => {
+    confirm({
+      message: 'Удалить игрока навсегда?',
+      onConfirm: async () => {
+        setDeleting(true);
+        try {
+          const response = await fetch(`/api/players/${player.id}`, { method: 'DELETE' });
+          if (!response.ok) throw new Error();
+          await fetchPlayers();
+          onClose();
+        } catch {
+          showError('Ошибка удаления');
+        } finally {
+          setDeleting(false);
+        }
+      }
+    });
   };
 
   const renderRightContent = () => {
@@ -274,7 +280,7 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
             </select>
           </div>
         ) : (
-          <div className="w-56 bg-gray-50 border-r border-gray-200 p-4 flex-col gap-2">
+          <div className="w-56 bg-gray-50 border-r border-gray-200 p-4 flex flex-col gap-2">
             <button onClick={() => setActiveMainTab('stats')} className={`flex items-center gap-3 px-4 py-2 rounded-xl text-left transition ${activeMainTab === 'stats' ? 'bg-blue-500 text-white shadow' : 'hover:bg-gray-100 text-gray-700'}`}><span className="text-xl">📋</span> Основное</button>
             <button onClick={() => setActiveMainTab('items')} className={`flex items-center gap-3 px-4 py-2 rounded-xl text-left transition ${activeMainTab === 'items' ? 'bg-blue-500 text-white shadow' : 'hover:bg-gray-100 text-gray-700'}`}><span className="text-xl">📦</span> Предметы</button>
             <button onClick={() => setActiveMainTab('abilities')} className={`flex items-center gap-3 px-4 py-2 rounded-xl text-left transition ${activeMainTab === 'abilities' ? 'bg-blue-500 text-white shadow' : 'hover:bg-gray-100 text-gray-700'}`}><span className="text-xl">✨</span> Способности</button>
@@ -286,6 +292,7 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
           {renderRightContent()}
         </div>
       </div>
+      {ConfirmModalComponent}
     </div>
   );
 };

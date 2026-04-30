@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import type { EffectType } from '../../types';
 import type { FullNPCData } from '../../types';
 import { EffectCard } from './EffectCard';
+import { useConfirm } from '../../hooks/useConfirm';
 
 type NpcEffect = FullNPCData['active_effects'][0];
 
@@ -27,6 +28,7 @@ export const NpcEffectsManager = ({
   onDataChanged,
   showError
 }: NpcEffectsManagerProps) => {
+  const { confirm, ConfirmModalComponent } = useConfirm();
   const [effectsSubTab, setEffectsSubTab] = useState<EffectsSubTab>('list');
   const [allEffects, setAllEffects] = useState<EffectType[]>([]);
   const [effectsLoading, setEffectsLoading] = useState(false);
@@ -34,14 +36,13 @@ export const NpcEffectsManager = ({
   const [effectSearch, setEffectSearch] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const loadAllEffects = useCallback(async (signal: AbortSignal) => {
+  const loadAllEffects = useCallback(async () => {
     setEffectsLoading(true);
     try {
-      const response = await fetch('/api/effects', { signal });
+      const response = await fetch('/api/effects');
       if (!response.ok) throw new Error();
       setAllEffects(await response.json());
-    } catch (err) {
-      if ((err as Error).name === 'AbortError') return;
+    } catch {
       showError('Не удалось загрузить эффекты');
     } finally {
       setEffectsLoading(false);
@@ -49,21 +50,21 @@ export const NpcEffectsManager = ({
   }, [showError]);
 
   useEffect(() => {
-    if (effectsSubTab === 'add') {
-      const abortController = new AbortController();
-      loadAllEffects(abortController.signal);
-      return () => abortController.abort();
-    }
+    if (effectsSubTab === 'add') loadAllEffects();
   }, [effectsSubTab, loadAllEffects]);
 
-  const handleRemoveEffect = async (effectId: number) => {
-    if (!confirm('Удалить эффект?')) return;
-    try {
-      await fetch(`/api/npcs/${npcId}/effects/${effectId}`, { method: 'DELETE' });
-      await onDataChanged();
-    } catch {
-      showError('Ошибка удаления');
-    }
+  const handleRemoveEffect = (effectId: number) => {
+    confirm({
+      message: 'Удалить эффект?',
+      onConfirm: async () => {
+        try {
+          await fetch(`/api/npcs/${npcId}/effects/${effectId}`, { method: 'DELETE' });
+          await onDataChanged();
+        } catch {
+          showError('Ошибка удаления');
+        }
+      }
+    });
   };
 
   const handleAddEffects = async () => {
@@ -87,7 +88,6 @@ export const NpcEffectsManager = ({
   };
 
   const renderCurrentEffects = () => {
-    // Разделяем активные эффекты на пассивные от способностей и остальные временные
     const passiveAbilityEffects = activeEffects.filter(
       (effect) => effect.source_type === 'ability' && effect.remaining_turns === null && effect.remaining_days === null
     );
@@ -110,7 +110,6 @@ export const NpcEffectsManager = ({
 
     return (
       <div className="space-y-6 max-h-[60vh] overflow-y-auto">
-        {/* Расовые эффекты */}
         {raceEffects.length > 0 && (
           <div>
             <h3 className="text-md font-semibold text-purple-700 mb-2 flex items-center gap-2">
@@ -130,7 +129,6 @@ export const NpcEffectsManager = ({
           </div>
         )}
 
-        {/* Пассивные эффекты предметов */}
         {itemPassiveEffects.length > 0 && (
           <div>
             <h3 className="text-md font-semibold text-blue-700 mb-2 flex items-center gap-2">
@@ -150,7 +148,6 @@ export const NpcEffectsManager = ({
           </div>
         )}
 
-        {/* Пассивные способности */}
         {passiveAbilityEffects.length > 0 && (
           <div>
             <h3 className="text-md font-semibold text-indigo-700 mb-2 flex items-center gap-2">
@@ -170,7 +167,6 @@ export const NpcEffectsManager = ({
           </div>
         )}
 
-        {/* Временные эффекты */}
         {temporaryEffects.length > 0 && (
           <div>
             <h3 className="text-md font-semibold text-gray-700 mb-2 flex items-center gap-2">
@@ -277,6 +273,7 @@ export const NpcEffectsManager = ({
       ) : (
         renderAddEffects()
       )}
+      {ConfirmModalComponent}
     </div>
   );
 };

@@ -1,6 +1,7 @@
 // client/src/components/ui/NpcItemsManager.tsx
 import { useState, useEffect, useCallback } from 'react';
 import type { ItemType, FullNPCData } from '../../types';
+import { useConfirm } from '../../hooks/useConfirm';
 
 type NpcItem = FullNPCData['items'][0];
 
@@ -14,6 +15,7 @@ interface NpcItemsManagerProps {
 type ItemsSubTab = 'list' | 'add';
 
 export const NpcItemsManager = ({ npcId, items, onDataChanged, showError }: NpcItemsManagerProps) => {
+  const { confirm, ConfirmModalComponent } = useConfirm();
   const [itemsSubTab, setItemsSubTab] = useState<ItemsSubTab>('list');
   const [allItems, setAllItems] = useState<ItemType[]>([]);
   const [itemsLoading, setItemsLoading] = useState(false);
@@ -21,14 +23,13 @@ export const NpcItemsManager = ({ npcId, items, onDataChanged, showError }: NpcI
   const [itemSearch, setItemSearch] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const loadAllItems = useCallback(async (signal: AbortSignal) => {
+  const loadAllItems = useCallback(async () => {
     setItemsLoading(true);
     try {
-      const response = await fetch('/api/items', { signal });
+      const response = await fetch('/api/items');
       if (!response.ok) throw new Error();
       setAllItems(await response.json());
-    } catch (err) {
-      if ((err as Error).name === 'AbortError') return;
+    } catch {
       showError('Не удалось загрузить предметы');
     } finally {
       setItemsLoading(false);
@@ -36,43 +37,47 @@ export const NpcItemsManager = ({ npcId, items, onDataChanged, showError }: NpcI
   }, [showError]);
 
   useEffect(() => {
-    if (itemsSubTab === 'add') {
-      const abortController = new AbortController();
-      loadAllItems(abortController.signal);
-      return () => abortController.abort();
-    }
+    if (itemsSubTab === 'add') loadAllItems();
   }, [itemsSubTab, loadAllItems]);
 
-  const handleRemoveItem = async (itemId: number) => {
-    if (!confirm('Удалить предмет?')) return;
-    try {
-      await fetch(`/api/npcs/${npcId}/items/${itemId}`, { method: 'DELETE' });
-      await onDataChanged();
-    } catch {
-      showError('Ошибка удаления');
-    }
+  const handleRemoveItem = (itemId: number) => {
+    confirm({
+      message: 'Удалить предмет?',
+      onConfirm: async () => {
+        try {
+          await fetch(`/api/npcs/${npcId}/items/${itemId}`, { method: 'DELETE' });
+          await onDataChanged();
+        } catch {
+          showError('Ошибка удаления');
+        }
+      }
+    });
   };
 
-  const handleUseItem = async (npcItemId: number, itemName: string) => {
+  const handleUseItem = (npcItemId: number, itemName: string) => {
     if (!npcItemId) {
       showError('Ошибка: идентификатор предмета не найден');
       return;
     }
-    if (!confirm(`Использовать предмет "${itemName}"?`)) return;
-    try {
-      const response = await fetch(`/api/npc-items/${npcId}/items/${npcItemId}/use`, {
-        method: 'POST',
-      });
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(text);
+    confirm({
+      message: `Использовать предмет "${itemName}"?`,
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/npc-items/${npcId}/items/${npcItemId}/use`, {
+            method: 'POST',
+          });
+          if (!response.ok) {
+            const text = await response.text();
+            throw new Error(text);
+          }
+          await onDataChanged();
+          showError(`✅ ${itemName} использован!`);
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : 'Ошибка использования предмета';
+          showError(message);
+        }
       }
-      await onDataChanged();
-      showError(`✅ ${itemName} использован!`);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Ошибка использования предмета';
-      showError(message);
-    }
+    });
   };
 
   const handleAddItems = async () => {
@@ -137,7 +142,6 @@ export const NpcItemsManager = ({ npcId, items, onDataChanged, showError }: NpcI
 
   const renderAddItems = () => {
     const filtered = allItems.filter(i => i.name.toLowerCase().includes(itemSearch.toLowerCase()));
-    // Создаём карту текущего количества предметов у NPC
     const currentQuantityMap: Record<number, number> = {};
     items.forEach(item => {
       currentQuantityMap[item.id] = item.quantity;
@@ -225,6 +229,7 @@ export const NpcItemsManager = ({ npcId, items, onDataChanged, showError }: NpcI
       ) : (
         renderAddItems()
       )}
+      {ConfirmModalComponent}
     </div>
   );
 };

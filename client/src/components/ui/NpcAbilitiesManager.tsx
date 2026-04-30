@@ -1,6 +1,7 @@
 // client/src/components/ui/NpcAbilitiesManager.tsx
 import { useState, useEffect, useCallback } from 'react';
 import type { AbilityType, FullNPCData } from '../../types';
+import { useConfirm } from '../../hooks/useConfirm';
 
 type NpcAbility = FullNPCData['abilities'][0];
 
@@ -14,6 +15,7 @@ interface NpcAbilitiesManagerProps {
 type AbilitiesSubTab = 'list' | 'add';
 
 export const NpcAbilitiesManager = ({ npcId, abilities, onDataChanged, showError }: NpcAbilitiesManagerProps) => {
+  const { confirm, ConfirmModalComponent } = useConfirm();
   const [abilitiesSubTab, setAbilitiesSubTab] = useState<AbilitiesSubTab>('list');
   const [allAbilities, setAllAbilities] = useState<AbilityType[]>([]);
   const [abilitiesLoading, setAbilitiesLoading] = useState(false);
@@ -21,30 +23,33 @@ export const NpcAbilitiesManager = ({ npcId, abilities, onDataChanged, showError
   const [abilitySearch, setAbilitySearch] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleUseAbility = async (abilityId: number, abilityName: string) => {
-    if (!confirm(`Использовать способность "${abilityName}"?`)) return;
-    try {
-      const response = await fetch(`/api/npc-abilities/${npcId}/abilities/${abilityId}/use`, { method: 'POST' });
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(text);
+  const handleUseAbility = (abilityId: number, abilityName: string) => {
+    confirm({
+      message: `Использовать способность "${abilityName}"?`,
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/npc-abilities/${npcId}/abilities/${abilityId}/use`, { method: 'POST' });
+          if (!response.ok) {
+            const text = await response.text();
+            throw new Error(text);
+          }
+          await onDataChanged();
+          showError(`✅ ${abilityName} использована!`);
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : 'Ошибка использования способности';
+          showError(message);
+        }
       }
-      await onDataChanged();
-      showError(`✅ ${abilityName} использована!`);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Ошибка использования способности';
-      showError(message);
-    }
+    });
   };
 
-  const loadAllAbilities = useCallback(async (signal: AbortSignal) => {
+  const loadAllAbilities = useCallback(async () => {
     setAbilitiesLoading(true);
     try {
-      const response = await fetch('/api/abilities', { signal });
+      const response = await fetch('/api/abilities');
       if (!response.ok) throw new Error();
       setAllAbilities(await response.json());
-    } catch (err) {
-      if ((err as Error).name === 'AbortError') return;
+    } catch {
       showError('Не удалось загрузить способности');
     } finally {
       setAbilitiesLoading(false);
@@ -52,11 +57,7 @@ export const NpcAbilitiesManager = ({ npcId, abilities, onDataChanged, showError
   }, [showError]);
 
   useEffect(() => {
-    if (abilitiesSubTab === 'add') {
-      const abortController = new AbortController();
-      loadAllAbilities(abortController.signal);
-      return () => abortController.abort();
-    }
+    if (abilitiesSubTab === 'add') loadAllAbilities();
   }, [abilitiesSubTab, loadAllAbilities]);
 
   const handleToggleAbilityActive = async (abilityId: number) => {
@@ -74,14 +75,18 @@ export const NpcAbilitiesManager = ({ npcId, abilities, onDataChanged, showError
     }
   };
 
-  const handleRemoveAbility = async (abilityId: number) => {
-    if (!confirm('Удалить способность?')) return;
-    try {
-      await fetch(`/api/npcs/${npcId}/abilities/${abilityId}`, { method: 'DELETE' });
-      await onDataChanged();
-    } catch {
-      showError('Ошибка удаления');
-    }
+  const handleRemoveAbility = (abilityId: number) => {
+    confirm({
+      message: 'Удалить способность?',
+      onConfirm: async () => {
+        try {
+          await fetch(`/api/npcs/${npcId}/abilities/${abilityId}`, { method: 'DELETE' });
+          await onDataChanged();
+        } catch {
+          showError('Ошибка удаления');
+        }
+      }
+    });
   };
 
   const handleAddAbilities = async () => {
@@ -240,6 +245,7 @@ export const NpcAbilitiesManager = ({ npcId, abilities, onDataChanged, showError
       ) : (
         renderAddAbilities()
       )}
+      {ConfirmModalComponent}
     </div>
   );
 };

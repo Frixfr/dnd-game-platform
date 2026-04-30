@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { PlayerEffectExtended, EffectType } from '../../types';
 import { EffectCard } from './EffectCard';
+import { useConfirm } from '../../hooks/useConfirm';
 
 interface PlayerEffectsManagerProps {
   playerId: number;
@@ -24,6 +25,7 @@ export const PlayerEffectsManager = ({
   onDataChanged, 
   showError 
 }: PlayerEffectsManagerProps) => {
+  const { confirm, ConfirmModalComponent } = useConfirm();
   const [effectsSubTab, setEffectsSubTab] = useState<EffectsSubTab>('list');
   const [allEffects, setAllEffects] = useState<EffectType[]>([]);
   const [effectsLoading, setEffectsLoading] = useState(false);
@@ -31,14 +33,13 @@ export const PlayerEffectsManager = ({
   const [effectSearch, setEffectSearch] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const loadAllEffects = useCallback(async (signal: AbortSignal) => {
+  const loadAllEffects = useCallback(async () => {
     setEffectsLoading(true);
     try {
-      const response = await fetch('/api/effects', { signal });
+      const response = await fetch('/api/effects');
       if (!response.ok) throw new Error();
       setAllEffects(await response.json());
-    } catch (err) {
-      if ((err as Error).name === 'AbortError') return;
+    } catch {
       showError('Не удалось загрузить эффекты');
     } finally {
       setEffectsLoading(false);
@@ -46,21 +47,21 @@ export const PlayerEffectsManager = ({
   }, [showError]);
 
   useEffect(() => {
-    if (effectsSubTab === 'add') {
-      const abortController = new AbortController();
-      loadAllEffects(abortController.signal);
-      return () => abortController.abort();
-    }
+    if (effectsSubTab === 'add') loadAllEffects();
   }, [effectsSubTab, loadAllEffects]);
 
-  const handleRemoveEffect = async (effectId: number) => {
-    if (!confirm('Удалить эффект?')) return;
-    try {
-      await fetch(`/api/players/${playerId}/effects/${effectId}`, { method: 'DELETE' });
-      await onDataChanged();
-    } catch {
-      showError('Ошибка удаления');
-    }
+  const handleRemoveEffect = (effectId: number) => {
+    confirm({
+      message: 'Удалить эффект?',
+      onConfirm: async () => {
+        try {
+          await fetch(`/api/players/${playerId}/effects/${effectId}`, { method: 'DELETE' });
+          await onDataChanged();
+        } catch {
+          showError('Ошибка удаления');
+        }
+      }
+    });
   };
 
   const handleAddEffects = async () => {
@@ -84,15 +85,11 @@ export const PlayerEffectsManager = ({
   };
 
   const renderCurrentEffects = () => {
-    // Разделяем активные эффекты на пассивные от способностей и остальные временные
     const passiveAbilityEffects = activeEffects.filter(
       (effect) => effect.source_type === 'ability' && effect.remaining_turns === null && effect.remaining_days === null
     );
-    // Все остальные эффекты (временные, от активных способностей, предметов, админа)
     const temporaryEffects = activeEffects.filter((effect) => {
-      // Исключаем пассивные способности (без длительности)
       if (effect.source_type === 'ability' && effect.remaining_turns === null && effect.remaining_days === null) return false;
-      // Исключаем эффекты с истекшим временем
       if ((effect.remaining_turns !== null && effect.remaining_turns <= 0) ||
           (effect.remaining_days !== null && effect.remaining_days <= 0)) return false;
       return true;
@@ -110,7 +107,6 @@ export const PlayerEffectsManager = ({
 
     return (
       <div className="space-y-6 max-h-[60vh] overflow-y-auto">
-        {/* Расовые эффекты (без изменений) */}
         {raceEffects.length > 0 && (
           <div>
             <h3 className="text-md font-semibold text-purple-700 mb-2 flex items-center gap-2">
@@ -130,7 +126,6 @@ export const PlayerEffectsManager = ({
           </div>
         )}
 
-        {/* Пассивные эффекты предметов (без изменений) */}
         {itemPassiveEffects.length > 0 && (
           <div>
             <h3 className="text-md font-semibold text-blue-700 mb-2 flex items-center gap-2">
@@ -150,7 +145,6 @@ export const PlayerEffectsManager = ({
           </div>
         )}
 
-        {/* Пассивные способности (новый блок) */}
         {passiveAbilityEffects.length > 0 && (
           <div>
             <h3 className="text-md font-semibold text-indigo-700 mb-2 flex items-center gap-2">
@@ -164,14 +158,12 @@ export const PlayerEffectsManager = ({
                   sourceType="ability"
                   sourceName={effect.source_name}
                   showDescription
-                  // без onDelete — нельзя удалить
                 />
               ))}
             </div>
           </div>
         )}
 
-        {/* Временные эффекты (бывшие «Активные») */}
         {temporaryEffects.length > 0 && (
           <div>
             <h3 className="text-md font-semibold text-gray-700 mb-2 flex items-center gap-2">
@@ -236,6 +228,7 @@ export const PlayerEffectsManager = ({
           {renderCurrentEffects()}
         </div>
       ) : renderAddEffects()}
+      {ConfirmModalComponent}
     </div>
   );
 };

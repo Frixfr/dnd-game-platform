@@ -1,5 +1,7 @@
+// client/src/components/ui/EditAbilityModal.tsx
 import { useState, useEffect } from 'react';
 import type { AbilityType, EffectType } from '../../types';
+import { useConfirm } from '../../hooks/useConfirm';
 
 interface EditAbilityModalProps {
   ability: AbilityType | null;
@@ -18,6 +20,7 @@ export const EditAbilityModal = ({
   mode = 'edit',
   effects: externalEffects = []
 }: EditAbilityModalProps) => {
+  const { confirm, ConfirmModalComponent } = useConfirm();
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -34,23 +37,20 @@ export const EditAbilityModal = ({
   
   useEffect(() => {
     if (externalEffects.length === 0) {
-      const abortController = new AbortController();
       const loadEffects = async () => {
         setEffectsLoading(true);
         try {
-          const response = await fetch('/api/effects', { signal: abortController.signal });
+          const response = await fetch('/api/effects');
           if (!response.ok) throw new Error('Ошибка загрузки эффектов');
           const data = await response.json();
           setAllEffects(data || []);
         } catch (err) {
-          if ((err as Error).name === 'AbortError') return;
           console.error('Ошибка загрузки эффектов:', err);
         } finally {
           setEffectsLoading(false);
         }
       };
       loadEffects();
-      return () => abortController.abort();
     } else {
       setAllEffects(externalEffects);
     }
@@ -168,33 +168,31 @@ export const EditAbilityModal = ({
     }
   };
   
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (mode !== 'edit' || !ability) return;
-    
-    if (!confirm('Вы уверены, что хотите удалить эту способность? Это действие нельзя отменить.')) {
-      return;
-    }
-    
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const response = await fetch(`/api/abilities/${ability.id}`, {
-        method: 'DELETE',
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Ошибка удаления способности');
+    confirm({
+      message: 'Вы уверены, что хотите удалить эту способность? Это действие нельзя отменить.',
+      onConfirm: async () => {
+        setLoading(true);
+        setError(null);
+        try {
+          const response = await fetch(`/api/abilities/${ability.id}`, {
+            method: 'DELETE',
+          });
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Ошибка удаления способности');
+          }
+          onClose();
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : 'Произошла ошибка при удалении способности';
+          setError(message);
+          console.error('Ошибка удаления:', err);
+        } finally {
+          setLoading(false);
+        }
       }
-      onClose();
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Произошла ошибка при удалении способности';
-      setError(message);
-      console.error('Ошибка удаления:', err);
-    } finally {
-      setLoading(false);
-    }
+    });
   };
   
   const modalTitle = mode === 'edit' ? `Редактирование способности` : 'Создание новой способности';
@@ -295,6 +293,7 @@ export const EditAbilityModal = ({
           </form>
         </div>
       </div>
+      {ConfirmModalComponent}
     </div>
   );
 };

@@ -1,6 +1,7 @@
 // client/src/components/ui/EditEffectModal.tsx
 import { useState, useEffect } from 'react';
 import type { EffectType } from '../../types';
+import { useConfirm } from '../../hooks/useConfirm';
 
 interface EditEffectModalProps {
   effect: EffectType | null;
@@ -40,6 +41,7 @@ export const EditEffectModal = ({
   onEffectCreated,
   mode = 'edit' 
 }: EditEffectModalProps) => {
+  const { confirm, ConfirmModalComponent } = useConfirm();
   const [formData, setFormData] = useState<FormData>({
     name: '',
     description: '',
@@ -65,7 +67,7 @@ export const EditEffectModal = ({
         duration_turns: effect.duration_turns || null,
         duration_days: effect.duration_days || null,
         is_permanent: effect.is_permanent || false,
-        tags: effect.tags || []           // ← добавлено
+        tags: effect.tags || []
       });
     } else if (mode === 'create') {
       setFormData({
@@ -108,7 +110,6 @@ export const EditEffectModal = ({
     }
   };
 
-  // Обработчик изменения тегов (строка через запятую)
   const handleTagsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value;
     const tagsArray = raw.split(',').map(s => s.trim()).filter(s => s.length > 0);
@@ -144,7 +145,6 @@ export const EditEffectModal = ({
       errors.modifier = 'Модификатор должен быть в диапазоне от -100 до 100';
     }
 
-    // Новая валидация тегов
     if (formData.tags.length > 10) {
       errors.tags = 'Максимум 10 тегов';
     } else {
@@ -233,30 +233,29 @@ export const EditEffectModal = ({
     }
   };
   
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (mode !== 'edit' || !effect) return;
-    
-    if (!confirm('Вы уверены, что хотите удалить этот эффект? Это действие нельзя отменить.')) {
-      return;
-    }
-    
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const response = await fetch(`/api/effects/${effect.id}`, { method: 'DELETE' });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Ошибка удаления эффекта');
+    confirm({
+      message: 'Вы уверены, что хотите удалить этот эффект? Это действие нельзя отменить.',
+      onConfirm: async () => {
+        setLoading(true);
+        setError(null);
+        try {
+          const response = await fetch(`/api/effects/${effect.id}`, { method: 'DELETE' });
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Ошибка удаления эффекта');
+          }
+          onClose();
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : 'Произошла ошибка при удалении эффекта';
+          setError(message);
+          console.error('Ошибка удаления:', err);
+        } finally {
+          setLoading(false);
+        }
       }
-      onClose();
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Произошла ошибка при удалении эффекта';
-      setError(message);
-      console.error('Ошибка удаления:', err);
-    } finally {
-      setLoading(false);
-    }
+    });
   };
   
   const modalTitle = mode === 'edit' ? 'Редактирование эффекта' : 'Создание нового эффекта';
@@ -279,7 +278,6 @@ export const EditEffectModal = ({
           )}
           
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Основные поля */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Название эффекта *</label>
@@ -312,7 +310,6 @@ export const EditEffectModal = ({
               </div>
             </div>
             
-            {/* Описание */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Описание</label>
               <textarea
@@ -325,7 +322,6 @@ export const EditEffectModal = ({
               />
             </div>
             
-            {/* Теги (новое поле) */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Теги (через запятую)
@@ -346,7 +342,6 @@ export const EditEffectModal = ({
               <p className="text-xs text-gray-500 mt-1">Максимум 10 тегов, каждый до 30 символов</p>
             </div>
             
-            {/* Модификатор и тип эффекта */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Модификатор</label>
@@ -393,7 +388,6 @@ export const EditEffectModal = ({
               </div>
             </div>
             
-            {/* Длительность (только для временных эффектов) */}
             {!formData.is_permanent && (
               <div className="bg-blue-50 p-4 rounded-md border border-blue-100">
                 <h3 className="font-medium text-gray-800 mb-3">Длительность эффекта</h3>
@@ -432,7 +426,6 @@ export const EditEffectModal = ({
               </div>
             )}
             
-            {/* Кнопки */}
             <div className="flex justify-between pt-6 border-t">
               <div>
                 {mode === 'edit' && effect && (
@@ -467,6 +460,7 @@ export const EditEffectModal = ({
           </form>
         </div>
       </div>
+      {ConfirmModalComponent}
     </div>
   );
 };

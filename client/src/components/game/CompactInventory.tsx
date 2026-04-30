@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { Package, Trash2, Send, Zap, ArrowRight } from "lucide-react";
 import type { PlayerItemExtended } from "../../types";
 import { useNotification } from "../../hooks/useNotification";
+import { useConfirm } from "../../hooks/useConfirm";
 import TransferItemPopover from "./TransferItemPopover";
 
 interface CompactInventoryProps {
@@ -14,6 +15,7 @@ interface CompactInventoryProps {
 export const CompactInventory: React.FC<CompactInventoryProps> = ({ items, playerId, onRefresh }) => {
   const [transferItem, setTransferItem] = useState<PlayerItemExtended | null>(null);
   const { showError, showSuccess } = useNotification();
+  const { confirm, ConfirmModalComponent } = useConfirm();
 
   const usableItems = items.filter(i => i.is_usable);
   const recentItems = usableItems.slice(0, 3);
@@ -36,23 +38,27 @@ export const CompactInventory: React.FC<CompactInventoryProps> = ({ items, playe
     }
   };
 
-  const handleDiscard = async (item: PlayerItemExtended) => {
+  const handleDiscard = (item: PlayerItemExtended) => {
     if (!item.player_item_id) return;
-    if (!confirm(`Выбросить ${item.name}?`)) return;
-    try {
-      const response = await fetch(`/api/player-items/${playerId}/items/${item.player_item_id}/discard`, {
-        method: "DELETE",
-      });
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error);
+    confirm({
+      message: `Выбросить ${item.name}?`,
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/player-items/${playerId}/items/${item.player_item_id}/discard`, {
+            method: "DELETE",
+          });
+          if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.error);
+          }
+          showSuccess(`Предмет ${item.name} выброшен`);
+          onRefresh();
+        } catch (err: unknown) {
+          const errorMessage = err instanceof Error ? err.message : "Ошибка выбрасывания";
+          showError(errorMessage);
+        }
       }
-      showSuccess(`Предмет ${item.name} выброшен`);
-      onRefresh();
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : "Ошибка выбрасывания";
-      showError(errorMessage);
-    }
+    });
   };
 
   if (recentItems.length === 0) {
@@ -116,6 +122,7 @@ export const CompactInventory: React.FC<CompactInventoryProps> = ({ items, playe
         onClose={() => setTransferItem(null)}
         onTransfer={onRefresh}
       />
+      {ConfirmModalComponent}
     </div>
   );
 };
