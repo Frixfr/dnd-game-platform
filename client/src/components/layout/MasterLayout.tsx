@@ -4,11 +4,32 @@ import { Outlet, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import { MasterRequestsListener } from './MasterRequestsListener';
+import { useAbilityStore } from '../../stores/abilityStore';
+import { useCombatStore } from '../../stores/combatStore';
+import { useEffectStore } from '../../stores/effectStore';
+import { useItemStore } from '../../stores/itemStore';
+import { useLogStore } from '../../stores/logStore';
+import { useMapStore } from '../../stores/mapStore';
+import { useRaceStore } from '../../stores/raceStore';
+import { usePlayerStore } from '../../stores/playerStore';
+import { useNpcStore } from '../../stores/npcStore';
 
 const MasterLayout: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    usePlayerStore.getState().initializeSocket();
+    useNpcStore.getState().initializeSocket();
+    useRaceStore.getState().initializeSocket();
+    useAbilityStore.getState().initializeSocket();
+    useEffectStore.getState().initializeSocket();
+    useItemStore.getState().initializeSocket();
+    useMapStore.getState().initializeSocket();
+    useCombatStore.getState().initializeSocket();
+    useLogStore.getState().initializeSocket();
+  }, []);
 
   useEffect(() => {
     const handleResize = () => {

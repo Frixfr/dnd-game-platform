@@ -4,14 +4,19 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import type { PlayerType } from "../types";
 import { socket } from "../lib/socket";
 
+let sessionSocketHandlers: {
+  onPlayerUpdated: (player: PlayerType) => void;
+  onPlayerDeleted: (playerId: number) => void;
+} | null = null;
+let sessionSocketInitialized = false;
+
 interface PlayerSessionStore {
   selectedPlayer: PlayerType | null;
   setSelectedPlayer: (player: PlayerType | null) => void;
   clearSession: () => void;
   initializeSessionSocket: () => void;
+  disconnectSocket: () => void;
 }
-
-let sessionSocketInitialized = false;
 
 export const usePlayerSessionStore = create<PlayerSessionStore>()(
   persist(
@@ -23,22 +28,34 @@ export const usePlayerSessionStore = create<PlayerSessionStore>()(
         if (sessionSocketInitialized) return;
         sessionSocketInitialized = true;
 
-        socket.on("player:updated", (updatedPlayer: PlayerType) => {
+        const onPlayerUpdated = (updatedPlayer: PlayerType) => {
           const current = get().selectedPlayer;
           if (current && current.id === updatedPlayer.id) {
             console.log("Обновление выбранного игрока через сокет");
-            // ✅ Создаём новый объект, чтобы React точно заметил изменение
             set({ selectedPlayer: { ...updatedPlayer } });
           }
-        });
-
-        socket.on("player:deleted", (playerId: number) => {
+        };
+        const onPlayerDeleted = (playerId: number) => {
           const current = get().selectedPlayer;
           if (current && current.id === playerId) {
             console.log("Выбранный игрок удалён, очищаем сессию");
             set({ selectedPlayer: null });
           }
-        });
+        };
+
+        socket.on("player:updated", onPlayerUpdated);
+        socket.on("player:deleted", onPlayerDeleted);
+
+        sessionSocketHandlers = { onPlayerUpdated, onPlayerDeleted };
+      },
+      disconnectSocket: () => {
+        if (!sessionSocketInitialized || !sessionSocketHandlers) return;
+        const { onPlayerUpdated, onPlayerDeleted } = sessionSocketHandlers;
+        socket.off("player:updated", onPlayerUpdated);
+        socket.off("player:deleted", onPlayerDeleted);
+        sessionSocketInitialized = false;
+        sessionSocketHandlers = null;
+        console.log("PlayerSessionStore socket handlers removed");
       },
     }),
     {

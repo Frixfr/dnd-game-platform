@@ -10,6 +10,15 @@ interface PaginatedResponse<T> {
   limit: number;
 }
 
+// Хранилище для обработчиков сокетов (чтобы потом отключить)
+let playerSocketHandlers: {
+  onConnect: () => void;
+  onCreated: (player: PlayerType) => void;
+  onUpdated: (player: PlayerType) => void;
+  onDeleted: (playerId: number) => void;
+} | null = null;
+let playerSocketInitialized = false;
+
 interface PlayerStore {
   players: PlayerType[];
   playersTotal: number;
@@ -17,6 +26,7 @@ interface PlayerStore {
   limit: number;
   socket: typeof socket;
   initializeSocket: () => void;
+  disconnectSocket: () => void; // <-- добавили
   setPlayers: (
     players: PlayerType[],
     total: number,
@@ -44,8 +54,6 @@ interface PlayerStore {
   ) => Promise<void>;
 }
 
-let playerSocketInitialized = false;
-
 export const usePlayerStore = create<PlayerStore>((set, get) => ({
   players: [],
   playersTotal: 0,
@@ -57,18 +65,13 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
     if (playerSocketInitialized) return;
     playerSocketInitialized = true;
 
-    // Диагностика подключения
-    socket.on("connect", () => {
+    const onConnect = async () => {
       console.log("✅ [playerStore] Socket connected");
-    });
-    socket.on("connect_error", (err) => {
-      console.error("❌ [playerStore] Socket connection error:", err);
-    });
-    socket.on("disconnect", (reason) => {
-      console.warn("⚠️ [playerStore] Socket disconnected:", reason);
-    });
+      const { currentPage, limit, fetchPlayers } = get();
+      await fetchPlayers(currentPage, limit);
+    };
 
-    socket.on("player:created", (newPlayer: PlayerType) => {
+    const onCreated = (newPlayer: PlayerType) => {
       console.log("📢 [playerStore] player:created", newPlayer.id);
       set((state) => {
         if (state.currentPage === 1 && state.players.length < state.limit) {
@@ -80,36 +83,45 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
           return { playersTotal: state.playersTotal + 1 };
         }
       });
-    });
+    };
 
-    socket.on("player:updated", (updatedPlayer: PlayerType) => {
+    const onUpdated = (updatedPlayer: PlayerType) => {
       console.log("🔄 [playerStore] player:updated", updatedPlayer.id);
       set((state) => {
         const index = state.players.findIndex((p) => p.id === updatedPlayer.id);
-        if (index === -1) {
-          // Если игрока нет в текущем списке (другая страница) – ничего не делаем
-          console.log("Игрок не в текущем списке, пропускаем обновление");
-          return {};
-        }
+        if (index === -1) return {};
         const newPlayers = [...state.players];
         newPlayers[index] = updatedPlayer;
         return { players: newPlayers };
       });
-    });
+    };
 
-    socket.on("player:deleted", (playerId: number) => {
+    const onDeleted = (playerId: number) => {
       console.log("🗑️ [playerStore] player:deleted", playerId);
       set((state) => ({
         players: state.players.filter((p) => p.id !== playerId),
         playersTotal: state.playersTotal - 1,
       }));
-    });
+    };
 
-    // При повторном подключении перезагружаем текущую страницу
-    socket.on("connect", async () => {
-      const { currentPage, limit, fetchPlayers } = get();
-      await fetchPlayers(currentPage, limit);
-    });
+    socket.on("connect", onConnect);
+    socket.on("player:created", onCreated);
+    socket.on("player:updated", onUpdated);
+    socket.on("player:deleted", onDeleted);
+
+    playerSocketHandlers = { onConnect, onCreated, onUpdated, onDeleted };
+  },
+
+  disconnectSocket: () => {
+    if (!playerSocketInitialized || !playerSocketHandlers) return;
+    const { onConnect, onCreated, onUpdated, onDeleted } = playerSocketHandlers;
+    socket.off("connect", onConnect);
+    socket.off("player:created", onCreated);
+    socket.off("player:updated", onUpdated);
+    socket.off("player:deleted", onDeleted);
+    playerSocketInitialized = false;
+    playerSocketHandlers = null;
+    console.log("PlayerStore socket handlers removed");
   },
 
   fetchPlayers: async (page = 1, limit = 20) => {
@@ -176,9 +188,7 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
   executeUseItem: async (playerId: number, playerItemId: number) => {
     const response = await fetch(
       `/api/player-items/${playerId}/items/${playerItemId}/use`,
-      {
-        method: "POST",
-      },
+      { method: "POST" },
     );
     if (!response.ok) {
       const text = await response.text();
@@ -189,9 +199,7 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
   executeUseAbility: async (playerId: number, abilityId: number) => {
     const response = await fetch(
       `/api/players/${playerId}/abilities/${abilityId}/use`,
-      {
-        method: "POST",
-      },
+      { method: "POST" },
     );
     if (!response.ok) {
       const text = await response.text();

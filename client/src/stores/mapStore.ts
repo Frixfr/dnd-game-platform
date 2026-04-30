@@ -8,6 +8,19 @@ import type {
   AvailableEntities,
 } from "../types";
 
+type RawToken = MapTokenType;
+
+let mapSocketHandlers: {
+  onConnect: () => void;
+  onCreated: () => void;
+  onUpdated: (updatedMap: MapType) => void;
+  onDeleted: (deletedId: number) => void;
+  onActiveChanged: (activeMapData: MapWithTokensType | null) => void;
+  onTokensUpdated: (data: { mapId: number; tokens: RawToken[] }) => void;
+  onActiveTokensUpdated: () => void;
+} | null = null;
+let mapSocketInitialized = false;
+
 interface MapStore {
   maps: MapType[];
   activeMap: MapWithTokensType | null;
@@ -34,9 +47,8 @@ interface MapStore {
   ) => Promise<void>;
   getAvailableEntities: () => Promise<AvailableEntities>;
   initializeSocket: () => void;
+  disconnectSocket: () => void;
 }
-
-let mapSocketInitialized = false;
 
 export const useMapStore = create<MapStore>((set, get) => ({
   maps: [],
@@ -48,70 +60,89 @@ export const useMapStore = create<MapStore>((set, get) => ({
     if (mapSocketInitialized) return;
     mapSocketInitialized = true;
 
-    socket.on("map:created", () => {
+    const onConnect = () => {
       get().fetchMaps();
-    });
-    socket.on("map:updated", (updatedMap) => {
+    };
+    const onCreated = () => {
+      get().fetchMaps();
+    };
+    const onUpdated = (updatedMap: MapType) => {
       get().fetchMaps();
       if (get().currentMap?.id === updatedMap.id) {
         get().fetchMap(updatedMap.id);
       }
-    });
-    socket.on("map:deleted", (deletedId) => {
+    };
+    const onDeleted = (deletedId: number) => {
       get().fetchMaps();
       if (get().currentMap?.id === deletedId) {
         set({ currentMap: null });
       }
-    });
-
-    // Новый обработчик: при смене активной карты перезагружаем полные данные
-    socket.on("map:active-changed", async (activeMapData) => {
+    };
+    const onActiveChanged = async (activeMapData: MapWithTokensType | null) => {
       console.log("[mapStore] map:active-changed received:", activeMapData);
-      try {
-        // Если данные falsy (null, undefined) — карта скрыта
-        if (!activeMapData) {
-          console.log("[mapStore] Активная карта скрыта, устанавливаем null");
-          set({ activeMap: null });
-          return;
-        }
-
-        // Если данные есть — загружаем полную карту с токенами
-        console.log("[mapStore] Загружаем полные данные активной карты");
-        await get().fetchActiveMap();
-      } catch (error) {
-        console.error(
-          "[mapStore] Ошибка при обработке map:active-changed:",
-          error,
-        );
+      if (!activeMapData) {
+        set({ activeMap: null });
+        return;
       }
-    });
-
-    // Обработчик обновления токенов
-    socket.on("map:tokens-updated", async ({ mapId, tokens }) => {
+      await get().fetchActiveMap();
+    };
+    const onTokensUpdated = async ({
+      mapId,
+    }: {
+      mapId: number;
+      tokens: RawToken[];
+    }) => {
       const numericMapId = Number(mapId);
-
-      // Принудительная перезагрузка карты, если это текущая карта
       if (get().currentMap?.id === numericMapId) {
         await get().fetchMap(numericMapId);
-      } else {
-        // Если не текущая, просто обновляем стейт
-        set((state) => {
-          if (state.currentMap && state.currentMap.id === numericMapId) {
-            return { currentMap: { ...state.currentMap, tokens } };
-          }
-          if (state.activeMap && state.activeMap.id === numericMapId) {
-            return { activeMap: { ...state.activeMap, tokens } };
-          }
-          return {};
-        });
+      } else if (get().activeMap?.id === numericMapId) {
+        await get().fetchActiveMap();
       }
-    });
+    };
+    const onActiveTokensUpdated = async () => {
+      await get().fetchActiveMap();
+    };
 
-    socket.on("map:active-tokens-updated", (tokens) => {
-      set((state) => ({
-        activeMap: state.activeMap ? { ...state.activeMap, tokens } : null,
-      }));
-    });
+    socket.on("connect", onConnect);
+    socket.on("map:created", onCreated);
+    socket.on("map:updated", onUpdated);
+    socket.on("map:deleted", onDeleted);
+    socket.on("map:active-changed", onActiveChanged);
+    socket.on("map:tokens-updated", onTokensUpdated);
+    socket.on("map:active-tokens-updated", onActiveTokensUpdated);
+
+    mapSocketHandlers = {
+      onConnect,
+      onCreated,
+      onUpdated,
+      onDeleted,
+      onActiveChanged,
+      onTokensUpdated,
+      onActiveTokensUpdated,
+    };
+  },
+
+  disconnectSocket: () => {
+    if (!mapSocketInitialized || !mapSocketHandlers) return;
+    const {
+      onConnect,
+      onCreated,
+      onUpdated,
+      onDeleted,
+      onActiveChanged,
+      onTokensUpdated,
+      onActiveTokensUpdated,
+    } = mapSocketHandlers;
+    socket.off("connect", onConnect);
+    socket.off("map:created", onCreated);
+    socket.off("map:updated", onUpdated);
+    socket.off("map:deleted", onDeleted);
+    socket.off("map:active-changed", onActiveChanged);
+    socket.off("map:tokens-updated", onTokensUpdated);
+    socket.off("map:active-tokens-updated", onActiveTokensUpdated);
+    mapSocketInitialized = false;
+    mapSocketHandlers = null;
+    console.log("MapStore socket handlers removed");
   },
 
   fetchMaps: async () => {
@@ -132,11 +163,9 @@ export const useMapStore = create<MapStore>((set, get) => ({
       if (res.ok) {
         const data = await res.json();
         set({ currentMap: data });
-      } else {
-        console.error("[mapStore] fetchMap failed with status", res.status);
       }
     } catch (error) {
-      console.error("[mapStore] fetchMap error", error);
+      console.error(error);
     }
   },
 

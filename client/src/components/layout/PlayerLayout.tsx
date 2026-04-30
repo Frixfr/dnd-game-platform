@@ -6,6 +6,9 @@ import PlayerHeader from './PlayerHeader';
 import MobileTabBar from './MobileTabBar';
 import StickyHealthBar from './StickyHealthBar';
 import { usePlayerSessionStore } from '../../stores/playerSessionStore';
+import { useMapStore } from '../../stores/mapStore';
+import { useCombatStore } from '../../stores/combatStore';
+import { useLogStore } from '../../stores/logStore';
 import { socket } from '../../lib/socket';
 
 const PlayerLayout: React.FC = () => {
@@ -17,6 +20,29 @@ const PlayerLayout: React.FC = () => {
   const [hydrated, setHydrated] = useState(false);
   const [showStickyBar, setShowStickyBar] = useState(false);
 
+  // Инициализация сокет-подписок для игрока
+  useEffect(() => {
+    // Переинициализируем сторы, которые нужны игроку
+    usePlayerSessionStore.getState().initializeSessionSocket();
+    useMapStore.getState().initializeSocket();
+    useCombatStore.getState().initializeSocket();
+    useLogStore.getState().initializeSocket();
+
+    // Подключаемся к комнате игрока
+    if (playerId) {
+      socket.emit('join-player', playerId);
+    }
+
+    return () => {
+      if (playerId) {
+        socket.emit('leave', `player:${playerId}`);
+      }
+      // Не отключаем обработчики при размонтировании, 
+      // они будут отключены при логауте через disconnectAllSocketHandlers
+    };
+  }, [playerId]);
+
+  // Остальной код без изменений (hydration, resize, scroll, logout и т.д.)
   useEffect(() => {
     const unsubHydrate = usePlayerSessionStore.persist.onHydrate?.(() => setHydrated(false));
     const unsubFinish = usePlayerSessionStore.persist.onFinishHydration?.(() => setHydrated(true));
@@ -36,18 +62,6 @@ const PlayerLayout: React.FC = () => {
   }, [selectedPlayer, playerId, navigate, hydrated]);
 
   useEffect(() => {
-    usePlayerSessionStore.getState().initializeSessionSocket();
-    if (playerId) {
-      socket.emit('join-player', playerId);
-    }
-    return () => {
-      if (playerId) {
-        socket.emit('leave', `player:${playerId}`);
-      }
-    };
-  }, [playerId]);
-
-  useEffect(() => {
     const handleResize = () => {
       const mobile = window.innerWidth < 768;
       setIsMobile(mobile);
@@ -59,7 +73,6 @@ const PlayerLayout: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Отслеживаем скролл для sticky health bar
   useEffect(() => {
     if (!isMobile) return;
     const main = document.querySelector('main');
@@ -107,14 +120,12 @@ const PlayerLayout: React.FC = () => {
           onLogout={handleLogout}
           playerName={selectedPlayer.name}
         />
-        {/* Sticky health bar (только на мобильных и при скролле) */}
         {isMobile && showStickyBar && (
           <StickyHealthBar health={finalStats.health} maxHealth={finalStats.max_health} armor={finalStats.armor} />
         )}
         <main className="flex-1 overflow-y-auto custom-scrollbar pb-20 md:pb-0">
           <Outlet />
         </main>
-        {/* Нижняя навигация только на мобильных */}
         {isMobile && <MobileTabBar playerId={selectedPlayer.id} />}
       </div>
     </div>

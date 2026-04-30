@@ -1,14 +1,21 @@
 // Нейтральная, профессиональная страница входа с синими акцентами.
 // Полное центрирование по экрану (flex + min-h-screen).
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MasterAuthModal from '../components/ui/MasterAuthModal';
 import PlayerAuthModal from '../components/ui/PlayerAuthModal';
+import { disconnectAllSocketHandlers } from '../lib/socketCleanup';
+import { usePlayerSessionStore } from '../stores/playerSessionStore';
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const [isMasterModalOpen, setIsMasterModalOpen] = useState(false);
   const [isPlayerModalOpen, setIsPlayerModalOpen] = useState(false);
+
+  useEffect(() => {
+    disconnectAllSocketHandlers();
+    usePlayerSessionStore.getState().clearSession();
+  }, []);
 
   const handleMasterLoginSuccess = () => {
     navigate('/master');

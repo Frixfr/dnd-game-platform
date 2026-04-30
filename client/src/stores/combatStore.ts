@@ -1,12 +1,22 @@
+// client/src/stores/combatStore.ts
 import { create } from "zustand";
 import type { CombatSession, CombatParticipantWithDetails } from "../types";
 import { socket } from "../lib/socket";
+
+let combatSocketHandlers: {
+  onCombatUpdated: (data: {
+    session: CombatSession;
+    participants: CombatParticipantWithDetails[];
+  }) => void;
+} | null = null;
+let combatSocketInitialized = false;
 
 interface CombatStore {
   session: CombatSession | null;
   participants: CombatParticipantWithDetails[];
   loading: boolean;
   initializeSocket: () => void;
+  disconnectSocket: () => void;
   fetchActiveSession: () => Promise<void>;
   startNewSession: () => Promise<void>;
   addParticipant: (
@@ -36,8 +46,6 @@ interface CombatStore {
   advanceDay: () => Promise<void>;
 }
 
-let combatSocketInitialized = false;
-
 export const useCombatStore = create<CombatStore>((set, get) => ({
   session: null,
   participants: [],
@@ -47,16 +55,25 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
     if (combatSocketInitialized) return;
     combatSocketInitialized = true;
 
-    socket.on(
-      "combat:updated",
-      (data: {
-        session: CombatSession;
-        participants: CombatParticipantWithDetails[];
-      }) => {
-        console.log("Combat updated", data);
-        set({ session: data.session, participants: data.participants });
-      },
-    );
+    const onCombatUpdated = (data: {
+      session: CombatSession;
+      participants: CombatParticipantWithDetails[];
+    }) => {
+      console.log("Combat updated", data);
+      set({ session: data.session, participants: data.participants });
+    };
+
+    socket.on("combat:updated", onCombatUpdated);
+    combatSocketHandlers = { onCombatUpdated };
+  },
+
+  disconnectSocket: () => {
+    if (!combatSocketInitialized || !combatSocketHandlers) return;
+    const { onCombatUpdated } = combatSocketHandlers;
+    socket.off("combat:updated", onCombatUpdated);
+    combatSocketInitialized = false;
+    combatSocketHandlers = null;
+    console.log("CombatStore socket handlers removed");
   },
 
   fetchActiveSession: async () => {

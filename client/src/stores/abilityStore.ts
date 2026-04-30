@@ -10,6 +10,14 @@ interface PaginatedResponse<T> {
   limit: number;
 }
 
+let abilitySocketHandlers: {
+  onConnect: () => void;
+  onCreated: () => void;
+  onUpdated: () => void;
+  onDeleted: () => void;
+} | null = null;
+let abilitySocketInitialized = false;
+
 interface AbilityStore {
   abilities: AbilityType[];
   abilitiesTotal: number;
@@ -25,11 +33,10 @@ interface AbilityStore {
   updateAbility: (updatedAbility: AbilityType) => void;
   removeAbility: (abilityId: number) => void;
   initializeSocket: () => void;
+  disconnectSocket: () => void;
   fetchAbilities: (page?: number, limit?: number) => Promise<void>;
   fetchAllAbilities: () => Promise<AbilityType[]>;
 }
-
-let abilitySocketInitialized = false;
 
 export const useAbilityStore = create<AbilityStore>((set, get) => ({
   abilities: [],
@@ -62,29 +69,42 @@ export const useAbilityStore = create<AbilityStore>((set, get) => ({
     if (abilitySocketInitialized) return;
     abilitySocketInitialized = true;
 
-    socket.on("ability:created", async () => {
-      console.log("Способность создана (сокет)");
+    const onConnect = async () => {
       const { currentPage, limit, fetchAbilities } = get();
       await fetchAbilities(currentPage, limit);
-    });
+    };
+    const onCreated = async () => {
+      const { currentPage, limit, fetchAbilities } = get();
+      await fetchAbilities(currentPage, limit);
+    };
+    const onUpdated = async () => {
+      const { currentPage, limit, fetchAbilities } = get();
+      await fetchAbilities(currentPage, limit);
+    };
+    const onDeleted = async () => {
+      const { currentPage, limit, fetchAbilities } = get();
+      await fetchAbilities(currentPage, limit);
+    };
 
-    socket.on("ability:updated", async () => {
-      console.log("Способность обновлена (сокет)");
-      const { currentPage, limit, fetchAbilities } = get();
-      await fetchAbilities(currentPage, limit);
-    });
+    socket.on("connect", onConnect);
+    socket.on("ability:created", onCreated);
+    socket.on("ability:updated", onUpdated);
+    socket.on("ability:deleted", onDeleted);
 
-    socket.on("ability:deleted", async () => {
-      console.log("Способность удалена (сокет)");
-      const { currentPage, limit, fetchAbilities } = get();
-      await fetchAbilities(currentPage, limit);
-    });
+    abilitySocketHandlers = { onConnect, onCreated, onUpdated, onDeleted };
+  },
 
-    socket.on("connect", async () => {
-      console.log("Socket connected (abilities)");
-      const { currentPage, limit, fetchAbilities } = get();
-      await fetchAbilities(currentPage, limit);
-    });
+  disconnectSocket: () => {
+    if (!abilitySocketInitialized || !abilitySocketHandlers) return;
+    const { onConnect, onCreated, onUpdated, onDeleted } =
+      abilitySocketHandlers;
+    socket.off("connect", onConnect);
+    socket.off("ability:created", onCreated);
+    socket.off("ability:updated", onUpdated);
+    socket.off("ability:deleted", onDeleted);
+    abilitySocketInitialized = false;
+    abilitySocketHandlers = null;
+    console.log("AbilityStore socket handlers removed");
   },
 
   fetchAbilities: async (page = 1, limit = 20) => {
