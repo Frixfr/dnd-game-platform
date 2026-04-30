@@ -29,10 +29,15 @@ export const CreateItemModal = ({ onClose, onItemCreated }: CreateItemModalProps
   const [selectedPassiveEffectId, setSelectedPassiveEffectId] = useState<string>('');
 
   useEffect(() => {
-    fetch('/api/effects?limit=9999')
+    const abortController = new AbortController();
+    fetch('/api/effects?limit=9999', { signal: abortController.signal })
       .then(res => res.json())
       .then(data => setAllEffects(Array.isArray(data) ? data : data.data || []))
-      .catch(console.error);
+      .catch(err => {
+        if (err.name === 'AbortError') return;
+        console.error(err);
+      });
+    return () => abortController.abort();
   }, []);
 
   useEffect(() => {

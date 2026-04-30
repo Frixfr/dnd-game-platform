@@ -21,13 +21,14 @@ export const PlayerAbilitiesManager = ({ playerId, abilities, onDataChanged, sho
   const [loading, setLoading] = useState(false);
   const { executeUseAbility } = usePlayerStore();
 
-  const loadAllAbilities = useCallback(async () => {
+  const loadAllAbilities = useCallback(async (signal: AbortSignal) => {
     setAbilitiesLoading(true);
     try {
-      const response = await fetch('/api/abilities');
+      const response = await fetch('/api/abilities', { signal });
       if (!response.ok) throw new Error();
       setAllAbilities(await response.json());
-    } catch {
+    } catch (err) {
+      if ((err as Error).name === 'AbortError') return;
       showError('Не удалось загрузить способности');
     } finally {
       setAbilitiesLoading(false);
@@ -35,7 +36,11 @@ export const PlayerAbilitiesManager = ({ playerId, abilities, onDataChanged, sho
   }, [showError]);
 
   useEffect(() => {
-    if (abilitiesSubTab === 'add') loadAllAbilities();
+    if (abilitiesSubTab === 'add') {
+      const abortController = new AbortController();
+      loadAllAbilities(abortController.signal);
+      return () => abortController.abort();
+    }
   }, [abilitiesSubTab, loadAllAbilities]);
 
   const handleToggleAbilityActive = async (abilityId: number) => {

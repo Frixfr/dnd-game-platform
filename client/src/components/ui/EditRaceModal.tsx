@@ -35,9 +35,10 @@ export const EditRaceModal = ({ race, onClose, onRaceSaved }: EditRaceModalProps
 
   useEffect(() => {
     if (!race) return;
+    const abortController = new AbortController();
     const loadRace = async () => {
       try {
-        const res = await fetch(`/api/races/${race.id}`);
+        const res = await fetch(`/api/races/${race.id}`, { signal: abortController.signal });
         if (res.ok) {
           const data = await res.json();
           setFormData({
@@ -46,11 +47,13 @@ export const EditRaceModal = ({ race, onClose, onRaceSaved }: EditRaceModalProps
             effect_ids: data.race.effects?.map((e: EffectType) => e.id) || [],
           });
         }
-      } catch {
+      } catch (err) {
+        if ((err as Error).name === 'AbortError') return;
         setError('Не удалось загрузить расу');
       }
     };
     loadRace();
+    return () => abortController.abort();
   }, [race]);
 
   // Фильтр только пассивных эффектов (is_permanent = 1)

@@ -19,14 +19,18 @@ const TransferItemPopover: React.FC<TransferItemPopoverProps> = ({ item, playerI
   const { showError, showSuccess } = useNotification();
 
   useEffect(() => {
-    if (item) {
-      fetch(`/api/players?online=true&excludeId=${playerId}`)
-        .then(res => res.json())
-        .then(data => {
-          setPlayers(Array.isArray(data) ? data : data.data || []);
-        })
-        .catch(err => console.error(err));
-    }
+    if (!item) return;
+    const abortController = new AbortController();
+    fetch(`/api/players?online=true&excludeId=${playerId}`, { signal: abortController.signal })
+      .then(res => res.json())
+      .then(data => {
+        setPlayers(Array.isArray(data) ? data : data.data || []);
+      })
+      .catch(err => {
+        if (err.name === 'AbortError') return;
+        console.error(err);
+      });
+    return () => abortController.abort();
   }, [item, playerId]);
 
   if (!item) return null;

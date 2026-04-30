@@ -34,13 +34,14 @@ export const NpcEffectsManager = ({
   const [effectSearch, setEffectSearch] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const loadAllEffects = useCallback(async () => {
+  const loadAllEffects = useCallback(async (signal: AbortSignal) => {
     setEffectsLoading(true);
     try {
-      const response = await fetch('/api/effects');
+      const response = await fetch('/api/effects', { signal });
       if (!response.ok) throw new Error();
       setAllEffects(await response.json());
-    } catch {
+    } catch (err) {
+      if ((err as Error).name === 'AbortError') return;
       showError('Не удалось загрузить эффекты');
     } finally {
       setEffectsLoading(false);
@@ -48,7 +49,11 @@ export const NpcEffectsManager = ({
   }, [showError]);
 
   useEffect(() => {
-    if (effectsSubTab === 'add') loadAllEffects();
+    if (effectsSubTab === 'add') {
+      const abortController = new AbortController();
+      loadAllEffects(abortController.signal);
+      return () => abortController.abort();
+    }
   }, [effectsSubTab, loadAllEffects]);
 
   const handleRemoveEffect = async (effectId: number) => {

@@ -37,10 +37,10 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
   const [selectedRaceEffects, setSelectedRaceEffects] = useState<EffectType[]>([]);
   const { fetchPlayers } = usePlayerStore();
 
-  const loadFullPlayer = useCallback(async () => {
+  const loadFullPlayer = useCallback(async (signal: AbortSignal) => {
     setLoadingDetails(true);
     try {
-      const response = await fetch(`/api/players/${player.id}/details`);
+      const response = await fetch(`/api/players/${player.id}/details`, { signal });
       if (!response.ok) throw new Error('Ошибка загрузки');
       const fullPlayer = await response.json();
       setFormData({
@@ -50,13 +50,14 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
         active_effects: fullPlayer.active_effects || []
       });
       if (fullPlayer.avatar_url) setAvatarPreview(fullPlayer.avatar_url);
-    } catch {
+    } catch (err) {
+      if ((err as Error).name === 'AbortError') return;
       showError('Не удалось загрузить данные игрока');
     } finally {
       setLoadingDetails(false);
     }
   }, [player.id, showError]);
-
+  
   useEffect(() => {
     fetch('/api/races')
       .then(res => res.json())
@@ -79,7 +80,9 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
   }, [formData.race_id]);
 
   useEffect(() => {
-    loadFullPlayer();
+    const abortController = new AbortController();
+    loadFullPlayer(abortController.signal);
+    return () => abortController.abort();
   }, [loadFullPlayer]);
 
   // Подписка на сокет-события для автоматического обновления при изменении игрока
@@ -106,7 +109,8 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
   }, [player.id, fetchPlayers]);
 
   const updatePlayerData = useCallback(async () => {
-    await loadFullPlayer();
+    const abortController = new AbortController();
+    await loadFullPlayer(abortController.signal);
   }, [loadFullPlayer]);
 
   const uploadAvatar = async (file: File) => {

@@ -72,27 +72,25 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
 
   // Загрузка полных данных NPC
   useEffect(() => {
+    const abortController = new AbortController();
     const loadFullNpc = async () => {
       setLoadingDetails(true);
       try {
-        const response = await fetch(`/api/npcs/${npc.id}/details`);
+        const response = await fetch(`/api/npcs/${npc.id}/details`, { signal: abortController.signal });
         if (!response.ok) throw new Error('Ошибка загрузки');
         const result = await response.json();
         const fullNpc: FullNPCData = result.npc;
-        setFormData({
-          ...fullNpc,
-          abilities: fullNpc.abilities || [],
-          items: fullNpc.items || [],
-          active_effects: fullNpc.active_effects || []
-        });
+        setFormData({ ...fullNpc, abilities: fullNpc.abilities || [], items: fullNpc.items || [], active_effects: fullNpc.active_effects || [] });
         if (fullNpc.avatar_url) setAvatarPreview(fullNpc.avatar_url);
-      } catch {
+      } catch (err) {
+        if ((err as Error).name === 'AbortError') return;
         showError('Не удалось загрузить данные NPC');
       } finally {
         setLoadingDetails(false);
       }
     };
     loadFullNpc();
+    return () => abortController.abort();
   }, [npc.id, showError]);
 
   const updateNpcData = async () => {

@@ -21,13 +21,14 @@ export const PlayerItemsManager = ({ playerId, items, onDataChanged, showError }
   const [loading, setLoading] = useState(false);
   const { executeUseItem } = usePlayerStore();
 
-  const loadAllItems = useCallback(async () => {
+  const loadAllItems = useCallback(async (signal: AbortSignal) => {
     setItemsLoading(true);
     try {
-      const response = await fetch('/api/items');
+      const response = await fetch('/api/items', { signal });
       if (!response.ok) throw new Error();
       setAllItems(await response.json());
-    } catch {
+    } catch (err) {
+      if ((err as Error).name === 'AbortError') return;
       showError('Не удалось загрузить предметы');
     } finally {
       setItemsLoading(false);
@@ -35,7 +36,11 @@ export const PlayerItemsManager = ({ playerId, items, onDataChanged, showError }
   }, [showError]);
 
   useEffect(() => {
-    if (itemsSubTab === 'add') loadAllItems();
+    if (itemsSubTab === 'add') {
+      const abortController = new AbortController();
+      loadAllItems(abortController.signal);
+      return () => abortController.abort();
+    }
   }, [itemsSubTab, loadAllItems]);
 
   const handleRemoveItem = async (itemId: number) => {

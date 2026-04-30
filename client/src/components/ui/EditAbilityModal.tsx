@@ -34,20 +34,23 @@ export const EditAbilityModal = ({
   
   useEffect(() => {
     if (externalEffects.length === 0) {
+      const abortController = new AbortController();
       const loadEffects = async () => {
         setEffectsLoading(true);
         try {
-          const response = await fetch('/api/effects');
+          const response = await fetch('/api/effects', { signal: abortController.signal });
           if (!response.ok) throw new Error('Ошибка загрузки эффектов');
           const data = await response.json();
           setAllEffects(data || []);
         } catch (err) {
+          if ((err as Error).name === 'AbortError') return;
           console.error('Ошибка загрузки эффектов:', err);
         } finally {
           setEffectsLoading(false);
         }
       };
       loadEffects();
+      return () => abortController.abort();
     } else {
       setAllEffects(externalEffects);
     }

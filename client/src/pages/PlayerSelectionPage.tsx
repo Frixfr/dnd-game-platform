@@ -15,19 +15,22 @@ export const PlayerSelectionPage = () => {
   const { setSelectedPlayer: setSessionPlayer } = usePlayerSessionStore();
 
   useEffect(() => {
+    const abortController = new AbortController();
     const fetchAvailablePlayers = async () => {
       try {
-        const response = await fetch('/api/players?available_for_selection=true');
+        const response = await fetch('/api/players?available_for_selection=true', { signal: abortController.signal });
         if (!response.ok) throw new Error('Ошибка загрузки');
         const data = await response.json();
         setPlayers(data);
       } catch (err) {
+        if ((err as Error).name === 'AbortError') return;
         setError(err instanceof Error ? err.message : 'Неизвестная ошибка');
       } finally {
         setLoading(false);
       }
     };
     fetchAvailablePlayers();
+    return () => abortController.abort();
   }, []);
 
   const handleSelectPlayer = (player: PlayerType) => {

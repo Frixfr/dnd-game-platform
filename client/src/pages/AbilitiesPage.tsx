@@ -41,18 +41,21 @@ export const AbilitiesPage = () => {
   }, [currentPage, limit, fetchAbilities]);
 
   useEffect(() => {
+    const abortController = new AbortController();
     const fetchEffects = async () => {
       try {
-        const response = await fetch('/api/effects?limit=9999');
+        const response = await fetch('/api/effects?limit=9999', { signal: abortController.signal });
         if (!response.ok) throw new Error('Ошибка загрузки эффектов');
         const result = await response.json();
         const effectsData = Array.isArray(result) ? result : result.data;
         setEffects(effectsData);
-      } catch (error) {
-        console.error('Ошибка загрузки эффектов:', error);
+      } catch (err) {
+        if ((err as Error).name === 'AbortError') return;
+        console.error('Ошибка загрузки эффектов:', err);
       }
     };
     fetchEffects();
+    return () => abortController.abort();
   }, []);
 
   const handleAbilityClick = async (ability: AbilityType) => {

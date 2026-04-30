@@ -117,31 +117,37 @@ export const PlayerCharacterSheetPage = () => {
     setCollapsedSections(prev => ({ ...prev, [section]: !prev[section] }));
   };
 
-  const loadFullPlayer = useCallback(async () => {
+  // Заменяем loadFullPlayer на вариант с опциональным signal
+  const loadFullPlayer = useCallback(async (signal?: AbortSignal) => {
     if (!playerId) return;
     try {
-      const response = await fetch(`/api/players/${playerId}/details`);
+      const response = await fetch(`/api/players/${playerId}/details`, { signal });
       if (!response.ok) throw new Error("Ошибка загрузки данных персонажа");
       const fullPlayer = await response.json();
       setSelectedPlayer(fullPlayer);
     } catch (err) {
+      if ((err as Error).name === 'AbortError') return;
       setError(err instanceof Error ? err.message : "Неизвестная ошибка");
     } finally {
       setLoading(false);
     }
   }, [playerId, setSelectedPlayer]);
 
+  // useEffect с AbortController
   useEffect(() => {
+    const abortController = new AbortController();
     if (selectedPlayer && selectedPlayer.id === Number(playerId)) {
       setLoading(false);
     } else {
-      loadFullPlayer();
+      loadFullPlayer(abortController.signal);
     }
+    return () => abortController.abort();
   }, [playerId, selectedPlayer, loadFullPlayer]);
 
+  // refreshPlayer без abort (можно оставить как было, но loadFullPlayer не требует сигнала)
   const refreshPlayer = useCallback(async () => {
     setLoading(true);
-    await loadFullPlayer();
+    await loadFullPlayer(); // теперь работает, т.к. signal опциональный
   }, [loadFullPlayer]);
 
   // Все хуки useMemo должны быть до условных возвратов
