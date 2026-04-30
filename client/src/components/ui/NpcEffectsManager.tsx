@@ -91,9 +91,12 @@ export const NpcEffectsManager = ({
     const passiveAbilityEffects = activeEffects.filter(
       (effect) => effect.source_type === 'ability' && effect.remaining_turns === null && effect.remaining_days === null
     );
-    const temporaryEffects = activeEffects.filter(
-      (effect) => !(effect.source_type === 'ability' && effect.remaining_turns === null && effect.remaining_days === null)
-    );
+    const temporaryEffects = activeEffects.filter((effect) => {
+      if (effect.source_type === 'ability' && effect.remaining_turns === null && effect.remaining_days === null) return false;
+      if ((effect.remaining_turns !== null && effect.remaining_turns <= 0) ||
+          (effect.remaining_days !== null && effect.remaining_days <= 0)) return false;
+      return true;
+    });
 
     const hasEffects =
       passiveAbilityEffects.length > 0 ||

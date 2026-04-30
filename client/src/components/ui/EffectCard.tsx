@@ -49,17 +49,16 @@ export const EffectCard = ({ effect, onClick, showDescription = true, compact = 
   const formatDuration = () => {
     if (effect.is_permanent) return 'Постоянный';
     
-    // Приоритет: оставшееся время активного эффекта
-    if (effect.remaining_turns !== undefined && effect.remaining_turns !== null) {
-      if (effect.remaining_turns > 0) return `${effect.remaining_turns} ход${effect.remaining_turns === 1 ? '' : effect.remaining_turns < 5 ? 'а' : 'ов'}`;
-      if (effect.remaining_turns === 0) return 'Завершён (удалится)';
+    if (effect.remaining_turns !== undefined && effect.remaining_turns !== null && effect.remaining_turns > 0) {
+      return `${effect.remaining_turns} ход${effect.remaining_turns === 1 ? '' : effect.remaining_turns < 5 ? 'а' : 'ов'}`;
     }
-    if (effect.remaining_days !== undefined && effect.remaining_days !== null) {
-      if (effect.remaining_days > 0) return `${effect.remaining_days} ${effect.remaining_days === 1 ? 'день' : effect.remaining_days < 5 ? 'дня' : 'дней'}`;
-      if (effect.remaining_days === 0) return 'Завершён (удалится)';
+    if (effect.remaining_days !== undefined && effect.remaining_days !== null && effect.remaining_days > 0) {
+      return `${effect.remaining_days} ${effect.remaining_days === 1 ? 'день' : effect.remaining_days < 5 ? 'дня' : 'дней'}`;
     }
     
-    // Иначе стандартная длительность из шаблона эффекта
+    // Если остатков нет (0 или null), но эффект не постоянный – считаем истёкшим (не должны сюда попадать)
+    if (!effect.is_permanent) return 'Истёк';
+    
     const parts = [];
     if (effect.duration_turns) parts.push(`${effect.duration_turns} ход${effect.duration_turns === 1 ? '' : effect.duration_turns < 5 ? 'а' : 'ов'}`);
     if (effect.duration_days) parts.push(`${effect.duration_days} ${effect.duration_days === 1 ? 'день' : effect.duration_days < 5 ? 'дня' : 'дней'}`);

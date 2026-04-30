@@ -89,9 +89,14 @@ export const PlayerEffectsManager = ({
       (effect) => effect.source_type === 'ability' && effect.remaining_turns === null && effect.remaining_days === null
     );
     // Все остальные эффекты (временные, от активных способностей, предметов, админа)
-    const temporaryEffects = activeEffects.filter(
-      (effect) => !(effect.source_type === 'ability' && effect.remaining_turns === null && effect.remaining_days === null)
-    );
+    const temporaryEffects = activeEffects.filter((effect) => {
+      // Исключаем пассивные способности (без длительности)
+      if (effect.source_type === 'ability' && effect.remaining_turns === null && effect.remaining_days === null) return false;
+      // Исключаем эффекты с истекшим временем
+      if ((effect.remaining_turns !== null && effect.remaining_turns <= 0) ||
+          (effect.remaining_days !== null && effect.remaining_days <= 0)) return false;
+      return true;
+    });
 
     const hasEffects =
       passiveAbilityEffects.length > 0 ||

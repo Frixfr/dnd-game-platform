@@ -35,9 +35,12 @@ export const PlayerEffectsPage = () => {
   const passiveAbilityEffects = allEffects.filter(
     (effect) => effect.source_type === 'ability' && effect.remaining_turns === null && effect.remaining_days === null
   );
-  const temporaryEffects = allEffects.filter(
-    (effect) => !(effect.source_type === 'ability' && effect.remaining_turns === null && effect.remaining_days === null)
-  );
+  const temporaryEffects = allEffects.filter((effect) => {
+    if (effect.source_type === 'ability' && effect.remaining_turns === null && effect.remaining_days === null) return false;
+    if ((effect.remaining_turns !== null && effect.remaining_turns <= 0) ||
+        (effect.remaining_days !== null && effect.remaining_days <= 0)) return false;
+    return true;
+  });
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
