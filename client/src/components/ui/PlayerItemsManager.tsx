@@ -18,17 +18,8 @@ export const PlayerItemsManager = ({ playerId, items, onDataChanged, showError }
   const [itemsLoading, setItemsLoading] = useState(false);
   const [selectedItems, setSelectedItems] = useState<{ [key: number]: number }>({});
   const [itemSearch, setItemSearch] = useState('');
-  const [equipStatus, setEquipStatus] = useState<{ [key: number]: boolean }>({});
   const [loading, setLoading] = useState(false);
   const { executeUseItem } = usePlayerStore();
-
-  useEffect(() => {
-    const initialEquipStatus: { [key: number]: boolean } = {};
-    items.forEach(item => {
-      initialEquipStatus[item.id] = item.is_equipped;
-    });
-    setEquipStatus(initialEquipStatus);
-  }, [items]);
 
   const loadAllItems = useCallback(async () => {
     setItemsLoading(true);
@@ -46,22 +37,6 @@ export const PlayerItemsManager = ({ playerId, items, onDataChanged, showError }
   useEffect(() => {
     if (itemsSubTab === 'add') loadAllItems();
   }, [itemsSubTab, loadAllItems]);
-
-  const handleEquipToggle = async (itemId: number) => {
-    const newStatus = !equipStatus[itemId];
-    try {
-      const response = await fetch(`/api/players/${playerId}/items/${itemId}/equip`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_equipped: newStatus })
-      });
-      if (!response.ok) throw new Error();
-      setEquipStatus(prev => ({ ...prev, [itemId]: newStatus }));
-      await onDataChanged();
-    } catch {
-      showError('Не удалось изменить экипировку');
-    }
-  };
 
   const handleRemoveItem = async (itemId: number) => {
     if (!confirm('Удалить предмет?')) return;
@@ -135,11 +110,6 @@ export const PlayerItemsManager = ({ playerId, items, onDataChanged, showError }
                       Использовать
                     </button>
                   )}
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" className="sr-only peer" checked={equipStatus[item.id] || false} onChange={() => handleEquipToggle(item.id)} />
-                    <div className="w-9 h-5 bg-gray-200 rounded-full peer peer-checked:bg-green-500 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
-                    <span className="ml-2 text-sm">Экип.</span>
-                  </label>
                   <button onClick={() => handleRemoveItem(item.id)} className="text-red-500 text-sm">🗑️ Удалить</button>
                 </div>
               </div>

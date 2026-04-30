@@ -209,7 +209,6 @@ export interface FullNPCData extends NPC {
   items: (Item & {
     npc_item_id?: number;
     quantity: number;
-    is_equipped: boolean;
     active_effect?: Effect | null;
     passive_effects?: (Effect & { source_item_name: string })[];
   })[];
@@ -347,7 +346,6 @@ export interface PlayerAbilityExtended extends Ability {
 export interface PlayerItemExtended extends Item {
   player_item_id?: number;
   quantity: number;
-  is_equipped: boolean;
   obtained_at: string;
   active_effects?: Effect[];
   passive_effects?: (Effect & { source_item_name: string })[];
