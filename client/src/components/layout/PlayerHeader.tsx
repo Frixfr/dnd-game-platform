@@ -1,5 +1,6 @@
 // client/src/components/layout/PlayerHeader.tsx
 import React from 'react';
+import { LogOut, Menu, User } from 'lucide-react';
 
 interface PlayerHeaderProps {
   toggleSidebar: () => void;
@@ -10,22 +11,31 @@ interface PlayerHeaderProps {
 
 const PlayerHeader: React.FC<PlayerHeaderProps> = ({ toggleSidebar, isMobile, onLogout, playerName }) => {
   return (
-    <header className="bg-white border-b border-slate-200 shadow-sm">
+    <header className="bg-gray-900/80 backdrop-blur-sm border-b border-amber-500/20 shadow-md">
       <div className="flex items-center justify-between h-16 px-6">
         <div className="flex items-center gap-3">
           {isMobile && (
-            <button onClick={toggleSidebar} className="p-2 rounded-md hover:bg-slate-100">
-              <svg className="w-6 h-6 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
+            <button
+              onClick={toggleSidebar}
+              className="p-2 rounded-lg hover:bg-gray-800 transition-colors text-amber-400"
+              aria-label="Меню"
+            >
+              <Menu size={24} />
             </button>
           )}
-          <h1 className="text-xl font-semibold text-slate-800">
-            Добро пожаловать, {playerName}
-          </h1>
+          <div className="flex items-center gap-2">
+            <User size={20} className="text-amber-400" />
+            <h1 className="text-xl font-semibold bg-gradient-to-r from-amber-200 to-yellow-400 bg-clip-text text-transparent">
+              {playerName}
+            </h1>
+          </div>
         </div>
-        <button onClick={onLogout} className="text-sm text-slate-600 hover:text-slate-800">
-          Выйти
+        <button
+          onClick={onLogout}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors text-gray-300 hover:text-amber-300"
+        >
+          <LogOut size={18} />
+          <span className="hidden sm:inline">Выйти</span>
         </button>
       </div>
     </header>

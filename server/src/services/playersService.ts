@@ -875,4 +875,23 @@ export const playersService = {
   ): Promise<{ success: boolean; message: string; effect?: any }> {
     return playerAbilitiesService.useAbility(playerId, abilityId);
   },
+
+  async getAllWithFilters(filters: {
+    online?: boolean;
+    is_card_shown?: boolean;
+    excludeId?: number;
+  }) {
+    let query = db("players").select("*");
+    if (filters.online !== undefined) {
+      query = query.where("is_online", filters.online);
+    }
+    if (filters.is_card_shown !== undefined) {
+      query = query.where("is_card_shown", filters.is_card_shown);
+    }
+    if (filters.excludeId) {
+      query = query.whereNot("id", filters.excludeId);
+    }
+    const rows = await query.orderBy("name");
+    return rows;
+  },
 };

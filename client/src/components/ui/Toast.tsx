@@ -1,37 +1,38 @@
-// Файл: client/src/components/ui/Toast.tsx
-import React, { useEffect, useState } from 'react';
+// client/src/components/ui/Toast.tsx
+import React from 'react';
+import { XCircle, CheckCircle, Info } from 'lucide-react';
 
 interface ToastProps {
   message: string;
   type: 'error' | 'success' | 'info';
+  action?: { label: string; onClick: () => void };
 }
 
-const Toast: React.FC<ToastProps> = ({ message, type }) => {
-  const [visible, setVisible] = useState(true);
+const Toast: React.FC<ToastProps> = ({ message, type, action }) => {
+  const icons = {
+    error: <XCircle className="w-5 h-5 text-red-500" />,
+    success: <CheckCircle className="w-5 h-5 text-green-500" />,
+    info: <Info className="w-5 h-5 text-blue-500" />,
+  };
 
-  useEffect(() => {
-    const timer = setTimeout(() => setVisible(false), 4000);
-    return () => clearTimeout(timer);
-  }, []);
-
-  if (!visible) return null;
-
-  const bgColor = {
-    error: 'bg-red-500',
-    success: 'bg-green-500',
-    info: 'bg-blue-500',
-  }[type];
-
-  const icon = {
-    error: '❌',
-    success: '✅',
-    info: 'ℹ️',
-  }[type];
+  const bgColors = {
+    error: 'bg-red-50 border-red-200',
+    success: 'bg-green-50 border-green-200',
+    info: 'bg-blue-50 border-blue-200',
+  };
 
   return (
-    <div className={`${bgColor} text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 animate-slide-up`}>
-      <span>{icon}</span>
-      <span>{message}</span>
+    <div className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border ${bgColors[type]}`}>
+      {icons[type]}
+      <span className="text-sm text-gray-800 flex-1">{message}</span>
+      {action && (
+        <button
+          onClick={action.onClick}
+          className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
+        >
+          {action.label}
+        </button>
+      )}
     </div>
   );
 };

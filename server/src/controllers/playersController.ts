@@ -28,7 +28,34 @@ export const playersController = {
   async getAll(req: Request, res: Response) {
     try {
       const full = req.query.full === "true";
+      const online =
+        req.query.online === "true"
+          ? true
+          : req.query.online === "false"
+            ? false
+            : undefined;
+      const excludeId = req.query.excludeId
+        ? parseInt(req.query.excludeId as string, 10)
+        : undefined;
 
+      // Специальный режим для получения списка онлайн-игроков (используется для передачи предметов)
+      if (online !== undefined || excludeId !== undefined) {
+        // Возвращаем только нужных игроков без пагинации (массив)
+        const filters: {
+          online?: boolean;
+          is_card_shown?: boolean;
+          excludeId?: number;
+        } = {};
+        if (online !== undefined) filters.online = online;
+        if (excludeId !== undefined) filters.excludeId = excludeId;
+        // Для передачи предметов обычно нужны игроки с is_card_shown = true, но не обязательно
+        // По умолчанию не фильтруем по карточкам, оставляем как есть
+        const players = await playersService.getAllWithFilters(filters);
+        res.json(players);
+        return;
+      }
+
+      // Обычный режим с пагинацией и фильтрацией
       if (full) {
         // Полные данные с пагинацией
         const page = req.query.page

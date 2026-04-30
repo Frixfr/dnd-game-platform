@@ -3,6 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, useParams, useNavigate } from 'react-router-dom';
 import PlayerSidebar from './PlayerSidebar';
 import PlayerHeader from './PlayerHeader';
+import MobileTabBar from './MobileTabBar';
+import StickyHealthBar from './StickyHealthBar';
 import { usePlayerSessionStore } from '../../stores/playerSessionStore';
 import { socket } from '../../lib/socket';
 
@@ -12,18 +14,13 @@ const PlayerLayout: React.FC = () => {
   const { selectedPlayer, clearSession } = usePlayerSessionStore();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-  
-  // Состояние гидратации стора
   const [hydrated, setHydrated] = useState(false);
+  const [showStickyBar, setShowStickyBar] = useState(false);
 
   useEffect(() => {
-    // Ожидаем восстановления персистентного состояния
     const unsubHydrate = usePlayerSessionStore.persist.onHydrate?.(() => setHydrated(false));
     const unsubFinish = usePlayerSessionStore.persist.onFinishHydration?.(() => setHydrated(true));
-    
-    // Если onFinishHydration не доступен, устанавливаем true через таймаут
     const timeout = setTimeout(() => setHydrated(true), 100);
-    
     return () => {
       unsubHydrate?.();
       unsubFinish?.();
@@ -38,24 +35,17 @@ const PlayerLayout: React.FC = () => {
     }
   }, [selectedPlayer, playerId, navigate, hydrated]);
 
-  // === НОВЫЙ ЭФФЕКТ ДЛЯ СОКЕТОВ ===
   useEffect(() => {
-    // Инициализируем подписку стора на сокет-события
     usePlayerSessionStore.getState().initializeSessionSocket();
-    
-    // Отправляем событие для входа в персональную комнату
     if (playerId) {
-      socket.emit("join-player", playerId);
+      socket.emit('join-player', playerId);
     }
-    
-    // При размонтировании выходим из комнаты
     return () => {
       if (playerId) {
-        socket.emit("leave", `player:${playerId}`);
+        socket.emit('leave', `player:${playerId}`);
       }
     };
   }, [playerId]);
-  // ================================
 
   useEffect(() => {
     const handleResize = () => {
@@ -69,7 +59,19 @@ const PlayerLayout: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const toggleSidebar = () => setIsSidebarOpen(prev => !prev);
+  // Отслеживаем скролл для sticky health bar
+  useEffect(() => {
+    if (!isMobile) return;
+    const main = document.querySelector('main');
+    if (!main) return;
+    const handleScroll = () => {
+      setShowStickyBar(main.scrollTop > 150);
+    };
+    main.addEventListener('scroll', handleScroll);
+    return () => main.removeEventListener('scroll', handleScroll);
+  }, [isMobile]);
+
+  const toggleSidebar = () => setIsSidebarOpen((prev) => !prev);
   const closeSidebar = () => setIsSidebarOpen(false);
 
   const handleLogout = () => {
@@ -80,19 +82,40 @@ const PlayerLayout: React.FC = () => {
   if (!hydrated) return null;
   if (!selectedPlayer) return null;
 
+  const finalStats = selectedPlayer.final_stats || {
+    health: selectedPlayer.health,
+    max_health: selectedPlayer.max_health,
+    armor: selectedPlayer.armor,
+  };
+
   return (
-    <div className="flex h-screen bg-slate-50 relative">
+    <div className="flex h-screen bg-gradient-to-br from-gray-900 to-gray-800 relative">
       {isMobile && isSidebarOpen && (
-        <div className="fixed inset-0 bg-black/50 z-30" onClick={closeSidebar} />
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30" onClick={closeSidebar} />
       )}
-      <div className={`fixed md:relative z-40 transition-transform duration-300 ease-in-out ${isMobile && !isSidebarOpen ? '-translate-x-full' : 'translate-x-0'}`}>
+      <div
+        className={`fixed md:relative z-40 transition-transform duration-300 ease-in-out ${
+          isMobile && !isSidebarOpen ? '-translate-x-full' : 'translate-x-0'
+        }`}
+      >
         <PlayerSidebar onClose={closeSidebar} isMobile={isMobile} playerId={selectedPlayer.id} />
       </div>
       <div className="flex-1 flex flex-col overflow-hidden">
-        <PlayerHeader toggleSidebar={toggleSidebar} isMobile={isMobile} onLogout={handleLogout} playerName={selectedPlayer.name} />
-        <main className="flex-1 overflow-y-auto p-6">
+        <PlayerHeader
+          toggleSidebar={toggleSidebar}
+          isMobile={isMobile}
+          onLogout={handleLogout}
+          playerName={selectedPlayer.name}
+        />
+        {/* Sticky health bar (только на мобильных и при скролле) */}
+        {isMobile && showStickyBar && (
+          <StickyHealthBar health={finalStats.health} maxHealth={finalStats.max_health} armor={finalStats.armor} />
+        )}
+        <main className="flex-1 overflow-y-auto custom-scrollbar pb-20 md:pb-0">
           <Outlet />
         </main>
+        {/* Нижняя навигация только на мобильных */}
+        {isMobile && <MobileTabBar playerId={selectedPlayer.id} />}
       </div>
     </div>
   );

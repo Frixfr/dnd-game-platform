@@ -4,14 +4,18 @@ import { useNavigate } from 'react-router-dom';
 interface HeaderProps {
   toggleSidebar: () => void;
   isMobile: boolean;
+  onLogout?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ toggleSidebar, isMobile }) => {
+const Header: React.FC<HeaderProps> = ({ toggleSidebar, isMobile, onLogout }) => {
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    // В будущем: очистка стора, отключение сокетов
-    navigate('/');
+    if (onLogout) {
+      onLogout();
+    } else {
+      navigate('/');
+    }
   };
 
   return (
