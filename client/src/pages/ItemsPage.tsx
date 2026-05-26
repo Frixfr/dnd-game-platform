@@ -105,16 +105,16 @@ export const ItemsPage = () => {
     <div className="p-6 max-w-6xl mx-auto">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Панель предметов</h1>
-          <p className="text-gray-600 mt-1">Всего предметов: <span className="font-semibold">{itemsTotal}</span></p>
+          <h1 className="text-3xl font-bold text-text-primary">Панель предметов</h1>
+          <p className="text-text-secondary mt-1">Всего предметов: <span className="font-semibold">{itemsTotal}</span></p>
         </div>
-        <button onClick={() => setIsCreateModalOpen(true)} className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">+ Создать предмет</button>
+        <button onClick={() => setIsCreateModalOpen(true)} className="px-4 py-2 btn-primary">+ Создать предмет</button>
       </div>
 
       {loading ? (
-        <div className="text-center py-12">Загрузка...</div>
+        <div className="text-center py-12 text-text-secondary">Загрузка...</div>
       ) : items.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">Нет созданных предметов</div>
+        <div className="text-center py-12 text-text-muted bg-card rounded-lg border border-border-color">Нет созданных предметов</div>
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -131,7 +131,7 @@ export const ItemsPage = () => {
         </>
       )}
 
-      {loadingFullItem && <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"><div className="bg-white p-6 rounded">Загрузка...</div></div>}
+      {loadingFullItem && <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"><div className="bg-card p-6 rounded-xl border border-border-color text-text-primary">Загрузка...</div></div>}
       {isCreateModalOpen && <CreateItemModal onClose={() => setIsCreateModalOpen(false)} onItemCreated={handleItemCreated} />}
       {isEditModalOpen && selectedItem && <EditItemModal item={selectedItem} onClose={() => { setIsEditModalOpen(false); setSelectedItem(null); }} onItemUpdated={handleItemUpdated} mode="edit" />}
       <ConfirmModal isOpen={showConfirmModal} message={`Удалить "${itemToDelete?.name}"?`} onConfirm={confirmDelete} onCancel={() => { setShowConfirmModal(false); setItemToDelete(null); }} />
