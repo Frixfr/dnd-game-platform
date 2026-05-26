@@ -1,31 +1,26 @@
-```gitignore
+```
 # Dependencies
 node_modules/
 
 # Build outputs
 dist/
 build/
-.next/
-.nuxt/
-public/dist/
-
-# Logs
-*.log
+target/
 
 # Environment variables
 .env
 .env.local
-.env.*
+*.env.*
 
-# IDE specific
+# IDE files
 .vscode/
 .idea/
 *.swp
 *.swo
+*.tmp
 
-# OS generated
-.DS_Store
-Thumbs.db
+# Logs
+*.log
 
 # Python
 __pycache__/
@@ -46,19 +41,20 @@ nosetests.xml
 coverage.xml
 *.cover
 *.log
-.git/modules/
-*.sublime-workspace
+.DS_Store
+Thumbs.db
 
-# Compiled and binary files
+# Compiled binary files
+*.class
 *.o
-*.obj
-*.exe
-*.dll
-*.so
 *.a
+*.obj
+*.so
+*.dll
+*.exe
 *.out
 
-# Compression files
+# Compressed files
 *.zip
 *.gz
 *.tar
@@ -82,39 +78,9 @@ coverage.xml
 *.tar.xz
 *.tar.zst
 
-# Coverage reports
+# Coverage and testing
 coverage/
 htmlcov/
-
-# Testing
 .pytest_cache/
 .mypy_cache/
-.hypothesis/
-
-# Rust
-target/
-
-# Java/Gradle
-.gradle/
-target/
-
-# Temporary files
-*.tmp
-*~
-```
-
-Wait, let me reconsider this. The file changes only show React component files (.tsx) being modified. There are no build artifacts, dependencies, or temporary files in the changes. Let me check again...
-
-The changes only include:
-- client/src/components/ui/NpcAbilitiesManager.tsx
-- client/src/components/ui/NpcEffectsManager.tsx
-- client/src/components/ui/NpcItemsManager.tsx
-- client/src/components/ui/PlayerAbilitiesManager.tsx
-- client/src/components/ui/PlayerEffectsManager.tsx
-- client/src/components/ui/PlayerItemsManager.tsx
-
-These are all source code files (.tsx), not build artifacts or dependencies.
-
-```gitignore
-
 ```

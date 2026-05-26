@@ -158,7 +158,7 @@ export const PlayerInventoryPage = () => {
                 {item.is_usable && (item.infinite_uses || item.quantity > 0) && (
                   <button
                     onClick={() => handleUse(item.player_item_id, item.name)}
-                    className="px-3 py-1 text-sm bg-green-600/80 text-white rounded hover:bg-green-700"
+                    className="px-3 py-1 text-sm btn-secondary"
                   >
                     Использовать
                   </button>
@@ -178,7 +178,7 @@ export const PlayerInventoryPage = () => {
                         itemName: item.name,
                         currentQuantity: item.quantity,
                       })}
-                      className="px-3 py-1 text-sm bg-blue-600/80 text-white rounded hover:bg-blue-700"
+                      className="px-3 py-1 text-sm btn-primary"
                     >
                       Передать
                     </button>

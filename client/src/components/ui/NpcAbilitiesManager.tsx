@@ -139,9 +139,7 @@ export const NpcAbilitiesManager = ({ npcId, abilities, onDataChanged, showError
                     <button
                       onClick={() => handleUseAbility(ability.id, ability.name)}
                       disabled={!canUse}
-                      className={`text-sm px-3 py-1 rounded-full ${
-                        canUse ? 'btn-primary' : 'bg-bg-tertiary text-text-secondary cursor-not-allowed'
-                      }`}
+                      className={`text-sm px-3 py-1 btn-secondary ${!canUse ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       {remainingCooldown > 0 ? `⏳ ${remainingCooldown}` : 'Использовать'}
                     </button>
@@ -152,7 +150,7 @@ export const NpcAbilitiesManager = ({ npcId, abilities, onDataChanged, showError
                   >
                     {ability.is_active ? 'Активна' : 'Неактивна'}
                   </button>
-                  <button onClick={() => handleRemoveAbility(ability.id)} className="text-accent-red text-sm hover:underline">
+                  <button onClick={() => handleRemoveAbility(ability.id)} className="text-red-500 text-sm hover:underline">
                     Удалить
                   </button>
                 </div>

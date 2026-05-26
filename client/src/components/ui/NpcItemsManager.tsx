@@ -125,12 +125,12 @@ export const NpcItemsManager = ({ npcId, items, onDataChanged, showError }: NpcI
                   {hasActiveEffect && (
                     <button
                       onClick={() => handleUseItem(item.npc_item_id ?? item.id, item.name)}
-                      className="px-3 py-1 bg-[#FF0026] text-white rounded-xl text-sm hover:bg-[#FF0026]/90"
+                      className="px-3 py-1 btn-secondary text-sm"
                     >
                       Использовать
                     </button>
                   )}
-                  <button onClick={() => handleRemoveItem(item.id)} className="text-[#FF0026] text-sm">🗑️ Удалить</button>
+                  <button onClick={() => handleRemoveItem(item.id)} className="text-red-500 text-sm">🗑️ Удалить</button>
                 </div>
               </div>
             </div>
