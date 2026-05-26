@@ -229,13 +229,13 @@ export const NpcAbilitiesManager = ({ npcId, abilities, onDataChanged, showError
       {abilitiesSubTab === 'list' ? (
         <div>
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold">✨ Способности NPC</h3>
+            <h3 className="text-lg font-semibold text-text-primary">✨ Способности NPC</h3>
             <button
               onClick={() => {
                 setAbilitiesSubTab('add');
                 setSelectedAbilities([]);
               }}
-              className="px-3 py-1 bg-green-100 text-green-700 rounded-xl text-sm"
+              className="px-3 py-1 btn-secondary text-sm"
             >
               ➕ Добавить способность
             </button>

@@ -139,19 +139,19 @@ export const PlayerItemsManager = ({ playerId, items, onDataChanged, showError }
 
     return (
       <div className="space-y-4">
-        <input type="text" placeholder="🔍 Поиск предметов..." value={itemSearch} onChange={e => setItemSearch(e.target.value)} className="w-full px-3 py-2 border rounded-xl" />
-        {itemsLoading ? <p>Загрузка...</p> : (
+        <input type="text" placeholder="🔍 Поиск предметов..." value={itemSearch} onChange={e => setItemSearch(e.target.value)} className="form-input w-full" />
+        {itemsLoading ? <p className="text-text-secondary">Загрузка...</p> : (
           <div className="space-y-2 max-h-[50vh] overflow-y-auto">
             {filtered.map(item => {
               const owned = item.id in currentQuantityMap;
               const currentQty = currentQuantityMap[item.id] || 0;
               const qtyToAdd = selectedItems[item.id] || 1;
               return (
-                <div key={item.id} className="bg-[#0A1F44]/50 p-3 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <div key={item.id} className="card p-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                   <div>
-                    <p className="font-medium">{item.name}</p>
-                    <p className="text-xs text-[#F2E9E4]/60">{item.rarity}</p>
-                    {owned && <p className="text-xs text-green-600">Уже есть: {currentQty} шт.</p>}
+                    <p className="font-medium text-text-primary">{item.name}</p>
+                    <p className="text-xs text-text-secondary">{item.rarity}</p>
+                    {owned && <p className="text-xs text-accent-primary">Уже есть: {currentQty} шт.</p>}
                   </div>
                   <div className="flex items-center gap-2">
                     <input
@@ -159,11 +159,11 @@ export const PlayerItemsManager = ({ playerId, items, onDataChanged, showError }
                       min={1}
                       value={qtyToAdd}
                       onChange={e => setSelectedItems(prev => ({ ...prev, [item.id]: parseInt(e.target.value) || 1 }))}
-                      className="w-16 px-2 py-1 border rounded"
+                      className="w-16 px-2 py-1 form-input"
                     />
                     <button
                       onClick={() => setSelectedItems(prev => ({ ...prev, [item.id]: (prev[item.id] || 1) }))}
-                      className="px-3 py-1 btn-secondary rounded-xl"
+                      className="px-3 py-1 btn-secondary"
                     >
                       {owned ? '➕ Добавить ещё' : '➕ Добавить'}
                     </button>
@@ -173,11 +173,11 @@ export const PlayerItemsManager = ({ playerId, items, onDataChanged, showError }
             })}
           </div>
         )}
-        <div className="pt-2 flex flex-col sm:flex-row justify-between items-center gap-2 border-t">
-          <span>Выбрано: {Object.keys(selectedItems).length}</span>
+        <div className="pt-2 flex flex-col sm:flex-row justify-between items-center gap-2 border-t border-border-color">
+          <span className="text-text-primary">Выбрано: {Object.keys(selectedItems).length}</span>
           <button onClick={handleAddItems} disabled={Object.keys(selectedItems).length === 0 || loading} className="w-full sm:w-auto px-4 py-2 btn-primary">Добавить выбранные</button>
         </div>
-        <button onClick={() => setItemsSubTab('list')} className="mt-2 text-sm text-text-secondary hover:text-text-primary">← Назад к списку</button>
+        <button onClick={() => setItemsSubTab('list')} className="mt-2 text-sm text-text-secondary hover:text-text-primary transition-colors">← Назад к списку</button>
       </div>
     );
   };

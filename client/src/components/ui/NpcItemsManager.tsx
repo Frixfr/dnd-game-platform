@@ -154,10 +154,10 @@ export const NpcItemsManager = ({ npcId, items, onDataChanged, showError }: NpcI
           placeholder="🔍 Поиск предметов..."
           value={itemSearch}
           onChange={e => setItemSearch(e.target.value)}
-          className="w-full px-3 py-2 border border-[#F2E9E4]/30 rounded-xl bg-[#0A1F44] text-[#F2E9E4] focus:ring-2 focus:ring-[#FF0026]"
+          className="form-input w-full"
         />
         {itemsLoading ? (
-          <p className="text-[#F2E9E4]/60">Загрузка...</p>
+          <p className="text-text-secondary">Загрузка...</p>
         ) : (
           <div className="space-y-2 max-h-[50vh] overflow-y-auto">
             {filtered.map(item => {
@@ -165,11 +165,11 @@ export const NpcItemsManager = ({ npcId, items, onDataChanged, showError }: NpcI
               const currentQty = currentQuantityMap[item.id] || 0;
               const qtyToAdd = selectedItems[item.id] || 1;
               return (
-                <div key={item.id} className="bg-[#0A1F44]/70 p-3 rounded-xl border border-[#F2E9E4]/20 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <div key={item.id} className="card p-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                   <div>
-                    <p className="font-medium text-[#F2E9E4]">{item.name}</p>
-                    <p className="text-xs text-[#F2E9E4]/60">{item.rarity}</p>
-                    {owned && <p className="text-xs text-[#FF0026]">Уже есть: {currentQty} шт.</p>}
+                    <p className="font-medium text-text-primary">{item.name}</p>
+                    <p className="text-xs text-text-secondary">{item.rarity}</p>
+                    {owned && <p className="text-xs text-accent-primary">Уже есть: {currentQty} шт.</p>}
                   </div>
                   <div className="flex items-center gap-2">
                     <input
@@ -177,11 +177,11 @@ export const NpcItemsManager = ({ npcId, items, onDataChanged, showError }: NpcI
                       min={1}
                       value={qtyToAdd}
                       onChange={e => setSelectedItems(prev => ({ ...prev, [item.id]: parseInt(e.target.value) || 1 }))}
-                      className="w-16 px-2 py-1 border border-[#F2E9E4]/30 rounded bg-[#0A1F44] text-[#F2E9E4]"
+                      className="w-16 px-2 py-1 form-input"
                     />
                     <button
                       onClick={() => setSelectedItems(prev => ({ ...prev, [item.id]: (prev[item.id] || 1) }))}
-                      className="px-3 py-1 bg-[#0A1F44] text-[#F2E9E4] rounded-xl border border-[#F2E9E4]/30 hover:bg-[#0A1F44]/80"
+                      className="px-3 py-1 btn-secondary"
                     >
                       {owned ? '➕ Добавить ещё' : '➕ Добавить'}
                     </button>
@@ -191,17 +191,17 @@ export const NpcItemsManager = ({ npcId, items, onDataChanged, showError }: NpcI
             })}
           </div>
         )}
-        <div className="pt-2 flex flex-col sm:flex-row justify-between items-center gap-2 border-t border-[#F2E9E4]/20">
-          <span className="text-[#F2E9E4]">Выбрано: {Object.keys(selectedItems).length}</span>
+        <div className="pt-2 flex flex-col sm:flex-row justify-between items-center gap-2 border-t border-border-color">
+          <span className="text-text-primary">Выбрано: {Object.keys(selectedItems).length}</span>
           <button
             onClick={handleAddItems}
             disabled={Object.keys(selectedItems).length === 0 || loading}
-            className="w-full sm:w-auto px-4 py-2 bg-[#FF0026] text-white rounded-xl hover:bg-[#FF0026]/90 disabled:opacity-50"
+            className="w-full sm:w-auto px-4 py-2 btn-primary"
           >
             Добавить выбранные
           </button>
         </div>
-        <button onClick={() => setItemsSubTab('list')} className="mt-2 text-sm text-[#F2E9E4]/60 hover:text-[#F2E9E4]">
+        <button onClick={() => setItemsSubTab('list')} className="mt-2 text-sm text-text-secondary hover:text-text-primary transition-colors">
           ← Назад к списку
         </button>
       </div>
@@ -213,13 +213,13 @@ export const NpcItemsManager = ({ npcId, items, onDataChanged, showError }: NpcI
       {itemsSubTab === 'list' ? (
         <div>
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-[#F2E9E4]">📦 Предметы NPC</h3>
+            <h3 className="text-lg font-semibold text-text-primary">📦 Предметы NPC</h3>
             <button
               onClick={() => {
                 setItemsSubTab('add');
                 setSelectedItems({});
               }}
-              className="px-3 py-1 bg-[#0A1F44] text-[#FF0026] rounded-xl text-sm border border-[#FF0026]/30 hover:bg-[#0A1F44]/80"
+              className="px-3 py-1 btn-secondary text-sm"
             >
               ➕ Добавить предмет
             </button>

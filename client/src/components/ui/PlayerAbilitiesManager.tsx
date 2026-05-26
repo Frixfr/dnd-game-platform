@@ -163,27 +163,43 @@ export const PlayerAbilitiesManager = ({ playerId, abilities, onDataChanged, sho
     const ownedIds = new Set(abilities.map(a => a.id));
     return (
       <div className="space-y-4">
-        <input type="text" placeholder="🔍 Поиск способностей..." value={abilitySearch} onChange={e => setAbilitySearch(e.target.value)} className="w-full px-3 py-2 border rounded-xl" />
+        <input type="text" placeholder="🔍 Поиск способностей..." value={abilitySearch} onChange={e => setAbilitySearch(e.target.value)} className="form-input w-full" />
         {abilitiesLoading ? <p>Загрузка...</p> : (
           <div className="space-y-2 max-h-[50vh] overflow-y-auto">
             {filtered.map(ability => {
               const owned = ownedIds.has(ability.id);
               return (
-                <div key={ability.id} className="bg-[#0A1F44]/50 p-3 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                  <div><p className="font-medium">{ability.name}</p><p className="text-xs text-[#F2E9E4]/60">{ability.ability_type}</p></div>
+                <div key={ability.id} className="card p-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                  <div>
+                    <p className="font-medium text-text-primary">{ability.name}</p>
+                    <p className="text-xs text-text-secondary">{ability.ability_type}</p>
+                  </div>
                   {!owned ? (
-                    <button onClick={() => setSelectedAbilities(prev => prev.includes(ability.id) ? prev.filter(id => id !== ability.id) : [...prev, ability.id])} className={`px-3 py-1 rounded-xl ${selectedAbilities.includes(ability.id) ? 'bg-green-500 text-white' : 'bg-blue-100'}`}>{selectedAbilities.includes(ability.id) ? '✓ Выбрана' : 'Выбрать'}</button>
-                  ) : <span className="text-green-600 text-sm">✓ Уже есть</span>}
+                    <button
+                      onClick={() =>
+                        setSelectedAbilities(prev =>
+                          prev.includes(ability.id) ? prev.filter(id => id !== ability.id) : [...prev, ability.id]
+                        )
+                      }
+                      className={`px-3 py-1 rounded-xl ${selectedAbilities.includes(ability.id) ? 'btn-primary' : 'btn-secondary'}`}
+                    >
+                      {selectedAbilities.includes(ability.id) ? '✓ Выбрана' : 'Выбрать'}
+                    </button>
+                  ) : (
+                    <span className="text-green-400 text-sm">✓ Уже есть</span>
+                  )}
                 </div>
               );
             })}
           </div>
         )}
-        <div className="pt-2 flex flex-col sm:flex-row justify-between items-center gap-2 border-t">
-          <span>Выбрано: {selectedAbilities.length}</span>
-          <button onClick={handleAddAbilities} disabled={selectedAbilities.length === 0 || loading} className="w-full sm:w-auto px-4 py-2 bg-green-500 text-white rounded-xl">Добавить выбранные</button>
+        <div className="pt-2 flex flex-col sm:flex-row justify-between items-center gap-2 border-t border-border-color">
+          <span className="text-text-primary">Выбрано: {selectedAbilities.length}</span>
+          <button onClick={handleAddAbilities} disabled={selectedAbilities.length === 0 || loading} className="w-full sm:w-auto px-4 py-2 btn-primary">Добавить выбранные</button>
         </div>
-        <button onClick={() => setAbilitiesSubTab('list')} className="mt-2 text-sm text-[#F2E9E4]/60 hover:text-[#F2E9E4]">← Назад к списку</button>
+        <button onClick={() => setAbilitiesSubTab('list')} className="mt-2 text-sm text-text-secondary hover:text-text-primary transition-colors">
+          ← Назад к списку
+        </button>
       </div>
     );
   };
@@ -194,7 +210,7 @@ export const PlayerAbilitiesManager = ({ playerId, abilities, onDataChanged, sho
         <div>
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-semibold">✨ Способности игрока</h3>
-            <button onClick={() => { setAbilitiesSubTab('add'); setSelectedAbilities([]); }} className="px-3 py-1 bg-green-100 text-green-700 rounded-xl text-sm">➕ Добавить способность</button>
+            <button onClick={() => { setAbilitiesSubTab('add'); setSelectedAbilities([]); }} className="px-3 py-1 btn-secondary text-sm">➕ Добавить способность</button>
           </div>
           {renderCurrentAbilities()}
         </div>
