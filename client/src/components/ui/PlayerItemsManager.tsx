@@ -104,10 +104,10 @@ export const PlayerItemsManager = ({ playerId, items, onDataChanged, showError }
                   <h4 className="font-semibold">{item.name}</h4>
                   <p className="text-sm text-[#F2E9E4]/60">{item.description}</p>
                   <div className="flex flex-wrap gap-2 mt-2">
-                    <span className="text-xs bg-white px-2 py-0.5 rounded-full">{item.rarity}</span>
-                    <span className="text-xs bg-white px-2 py-0.5 rounded-full">×{item.quantity}</span>
+                    <span className="text-xs bg-bg-tertiary text-text-secondary px-2 py-0.5 rounded-full border border-border-color">{item.rarity}</span>
+                    <span className="text-xs bg-bg-tertiary text-text-secondary px-2 py-0.5 rounded-full border border-border-color">×{item.quantity}</span>
                     {hasActiveEffect && (
-                      <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">⚡ Активный</span>
+                      <span className="text-xs bg-accent-primary/20 text-accent-primary px-2 py-0.5 rounded-full border border-accent-primary/30">⚡ Активный</span>
                     )}
                   </div>
                 </div>
@@ -115,7 +115,7 @@ export const PlayerItemsManager = ({ playerId, items, onDataChanged, showError }
                   {hasActiveEffect && (
                     <button
                       onClick={() => handleUseItem(item.player_item_id || item.id, item.name)}
-                      className="px-3 py-1 bg-blue-500 text-white rounded-xl text-sm hover:bg-blue-600"
+                      className="px-3 py-1 btn-secondary text-sm"
                     >
                       Использовать
                     </button>
@@ -163,7 +163,7 @@ export const PlayerItemsManager = ({ playerId, items, onDataChanged, showError }
                     />
                     <button
                       onClick={() => setSelectedItems(prev => ({ ...prev, [item.id]: (prev[item.id] || 1) }))}
-                      className="px-3 py-1 bg-blue-100 rounded-xl"
+                      className="px-3 py-1 btn-secondary rounded-xl"
                     >
                       {owned ? '➕ Добавить ещё' : '➕ Добавить'}
                     </button>
@@ -175,9 +175,9 @@ export const PlayerItemsManager = ({ playerId, items, onDataChanged, showError }
         )}
         <div className="pt-2 flex flex-col sm:flex-row justify-between items-center gap-2 border-t">
           <span>Выбрано: {Object.keys(selectedItems).length}</span>
-          <button onClick={handleAddItems} disabled={Object.keys(selectedItems).length === 0 || loading} className="w-full sm:w-auto px-4 py-2 bg-green-500 text-white rounded-xl">Добавить выбранные</button>
+          <button onClick={handleAddItems} disabled={Object.keys(selectedItems).length === 0 || loading} className="w-full sm:w-auto px-4 py-2 btn-primary">Добавить выбранные</button>
         </div>
-        <button onClick={() => setItemsSubTab('list')} className="mt-2 text-sm text-[#F2E9E4]/60 hover:text-[#F2E9E4]">← Назад к списку</button>
+        <button onClick={() => setItemsSubTab('list')} className="mt-2 text-sm text-text-secondary hover:text-text-primary">← Назад к списку</button>
       </div>
     );
   };
@@ -187,8 +187,8 @@ export const PlayerItemsManager = ({ playerId, items, onDataChanged, showError }
       {itemsSubTab === 'list' ? (
         <div>
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold">📦 Предметы игрока</h3>
-            <button onClick={() => { setItemsSubTab('add'); setSelectedItems({}); }} className="px-3 py-1 bg-green-100 text-green-700 rounded-xl text-sm">➕ Добавить предмет</button>
+            <h3 className="text-lg font-semibold text-text-primary">📦 Предметы игрока</h3>
+            <button onClick={() => { setItemsSubTab('add'); setSelectedItems({}); }} className="px-3 py-1 btn-secondary text-sm">➕ Добавить предмет</button>
           </div>
           {renderCurrentItems()}
         </div>

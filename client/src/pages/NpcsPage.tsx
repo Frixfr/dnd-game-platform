@@ -112,12 +112,12 @@ export const NpcsPage = () => {
     <div className="p-6 max-w-6xl mx-auto">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold">NPC</h1>
-          <p className="text-gray-600 mt-1">Всего NPC: {npcsTotal}</p>
+          <h1 className="text-3xl font-bold text-text-primary">NPC</h1>
+          <p className="text-text-secondary mt-1">Всего NPC: {npcsTotal}</p>
         </div>
         <button
           onClick={() => setIsCreateModalOpen(true)}
-          className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
+          className="px-4 py-2 btn-primary"
         >
           + Создать NPC
         </button>
@@ -125,11 +125,11 @@ export const NpcsPage = () => {
 
       {loading ? (
         <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-          <p className="mt-2 text-gray-600">Загрузка NPC...</p>
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-accent-primary"></div>
+          <p className="mt-2 text-text-secondary">Загрузка NPC...</p>
         </div>
       ) : npcs.length === 0 ? (
-        <div className="text-center py-12 text-gray-500 bg-gray-50 rounded-lg">
+        <div className="text-center py-12 text-text-muted bg-card rounded-lg border border-border-color">
           Нет созданных NPC
         </div>
       ) : (
@@ -175,28 +175,28 @@ export const NpcsPage = () => {
         }}
       />
       {isDuplicateModalOpen && duplicateNpc && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-96">
-            <h3 className="text-xl font-bold mb-4">Дублировать NPC</h3>
-            <p className="text-gray-600 mb-2">Создать копию NPC "{duplicateNpc.name}"</p>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="modal-content p-6 w-96">
+            <h3 className="text-xl font-bold mb-4 text-text-primary">Дублировать NPC</h3>
+            <p className="text-text-secondary mb-2">Создать копию NPC "{duplicateNpc.name}"</p>
             <input
               type="text"
               value={duplicateName}
               onChange={(e) => setDuplicateName(e.target.value)}
-              className="w-full px-3 py-2 border rounded mb-4"
+              className="w-full px-3 py-2 form-input mb-4"
               placeholder="Имя нового NPC"
               autoFocus
             />
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setIsDuplicateModalOpen(false)}
-                className="px-4 py-2 border rounded hover:bg-gray-50"
+                className="px-4 py-2 btn-secondary"
               >
                 Отмена
               </button>
               <button
                 onClick={confirmDuplicate}
-                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                className="px-4 py-2 btn-primary"
               >
                 Дублировать
               </button>

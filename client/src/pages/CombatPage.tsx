@@ -86,12 +86,12 @@ export const CombatPage = () => {
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">⚔️ Бой</h1>
+        <h1 className="text-3xl font-bold text-text-primary">⚔️ Бой</h1>
         <div className="flex gap-3">
           {!session ? (
             <button
               onClick={startNewSession}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+              className="px-4 py-2 btn-primary"
             >
               Начать битву
             </button>
@@ -99,19 +99,19 @@ export const CombatPage = () => {
             <>
               <button
                 onClick={() => setShowAddModal(true)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                className="px-4 py-2 btn-secondary"
               >
                 + Добавить участника
               </button>
               <button
                 onClick={nextTurn}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                className="px-4 py-2 btn-secondary"
               >
                 Передать ход
               </button>
               <button
                 onClick={advanceDay}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                className="px-4 py-2 btn-secondary"
               >
                 Завершить день
               </button>
@@ -121,11 +121,11 @@ export const CombatPage = () => {
       </div>
 
       {!session ? (
-        <div className="text-center py-12 text-gray-500">
+        <div className="text-center py-12 text-text-muted bg-card rounded-lg border border-border-color">
           Нет активной битвы. Нажмите «Начать битву»
         </div>
       ) : participants.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
+        <div className="text-center py-12 text-text-muted bg-card rounded-lg border border-border-color">
           Нет участников. Добавьте игроков или NPC
         </div>
       ) : (

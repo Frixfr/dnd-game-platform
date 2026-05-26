@@ -79,8 +79,8 @@ export const EffectsPage = () => {
     <div className="p-6 max-w-6xl mx-auto">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Панель эффектов</h1>
-          <p className="text-gray-600 mt-1">
+          <h1 className="text-3xl font-bold text-text-primary">Панель эффектов</h1>
+          <p className="text-text-secondary mt-1">
             Всего эффектов: <span className="font-semibold">{effectsTotal}</span>
           </p>
         </div>
@@ -90,11 +90,11 @@ export const EffectsPage = () => {
             placeholder="Поиск по названию, описанию или тегу..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-64 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-64 px-4 py-2 form-input"
           />
           <button
             onClick={() => setIsCreateModalOpen(true)}
-            className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+            className="px-4 py-2 btn-primary"
           >
             + Создать эффект
           </button>
@@ -103,11 +103,11 @@ export const EffectsPage = () => {
 
       {loading ? (
         <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-          <p className="mt-2 text-gray-600">Загрузка эффектов...</p>
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-accent-primary"></div>
+          <p className="mt-2 text-text-secondary">Загрузка эффектов...</p>
         </div>
       ) : filteredEffects.length === 0 ? (
-        <div className="text-center py-12 text-gray-500 bg-gray-50 rounded-lg">
+        <div className="text-center py-12 text-text-muted bg-card rounded-lg border border-border-color">
           {effects.length === 0
             ? "Нет созданных эффектов. Нажмите кнопку выше для создания первого."
             : "Ничего не найдено по вашему запросу."}

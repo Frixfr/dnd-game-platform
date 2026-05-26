@@ -103,14 +103,14 @@ export const AbilitiesPage = () => {
     <div className="p-6 max-w-6xl mx-auto">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Панель способностей</h1>
-          <p className="text-gray-600 mt-1">
+          <h1 className="text-3xl font-bold text-text-primary">Панель способностей</h1>
+          <p className="text-text-secondary mt-1">
             Всего способностей: <span className="font-semibold">{abilitiesTotal}</span>
           </p>
         </div>
         <button
           onClick={() => setIsCreateModalOpen(true)}
-          className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
+          className="px-4 py-2 btn-primary"
         >
           + Создать способность
         </button>
@@ -118,11 +118,11 @@ export const AbilitiesPage = () => {
 
       {loading ? (
         <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-          <p className="mt-2 text-gray-600">Загрузка способностей...</p>
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-accent-primary"></div>
+          <p className="mt-2 text-text-secondary">Загрузка способностей...</p>
         </div>
       ) : abilities.length === 0 ? (
-        <div className="text-center py-12 text-gray-500 bg-gray-50 rounded-lg">
+        <div className="text-center py-12 text-text-muted bg-card rounded-lg border border-border-color">
           <p className="text-lg mb-2">Нет созданных способностей</p>
           <p className="mb-4">Нажмите кнопку выше для создания первой способности</p>
         </div>
