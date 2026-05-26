@@ -82,7 +82,7 @@ export const CompactInventory: React.FC<CompactInventoryProps> = ({ items, playe
             {item.is_usable && (
               <button
                 onClick={() => handleUse(item)}
-                className="flex-1 py-3 rounded-lg bg-[#FF0026] hover:bg-[#FF0026]/90 text-white text-base font-medium transition-colors active:scale-95 flex items-center justify-center gap-2"
+                className="flex-1 py-3 rounded-lg btn-secondary text-base font-medium transition-colors flex items-center justify-center gap-2"
               >
                 <Zap size={18} /> Использовать
               </button>
@@ -98,7 +98,7 @@ export const CompactInventory: React.FC<CompactInventoryProps> = ({ items, playe
             {item.is_deletable && (
               <button
                 onClick={() => setTransferItem(item)}
-                className="flex-1 py-3 rounded-lg bg-[#0A1F44] hover:bg-[#0A1F44]/80 text-[#F2E9E4] text-base font-medium transition-colors active:scale-95 flex items-center justify-center gap-2 border border-[#F2E9E4]/30"
+                className="flex-1 py-3 rounded-lg btn-primary text-base font-medium transition-colors flex items-center justify-center gap-2"
               >
                 <Send size={18} /> Передать
               </button>

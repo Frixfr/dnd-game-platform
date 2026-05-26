@@ -69,7 +69,7 @@ export const PlayerAbilitiesPage = () => {
                       className={`w-full py-2 rounded-xl transition ${
                         isOnCooldown
                           ? 'bg-bg-tertiary text-text-secondary cursor-not-allowed'
-                          : 'btn-primary'
+                          : 'btn-secondary'
                       } disabled:opacity-50`}
                     >
                       {usingAbilityId === ability.id

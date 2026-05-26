@@ -77,10 +77,8 @@ export const QuickAbilitiesList: React.FC<QuickAbilitiesListProps> = ({ abilitie
               <button
                 onClick={() => handleUse(ability.id)}
                 disabled={isOnCooldown || loading === ability.id}
-                className={`flex-1 py-3 rounded-lg text-base font-medium transition-colors ${
-                  isOnCooldown
-                    ? "bg-[#0A1F44]/50 text-[#F2E9E4]/40 cursor-not-allowed"
-                    : "bg-[#FF0026] hover:bg-[#FF0026]/90 text-white active:scale-95"
+                className={`flex-1 py-3 rounded-lg text-base font-medium transition-colors btn-secondary ${
+                  isOnCooldown || loading === ability.id ? 'opacity-50 cursor-not-allowed' : ''
                 }`}
               >
                 {loading === ability.id ? "..." : "Использовать"}

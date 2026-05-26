@@ -135,9 +135,7 @@ export const PlayerAbilitiesManager = ({ playerId, abilities, onDataChanged, sho
                     <button
                       onClick={() => handleUseAbility(ability.id, ability.name)}
                       disabled={!canUse}
-                      className={`text-sm px-3 py-1 rounded-full ${
-                        canUse ? 'bg-blue-500 text-white hover:bg-blue-600' : 'bg-[#0A1F44]/80 text-[#F2E9E4]/60 cursor-not-allowed border border-[#F2E9E4]/20'
-                      }`}
+                      className={`text-sm px-3 py-1 btn-secondary ${!canUse ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       {remainingCooldown > 0 ? `⏳ ${remainingCooldown}` : 'Использовать'}
                     </button>
