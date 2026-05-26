@@ -6,51 +6,54 @@ node_modules/
 dist/
 build/
 .next/
-.nuxt/
 out/
-
-# Logs
-*.log
 
 # Environment variables
 .env
 .env.local
-*.env.*
+.env.*
 
-# IDE files
+# IDE specific
 .vscode/
 .idea/
 *.swp
 *.swo
 
-# Python
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+
+# Coverage
+coverage/
+htmlcov/
+.coverage
+
+# Python specific
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 .Python
 *.so
-.coverage
-coverage/
-htmlcov/
+.Python
+*.egg-info/
+.eggs/
 .pytest_cache/
 .mypy_cache/
+.tox/
 
-# Node.js
+# Node specific
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# OS generated files
+# OS generated
 .DS_Store
 Thumbs.db
 
-# Temporary files
-*.tmp
-*.temp
-*.bak
-
-# Compressed files
+# Compression
 *.zip
 *.gz
 *.tar

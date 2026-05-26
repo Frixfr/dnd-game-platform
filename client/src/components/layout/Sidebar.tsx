@@ -12,9 +12,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, isMobile }) => {
   };
 
   return (
-    <aside className="w-64 h-full bg-[var(--color-bg-secondary)] border-r border-[var(--border-color)] flex flex-col shadow-lg md:shadow-none">
-      <div className="p-6 border-b border-[var(--border-color)]">
-        <h2 className="text-xl font-bold bg-gradient-to-r from-amber-300 to-amber-500 bg-clip-text text-transparent">
+    <aside className="w-64 h-full bg-bg-secondary border-r border-border-color flex flex-col shadow-lg md:shadow-none">
+      <div className="p-6 border-b border-border-color">
+        <h2 className="text-xl font-bold text-text-primary">
           DnD Platform
         </h2>
       </div>
@@ -28,8 +28,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, isMobile }) => {
               className={({ isActive }) =>
                 `flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 ${
                   isActive
-                    ? 'bg-amber-600/20 text-amber-400 border border-amber-500/30 shadow-md'
-                    : 'text-[var(--text-secondary)] hover:bg-[var(--color-bg-card-hover)] hover:text-amber-300'
+                    ? 'bg-accent-red/20 text-accent-red border border-accent-red/30 shadow-md'
+                    : 'text-text-secondary hover:bg-bg-card-hover hover:text-text-primary'
                 }`
               }
             >
@@ -44,8 +44,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, isMobile }) => {
               className={({ isActive }) =>
                 `flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 ${
                   isActive
-                    ? 'bg-amber-600/20 text-amber-400 border border-amber-500/30 shadow-md'
-                    : 'text-[var(--text-secondary)] hover:bg-[var(--color-bg-card-hover)] hover:text-amber-300'
+                    ? 'bg-accent-red/20 text-accent-red border border-accent-red/30 shadow-md'
+                    : 'text-text-secondary hover:bg-bg-card-hover hover:text-text-primary'
                 }`
               }
             >
@@ -60,8 +60,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, isMobile }) => {
               className={({ isActive }) =>
                 `flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 ${
                   isActive
-                    ? 'bg-amber-600/20 text-amber-400 border border-amber-500/30 shadow-md'
-                    : 'text-[var(--text-secondary)] hover:bg-[var(--color-bg-card-hover)] hover:text-amber-300'
+                    ? 'bg-accent-red/20 text-accent-red border border-accent-red/30 shadow-md'
+                    : 'text-text-secondary hover:bg-bg-card-hover hover:text-text-primary'
                 }`
               }
             >
@@ -76,8 +76,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, isMobile }) => {
               className={({ isActive }) =>
                 `flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 ${
                   isActive
-                    ? 'bg-amber-600/20 text-amber-400 border border-amber-500/30 shadow-md'
-                    : 'text-[var(--text-secondary)] hover:bg-[var(--color-bg-card-hover)] hover:text-amber-300'
+                    ? 'bg-accent-red/20 text-accent-red border border-accent-red/30 shadow-md'
+                    : 'text-text-secondary hover:bg-bg-card-hover hover:text-text-primary'
                 }`
               }
             >
@@ -92,8 +92,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, isMobile }) => {
               className={({ isActive }) =>
                 `flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 ${
                   isActive
-                    ? 'bg-amber-600/20 text-amber-400 border border-amber-500/30 shadow-md'
-                    : 'text-[var(--text-secondary)] hover:bg-[var(--color-bg-card-hover)] hover:text-amber-300'
+                    ? 'bg-accent-red/20 text-accent-red border border-accent-red/30 shadow-md'
+                    : 'text-text-secondary hover:bg-bg-card-hover hover:text-text-primary'
                 }`
               }
             >
@@ -108,8 +108,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, isMobile }) => {
               className={({ isActive }) =>
                 `flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 ${
                   isActive
-                    ? 'bg-amber-600/20 text-amber-400 border border-amber-500/30 shadow-md'
-                    : 'text-[var(--text-secondary)] hover:bg-[var(--color-bg-card-hover)] hover:text-amber-300'
+                    ? 'bg-accent-red/20 text-accent-red border border-accent-red/30 shadow-md'
+                    : 'text-text-secondary hover:bg-bg-card-hover hover:text-text-primary'
                 }`
               }
             >
@@ -124,8 +124,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, isMobile }) => {
               className={({ isActive }) =>
                 `flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 ${
                   isActive
-                    ? 'bg-amber-600/20 text-amber-400 border border-amber-500/30 shadow-md'
-                    : 'text-[var(--text-secondary)] hover:bg-[var(--color-bg-card-hover)] hover:text-amber-300'
+                    ? 'bg-accent-red/20 text-accent-red border border-accent-red/30 shadow-md'
+                    : 'text-text-secondary hover:bg-bg-card-hover hover:text-text-primary'
                 }`
               }
             >
@@ -140,8 +140,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, isMobile }) => {
               className={({ isActive }) =>
                 `flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 ${
                   isActive
-                    ? 'bg-amber-600/20 text-amber-400 border border-amber-500/30 shadow-md'
-                    : 'text-[var(--text-secondary)] hover:bg-[var(--color-bg-card-hover)] hover:text-amber-300'
+                    ? 'bg-accent-red/20 text-accent-red border border-accent-red/30 shadow-md'
+                    : 'text-text-secondary hover:bg-bg-card-hover hover:text-text-primary'
                 }`
               }
             >
@@ -151,7 +151,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, isMobile }) => {
           </li>
         </ul>
       </nav>
-      <div className="p-4 border-t border-[var(--border-color)] text-center text-xs text-[var(--text-muted)]">
+      <div className="p-4 border-t border-border-color text-center text-xs text-text-muted">
         Master Dashboard v1.0
       </div>
     </aside>

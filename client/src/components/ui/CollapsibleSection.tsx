@@ -26,16 +26,16 @@ export const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
   };
 
   return (
-    <div className="bg-gray-800/40 backdrop-blur-sm rounded-2xl border border-amber-500/20 overflow-hidden">
+    <div className="bg-card backdrop-blur-sm rounded-2xl border border-border-color overflow-hidden">
       <button
         onClick={toggle}
-        className="w-full flex items-center justify-between p-5 hover:bg-gray-800/60 transition-colors text-left"
+        className="w-full flex items-center justify-between p-5 hover:bg-bg-secondary transition-colors text-left"
       >
         <div className="flex items-center gap-2">
-          {expanded ? <ChevronDown size={20} className="text-amber-400" /> : <ChevronRight size={20} className="text-amber-400" />}
-          <h3 className="text-lg font-semibold text-amber-400">{title}</h3>
+          {expanded ? <ChevronDown size={20} className="text-accent-red" /> : <ChevronRight size={20} className="text-accent-red" />}
+          <h3 className="text-lg font-semibold text-text-primary">{title}</h3>
         </div>
-        {headerRight && <div className="text-gray-400">{headerRight}</div>}
+        {headerRight && <div className="text-text-secondary">{headerRight}</div>}
       </button>
       {expanded && <div className="p-5 pt-0">{children}</div>}
     </div>

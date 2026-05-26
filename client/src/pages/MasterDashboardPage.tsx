@@ -89,21 +89,21 @@ export const MasterDashboardPage = () => {
   return (
     <div className="p-4 md:p-6 max-w-7xl mx-auto animate-fade-in">
       {/* Заголовок страницы */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 pb-6 border-b border-[var(--border-color)]">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 pb-6 border-b border-border-color">
         <div>
           <div className="flex items-center gap-3 mb-2">
-            <Users size={28} className="text-amber-400" />
-            <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-amber-200 to-amber-400 bg-clip-text text-transparent">
+            <Users size={28} className="text-accent-red" />
+            <h1 className="text-2xl md:text-3xl font-bold text-text-primary">
               Панель игроков
             </h1>
           </div>
-          <p className="text-[var(--text-secondary)]">
-            Всего игроков: <span className="font-semibold text-amber-400">{playersTotal}</span>
+          <p className="text-text-secondary">
+            Всего игроков: <span className="font-semibold text-accent-red">{playersTotal}</span>
           </p>
         </div>
         <button
           onClick={() => setIsCreateModalOpen(true)}
-          className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-amber-600 to-amber-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl hover:shadow-amber-500/20 transition-all duration-300 hover:-translate-y-0.5"
+          className="flex items-center gap-2 px-5 py-2.5 btn-primary"
         >
           <Plus size={20} />
           <span>Создать игрока</span>
@@ -114,16 +114,16 @@ export const MasterDashboardPage = () => {
       {loading ? (
         <div className="flex flex-col items-center justify-center py-20">
           <div className="relative">
-            <div className="absolute inset-0 bg-amber-500/20 blur-xl rounded-full" />
-            <div className="w-12 h-12 border-4 border-amber-500/30 border-t-amber-400 rounded-full animate-spin relative z-10" />
+            <div className="absolute inset-0 bg-accent-red/20 blur-xl rounded-full" />
+            <div className="w-12 h-12 border-4 border-accent-red/30 border-t-accent-red rounded-full animate-spin relative z-10" />
           </div>
-          <p className="mt-4 text-[var(--text-secondary)]">Загрузка игроков...</p>
+          <p className="mt-4 text-text-secondary">Загрузка игроков...</p>
         </div>
       ) : players.length === 0 ? (
-        <div className="text-center py-20 bg-[var(--color-bg-secondary)] rounded-2xl border border-[var(--border-color)]">
-          <Users size={48} className="mx-auto text-[var(--text-muted)] mb-4" />
-          <p className="text-lg text-[var(--text-secondary)] mb-2">Нет созданных игроков</p>
-          <p className="text-[var(--text-muted)] mb-6">Нажмите кнопку выше для создания первого игрока</p>
+        <div className="text-center py-20 bg-bg-secondary rounded-2xl border border-border-color">
+          <Users size={48} className="mx-auto text-text-muted mb-4" />
+          <p className="text-lg text-text-secondary mb-2">Нет созданных игроков</p>
+          <p className="text-text-muted mb-6">Нажмите кнопку выше для создания первого игрока</p>
         </div>
       ) : (
         <>

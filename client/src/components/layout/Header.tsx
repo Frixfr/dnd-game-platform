@@ -20,21 +20,21 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, isMobile, onLogout }) =>
   };
 
   return (
-    <header className="bg-[var(--color-bg-secondary)]/90 backdrop-blur-md border-b border-[var(--border-color)] shadow-md">
+    <header className="bg-bg-secondary/90 backdrop-blur-md border-b border-border-color shadow-md">
       <div className="flex items-center justify-between h-16 px-6">
         <div className="flex items-center gap-3">
           {isMobile && (
             <button
               onClick={toggleSidebar}
-              className="p-2 rounded-lg hover:bg-[var(--color-bg-card-hover)] focus:outline-none text-amber-400"
+              className="p-2 rounded-lg hover:bg-bg-card-hover focus:outline-none text-accent-red"
               aria-label="Меню"
             >
               <Menu size={24} />
             </button>
           )}
           <div className="flex items-center gap-2">
-            <Shield size={20} className="text-amber-400" />
-            <h1 className="text-xl font-semibold bg-gradient-to-r from-amber-200 to-amber-400 bg-clip-text text-transparent">
+            <Shield size={20} className="text-accent-red" />
+            <h1 className="text-xl font-semibold text-text-primary">
               Панель мастера
             </h1>
           </div>
@@ -42,7 +42,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, isMobile, onLogout }) =>
 
         <button
           onClick={handleLogout}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-card-hover)] transition-all text-[var(--text-secondary)] hover:text-amber-300 border border-[var(--border-color)] hover:border-amber-500/30"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-bg-tertiary hover:bg-bg-card-hover transition-all text-text-secondary hover:text-accent-red border border-border-color hover:border-accent-red/30"
         >
           <LogOut size={18} />
           <span className="hidden sm:inline">Выйти</span>
