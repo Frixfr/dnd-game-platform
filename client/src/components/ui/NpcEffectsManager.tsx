@@ -200,7 +200,7 @@ export const NpcEffectsManager = ({
           placeholder="🔍 Поиск эффектов..."
           value={effectSearch}
           onChange={e => setEffectSearch(e.target.value)}
-          className="w-full px-3 py-2 border rounded-xl"
+          className="form-input w-full"
         />
         {effectsLoading ? (
           <p>Загрузка...</p>
@@ -209,10 +209,10 @@ export const NpcEffectsManager = ({
             {filtered.map(effect => {
               const owned = ownedIds.has(effect.id);
               return (
-                <div key={effect.id} className="bg-[#0A1F44]/50 p-3 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <div key={effect.id} className="card p-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                   <div>
-                    <p className="font-medium">{effect.name}</p>
-                    <p className="text-xs text-[#F2E9E4]/60">
+                    <p className="font-medium text-text-primary">{effect.name}</p>
+                    <p className="text-xs text-text-secondary">
                       {effect.attribute} {effect.modifier > 0 ? `+${effect.modifier}` : effect.modifier}
                     </p>
                   </div>
@@ -223,29 +223,29 @@ export const NpcEffectsManager = ({
                           prev.includes(effect.id) ? prev.filter(id => id !== effect.id) : [...prev, effect.id]
                         )
                       }
-                      className={`px-3 py-1 rounded-xl ${selectedEffects.includes(effect.id) ? 'bg-green-500 text-white' : 'bg-blue-100'}`}
+                      className={`px-3 py-1 rounded-xl ${selectedEffects.includes(effect.id) ? 'btn-primary' : 'btn-secondary'}`}
                     >
                       {selectedEffects.includes(effect.id) ? '✓ Выбран' : 'Выбрать'}
                     </button>
                   ) : (
-                    <span className="text-green-600 text-sm">✓ Уже есть</span>
+                    <span className="text-green-400 text-sm">✓ Уже есть</span>
                   )}
                 </div>
               );
             })}
           </div>
         )}
-        <div className="pt-2 flex flex-col sm:flex-row justify-between items-center gap-2 border-t">
-          <span>Выбрано: {selectedEffects.length}</span>
+        <div className="pt-2 flex flex-col sm:flex-row justify-between items-center gap-2 border-t border-border-color">
+          <span className="text-text-primary">Выбрано: {selectedEffects.length}</span>
           <button
             onClick={handleAddEffects}
             disabled={selectedEffects.length === 0 || loading}
-            className="w-full sm:w-auto px-4 py-2 bg-green-500 text-white rounded-xl"
+            className="w-full sm:w-auto px-4 py-2 btn-primary"
           >
             Добавить выбранные
           </button>
         </div>
-        <button onClick={() => setEffectsSubTab('list')} className="mt-2 text-sm text-[#F2E9E4]/60 hover:text-[#F2E9E4]">
+        <button onClick={() => setEffectsSubTab('list')} className="mt-2 text-sm text-text-secondary hover:text-text-primary transition-colors">
           ← Назад к списку
         </button>
       </div>
@@ -257,13 +257,13 @@ export const NpcEffectsManager = ({
       {effectsSubTab === 'list' ? (
         <div>
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold">🌀 Эффекты NPC</h3>
+            <h3 className="text-lg font-semibold text-text-primary">🌀 Эффекты NPC</h3>
             <button
               onClick={() => {
                 setEffectsSubTab('add');
                 setSelectedEffects([]);
               }}
-              className="px-3 py-1 bg-green-100 text-green-700 rounded-xl text-sm"
+              className="px-3 py-1 btn-secondary text-sm"
             >
               ➕ Добавить эффект
             </button>
