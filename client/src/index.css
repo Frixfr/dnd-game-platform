@@ -342,6 +342,11 @@ body {
   line-height: 1.5;
 }
 
+/* Специальный padding для полей с иконкой */
+.form-input[class*="pl-"] {
+  padding-left: 2.5rem !important;
+}
+
 .form-input:focus {
   outline: none;
   border-color: var(--color-accent-primary);
