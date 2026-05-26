@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
+import LogsButton from '../ui/LogsButton';
 import { MasterRequestsListener } from './MasterRequestsListener';
 import { useAbilityStore } from '../../stores/abilityStore';
 import { useCombatStore } from '../../stores/combatStore';
@@ -53,6 +54,7 @@ const MasterLayout: React.FC = () => {
   return (
     <div className="flex h-screen bg-[var(--color-bg-primary)] relative">
       <MasterRequestsListener />
+      <LogsButton />
       {isMobile && isSidebarOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30" onClick={closeSidebar} />
       )}

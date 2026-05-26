@@ -1,4 +1,3 @@
-```gitignore
 # Dependencies
 node_modules/
 
@@ -12,40 +11,34 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
-.Python
-env/
+*.py.class
 venv/
 .venv/
-.ENV
-.ENV.*
-.mypy_cache/
-.pytest_cache/
-
-# Logs
-*.log
-
-# Environment variables
 .env
 .env.local
 .env.*
+
+# Logs
+*.log
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-*.tmp
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Coverage
+# Testing
+.coverage
 coverage/
 htmlcov/
-.coverage
+.pytest_cache/
+.mypy_cache/
 
-# Compressed files
+# Compressed
 *.zip
 *.gz
 *.tar
@@ -68,4 +61,3 @@ htmlcov/
 *.tar.bz2
 *.tar.xz
 *.tar.zst
-```
