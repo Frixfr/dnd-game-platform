@@ -143,12 +143,12 @@ export const PlayerInventoryPage = () => {
     }
   };
 
-  if (loading) return <div className="text-center py-12">Загрузка инвентаря...</div>;
+  if (loading) return <div className="text-center py-12 text-text-primary">Загрузка инвентаря...</div>;
 
   return (
     <div className="max-w-4xl mx-auto">
       {items.length === 0 ? (
-        <p className="text-center text-gray-500 py-12">Инвентарь пуст</p>
+        <p className="text-center text-text-secondary py-12">Инвентарь пуст</p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {items.map((item) => (
@@ -158,7 +158,7 @@ export const PlayerInventoryPage = () => {
                 {item.is_usable && (item.infinite_uses || item.quantity > 0) && (
                   <button
                     onClick={() => handleUse(item.player_item_id, item.name)}
-                    className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700"
+                    className="px-3 py-1 text-sm bg-green-600/80 text-white rounded hover:bg-green-700"
                   >
                     Использовать
                   </button>
@@ -167,7 +167,7 @@ export const PlayerInventoryPage = () => {
                   <>
                     <button
                       onClick={() => handleDiscardClick(item.player_item_id, item.name, item.quantity)}
-                      className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700"
+                      className="px-3 py-1 text-sm btn-danger"
                     >
                       Выбросить
                     </button>
@@ -178,7 +178,7 @@ export const PlayerInventoryPage = () => {
                         itemName: item.name,
                         currentQuantity: item.quantity,
                       })}
-                      className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                      className="px-3 py-1 text-sm bg-blue-600/80 text-white rounded hover:bg-blue-700"
                     >
                       Передать
                     </button>
@@ -199,21 +199,21 @@ export const PlayerInventoryPage = () => {
       />
 
       {showQuantityModal && pendingDiscard && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-md w-full p-6">
-            <h3 className="text-xl font-bold mb-4">Выбросить предмет</h3>
-            <p className="mb-2">Выберите количество для "{pendingDiscard.itemName}" (до {pendingDiscard.maxQuantity})</p>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="modal-content max-w-md w-full">
+            <h3 className="text-xl font-bold mb-4 text-text-primary">Выбросить предмет</h3>
+            <p className="mb-2 text-text-secondary">Выберите количество для "{pendingDiscard.itemName}" (до {pendingDiscard.maxQuantity})</p>
             <input
               type="number"
               min={1}
               max={pendingDiscard.maxQuantity}
               value={discardQuantity}
               onChange={(e) => setDiscardQuantity(Math.min(pendingDiscard.maxQuantity, Math.max(1, parseInt(e.target.value) || 1)))}
-              className="w-full px-3 py-2 border rounded-xl mb-4"
+              className="form-input mb-4"
             />
             <div className="flex gap-2 justify-end">
-              <button onClick={() => setShowQuantityModal(false)} className="px-4 py-2 bg-gray-300 rounded-xl">Отмена</button>
-              <button onClick={handleDiscardWithQuantity} className="px-4 py-2 bg-red-600 text-white rounded-xl">Выбросить</button>
+              <button onClick={() => setShowQuantityModal(false)} className="btn-secondary">Отмена</button>
+              <button onClick={handleDiscardWithQuantity} className="btn-danger">Выбросить</button>
             </div>
           </div>
         </div>

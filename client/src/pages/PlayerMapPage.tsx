@@ -16,11 +16,11 @@ export const PlayerMapPage = () => {
     load();
   }, [initializeSocket, fetchActiveMap]);
 
-  if (loading) return <div className="p-4 text-center">Загрузка карты...</div>;
-  if (!activeMap) return <div className="p-4 text-center text-gray-500">Мастер ещё не открыл карту для игроков.</div>;
+  if (loading) return <div className="p-4 text-center text-text-primary">Загрузка карты...</div>;
+  if (!activeMap) return <div className="p-4 text-center text-text-secondary">Мастер ещё не открыл карту для игроков.</div>;
 
   return (
-    <div className="w-full h-full min-h-[70vh] bg-gray-100 rounded overflow-hidden">
+    <div className="w-full h-full min-h-[70vh] bg-bg-secondary rounded-lg border border-border-color overflow-hidden">
       <MapViewer map={activeMap} />
     </div>
   );
