@@ -165,21 +165,21 @@ export const PlayerCharacterSheetPage = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-900 to-gray-800">
-        <Loader2 className="w-16 h-16 text-amber-500 animate-spin" />
+      <div className="flex items-center justify-center min-h-screen bg-bg-primary">
+        <Loader2 className="w-16 h-16 text-accent-red animate-spin" />
       </div>
     );
   }
 
   if (error || !selectedPlayer) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-900 to-gray-800">
-        <div className="text-center bg-gray-800/80 p-8 rounded-2xl border border-red-500/30">
-          <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
-          <p className="text-red-300 mb-4">{error || "Персонаж не найден"}</p>
+      <div className="flex items-center justify-center min-h-screen bg-bg-primary">
+        <div className="text-center bg-card p-8 rounded-2xl border border-border-color">
+          <AlertCircle className="w-12 h-12 text-accent-red mx-auto mb-4" />
+          <p className="text-text-secondary mb-4">{error || "Персонаж не найден"}</p>
           <button
             onClick={() => navigate("/player/select")}
-            className="px-6 py-2 bg-amber-600 hover:bg-amber-500 rounded-lg"
+            className="px-6 py-2 btn-primary"
           >
             Выбрать персонажа
           </button>
@@ -224,35 +224,35 @@ export const PlayerCharacterSheetPage = () => {
   const healthPercent = (finalStats.health / finalStats.max_health) * 100;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 py-6 px-4 md:px-6">
+    <div className="min-h-screen bg-bg-primary py-6 px-4 md:px-6">
       <div className="max-w-7xl mx-auto">
-        <div className="bg-gray-800/60 backdrop-blur-sm rounded-2xl border border-amber-500/30 p-6 mb-6">
+        <div className="bg-card backdrop-blur-sm rounded-2xl border border-border-color p-6 mb-6">
           <div className="flex flex-col md:flex-row gap-6 items-center md:items-start">
             <div className="relative">
-              <div className="w-28 h-28 md:w-36 md:h-36 rounded-full ring-4 ring-amber-500/50 bg-gray-700 flex items-center justify-center overflow-hidden">
+              <div className="w-28 h-28 md:w-36 md:h-36 rounded-full ring-4 ring-accent-red/50 bg-bg-secondary flex items-center justify-center overflow-hidden">
                 {player.avatar_url ? (
                   <img src={player.avatar_url} alt={player.name} className="w-full h-full object-cover" />
                 ) : (
-                  <span className="text-4xl md:text-5xl font-bold text-amber-400">{initials}</span>
+                  <span className="text-4xl md:text-5xl font-bold text-text-primary">{initials}</span>
                 )}
               </div>
-              <div className="absolute -bottom-2 -right-2 bg-gray-800 rounded-full p-1.5 ring-1 ring-amber-500/50">
+              <div className="absolute -bottom-2 -right-2 bg-card rounded-full p-1.5 ring-1 ring-border-color">
                 <GenderIcon size={20} className={player.gender === "male" ? "text-sky-400" : "text-rose-400"} />
               </div>
             </div>
             <div className="flex-1 text-center md:text-left">
-              <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-amber-200 to-yellow-400 bg-clip-text text-transparent">
+              <h1 className="text-2xl md:text-3xl font-bold text-text-primary">
                 {player.name}
               </h1>
               <div className="flex flex-wrap gap-2 mt-2 justify-center md:justify-start">
                 {player.race && (
-                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-amber-900/40 rounded-full text-xs text-amber-200">
+                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-bg-tertiary rounded-full text-xs text-text-primary">
                     <User size={12} /> {player.race.name}
                   </span>
                 )}
                 {player.in_battle && (
-                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-900/40 rounded-full text-xs text-red-200">
-                    <span className="w-1.5 h-1.5 bg-red-400 rounded-full animate-pulse" /> В бою
+                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-accent-red/20 rounded-full text-xs text-accent-red">
+                    <span className="w-1.5 h-1.5 bg-accent-red rounded-full animate-pulse" /> В бою
                   </span>
                 )}
               </div>
@@ -265,18 +265,18 @@ export const PlayerCharacterSheetPage = () => {
           <div className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
               {/* Здоровье с тултипом и базой */}
-              <div className="bg-gray-800/60 rounded-2xl border border-amber-500/20 p-4">
-                <div className="flex items-center gap-2 text-amber-400 mb-2">
+              <div className="bg-card rounded-2xl border border-border-color p-4">
+                <div className="flex items-center gap-2 text-text-primary mb-2">
                   <Heart size={20} fill="currentColor" />
                   <span className="font-semibold">Здоровье</span>
                 </div>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-2xl font-bold text-white">{finalStats.health}</span>
-                  <span className="text-gray-400">/</span>
-                  <span className="text-xl text-gray-300">{finalStats.max_health}</span>
+                  <span className="text-2xl font-bold text-text-primary">{finalStats.health}</span>
+                  <span className="text-text-secondary">/</span>
+                  <span className="text-xl text-text-secondary">{finalStats.max_health}</span>
                   {healthDiff !== 0 && (
                     <span
-                      className="text-sm text-amber-400 ml-1 cursor-help border-b border-dotted border-amber-400"
+                      className="text-sm text-text-secondary ml-1 cursor-help border-b border-dotted border-text-secondary"
                       title={formatBonusesTooltip(healthBonuses)}
                     >
                       ({healthDiff > 0 ? '+' : ''}{healthDiff})
@@ -284,34 +284,34 @@ export const PlayerCharacterSheetPage = () => {
                   )}
                   {currentHealthDiff !== 0 && currentHealthDiff !== healthDiff && (
                     <span
-                      className="text-sm text-amber-400 ml-1 cursor-help border-b border-dotted border-amber-400"
+                      className="text-sm text-text-secondary ml-1 cursor-help border-b border-dotted border-text-secondary"
                       title="Текущее здоровье изменено отдельно (не от эффектов)"
                     >
                       (тек: {currentHealthDiff > 0 ? '+' : ''}{currentHealthDiff})
                     </span>
                   )}
                 </div>
-                <div className="mt-2 h-1.5 bg-gray-700 rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-red-500 to-red-400 rounded-full transition-all" style={{ width: `${healthPercent}%` }} />
+                <div className="mt-2 h-1.5 bg-bg-tertiary rounded-full overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-accent-red to-red-400 rounded-full transition-all" style={{ width: `${healthPercent}%` }} />
                 </div>
                 {/* База максимального здоровья */}
-                <div className="text-xs text-gray-500 mt-2">
+                <div className="text-xs text-text-secondary mt-2">
                   база макс. здоровья: {baseStats.max_health}
                   {healthDiff !== 0 && ` + ${healthDiff}`}
                 </div>
               </div>
 
               {/* Класс брони с тултипом и базой */}
-              <div className="bg-gray-800/60 rounded-2xl border border-amber-500/20 p-4">
-                <div className="flex items-center gap-2 text-amber-400 mb-2">
+              <div className="bg-card rounded-2xl border border-border-color p-4">
+                <div className="flex items-center gap-2 text-text-primary mb-2">
                   <Shield size={20} />
                   <span className="font-semibold">Класс брони</span>
                 </div>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold text-white">{finalStats.armor}</span>
+                  <span className="text-3xl font-bold text-text-primary">{finalStats.armor}</span>
                   {armorDiff !== 0 && (
                     <span
-                      className="text-sm text-amber-400 cursor-help border-b border-dotted border-amber-400"
+                      className="text-sm text-text-secondary cursor-help border-b border-dotted border-text-secondary"
                       title={formatBonusesTooltip(armorBonuses)}
                     >
                       ({armorDiff > 0 ? '+' : ''}{armorDiff})
@@ -319,7 +319,7 @@ export const PlayerCharacterSheetPage = () => {
                   )}
                 </div>
                 {/* База брони */}
-                <div className="text-xs text-gray-500 mt-2">
+                <div className="text-xs text-text-secondary mt-2">
                   база: {baseStats.armor}
                   {armorDiff !== 0 && ` + ${armorDiff}`}
                 </div>
@@ -327,7 +327,7 @@ export const PlayerCharacterSheetPage = () => {
             </div>
             <button
               onClick={() => setShowHealModal(true)}
-              className="w-full py-2 bg-gray-700 hover:bg-gray-600 rounded-xl text-amber-300 transition-colors flex items-center justify-center gap-2"
+              className="w-full py-2 btn-secondary flex items-center justify-center gap-2"
             >
               <PlusCircle size={16} /> Запросить лечение/урон <MinusCircle size={16} />
             </button>
