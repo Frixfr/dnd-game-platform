@@ -50,7 +50,7 @@ export const QuickAbilitiesList: React.FC<QuickAbilitiesListProps> = ({ abilitie
   };
 
   if (activeAbilities.length === 0) {
-    return <div className="text-gray-400 text-sm italic">Нет активных способностей</div>;
+    return <div className="text-[#F2E9E4]/60 text-sm italic">Нет активных способностей</div>;
   }
 
   return (
@@ -59,17 +59,17 @@ export const QuickAbilitiesList: React.FC<QuickAbilitiesListProps> = ({ abilitie
         const cooldown = formatCooldown(ability);
         const isOnCooldown = cooldown !== null;
         return (
-          <div key={ability.id} className="bg-gray-700/50 rounded-xl p-4">
+          <div key={ability.id} className="bg-[#0A1F44]/70 rounded-xl p-4 border border-[#F2E9E4]/20">
             <div className="flex items-center gap-2 mb-2">
-              <Zap size={18} className="text-amber-400" />
-              <span className="text-gray-200 font-medium text-base">{ability.name}</span>
+              <Zap size={18} className="text-[#FF0026]" />
+              <span className="text-[#F2E9E4] font-medium text-base">{ability.name}</span>
             </div>
             {ability.description && (
-              <p className="text-sm text-gray-400 mb-3">{ability.description}</p>
+              <p className="text-sm text-[#F2E9E4]/60 mb-3">{ability.description}</p>
             )}
             <div className="flex items-center justify-between gap-3">
               {cooldown && (
-                <div className="flex items-center gap-1 text-sm text-orange-300">
+                <div className="flex items-center gap-1 text-sm text-[#FF0026]">
                   <Clock size={16} />
                   <span>{cooldown}</span>
                 </div>
@@ -79,8 +79,8 @@ export const QuickAbilitiesList: React.FC<QuickAbilitiesListProps> = ({ abilitie
                 disabled={isOnCooldown || loading === ability.id}
                 className={`flex-1 py-3 rounded-lg text-base font-medium transition-colors ${
                   isOnCooldown
-                    ? "bg-gray-600 text-gray-400 cursor-not-allowed"
-                    : "bg-amber-600 hover:bg-amber-500 text-white active:scale-95"
+                    ? "bg-[#0A1F44]/50 text-[#F2E9E4]/40 cursor-not-allowed"
+                    : "bg-[#FF0026] hover:bg-[#FF0026]/90 text-white active:scale-95"
                 }`}
               >
                 {loading === ability.id ? "..." : "Использовать"}

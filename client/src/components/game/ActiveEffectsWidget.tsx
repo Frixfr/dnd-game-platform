@@ -26,7 +26,7 @@ export const ActiveEffectsWidget: React.FC<ActiveEffectsWidgetProps> = ({ effect
   );
 
   if (temporaryEffects.length === 0) {
-    return <div className="text-gray-400 text-sm italic">Нет активных временных эффектов</div>;
+    return <div className="text-[#F2E9E4]/60 text-sm italic">Нет активных временных эффектов</div>;
   }
 
   return (
@@ -35,16 +35,16 @@ export const ActiveEffectsWidget: React.FC<ActiveEffectsWidgetProps> = ({ effect
         <div
           key={effect.id}
           onClick={() => onEffectClick?.(effect)}
-          className="flex-shrink-0 w-48 bg-gray-700/50 rounded-xl p-3 cursor-pointer hover:bg-gray-700 transition-colors"
+          className="flex-shrink-0 w-48 bg-[#0A1F44]/70 rounded-xl p-3 cursor-pointer hover:bg-[#0A1F44] transition-colors border border-[#F2E9E4]/20"
         >
           <div className="flex items-center gap-2 mb-2">
-            <Sparkles size={16} className="text-amber-400" />
-            <span className="text-gray-200 font-medium text-sm truncate">{effect.name}</span>
+            <Sparkles size={16} className="text-[#FF0026]" />
+            <span className="text-[#F2E9E4] font-medium text-sm truncate">{effect.name}</span>
           </div>
           {effect.source_name && (
-            <div className="text-xs text-gray-400 truncate mb-1">{effect.source_name}</div>
+            <div className="text-xs text-[#F2E9E4]/60 truncate mb-1">{effect.source_name}</div>
           )}
-          <div className="flex items-center gap-1 text-xs text-amber-400">
+          <div className="flex items-center gap-1 text-xs text-[#FF0026]">
             <Clock size={12} />
             <span>{formatRemaining(effect)}</span>
           </div>
