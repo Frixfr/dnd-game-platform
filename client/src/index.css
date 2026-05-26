@@ -320,6 +320,15 @@ body {
   color: var(--text-secondary);
   font-weight: 500;
   font-size: 0.875rem;
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.form-input,
+.form-select,
+.form-textarea {
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .form-input {
@@ -329,6 +338,8 @@ body {
   border-radius: var(--radius-lg);
   padding: 0.625rem 0.875rem;
   transition: all var(--transition-base);
+  font-size: 0.95rem;
+  line-height: 1.5;
 }
 
 .form-input:focus {
@@ -341,6 +352,17 @@ body {
   color: var(--text-muted);
 }
 
+/* Фикс для input[type=number] - убираем стрелки браузера */
+.form-input[type="number"]::-webkit-inner-spin-button,
+.form-input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.form-input[type="number"] {
+  -moz-appearance: textfield;
+}
+
 .form-select {
   background: var(--color-bg-tertiary);
   border: 1px solid var(--border-color);
@@ -348,6 +370,20 @@ body {
   border-radius: var(--radius-lg);
   padding: 0.625rem 0.875rem;
   cursor: pointer;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23d4c9c3'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 1rem;
+  padding-right: 2.5rem;
+}
+
+.form-select:focus {
+  outline: none;
+  border-color: var(--color-accent-primary);
+  box-shadow: 0 0 0 3px var(--color-accent-glow);
 }
 
 .form-textarea {
@@ -357,6 +393,15 @@ body {
   border-radius: var(--radius-lg);
   padding: 0.625rem 0.875rem;
   resize: vertical;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  min-height: 100px;
+}
+
+.form-textarea:focus {
+  outline: none;
+  border-color: var(--color-accent-primary);
+  box-shadow: 0 0 0 3px var(--color-accent-glow);
 }
 
 /* ============================================
