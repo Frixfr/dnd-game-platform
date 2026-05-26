@@ -110,7 +110,7 @@ export const NpcAbilitiesManager = ({ npcId, abilities, onDataChanged, showError
   };
 
   const renderCurrentAbilities = () => {
-    if (!abilities.length) return <p className="text-center text-gray-500 py-8">✨ Нет способностей</p>;
+    if (!abilities.length) return <p className="text-center text-text-secondary py-8">✨ Нет способностей</p>;
     return (
       <div className="space-y-3 max-h-[60vh] overflow-y-auto">
         {abilities.map(ability => {
@@ -119,15 +119,15 @@ export const NpcAbilitiesManager = ({ npcId, abilities, onDataChanged, showError
           const canUse = isActiveAbility && ability.is_active && remainingCooldown === 0;
 
           return (
-            <div key={ability.id} className="bg-gray-50 rounded-xl p-3 md:p-4 border">
+            <div key={ability.id} className="card p-3 md:p-4">
               <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
                 <div>
-                  <h4 className="font-semibold">{ability.name}</h4>
-                  <p className="text-sm text-gray-500">{ability.description}</p>
+                  <h4 className="font-semibold text-text-primary">{ability.name}</h4>
+                  <p className="text-sm text-text-secondary">{ability.description}</p>
                   <div className="flex flex-wrap gap-2 mt-1">
-                    <span className="text-xs bg-white px-2 py-0.5 rounded-full">{ability.ability_type}</span>
+                    <span className="text-xs bg-bg-secondary px-2 py-0.5 rounded-full text-text-primary">{ability.ability_type}</span>
                     {ability.cooldown_turns > 0 && (
-                      <span className="text-xs bg-white px-2 py-0.5 rounded-full">
+                      <span className="text-xs bg-bg-secondary px-2 py-0.5 rounded-full text-text-primary">
                         Перезарядка: {ability.cooldown_turns}{' '}
                         {remainingCooldown > 0 && `(осталось ${remainingCooldown})`}
                       </span>
@@ -140,7 +140,7 @@ export const NpcAbilitiesManager = ({ npcId, abilities, onDataChanged, showError
                       onClick={() => handleUseAbility(ability.id, ability.name)}
                       disabled={!canUse}
                       className={`text-sm px-3 py-1 rounded-full ${
-                        canUse ? 'bg-blue-500 text-white hover:bg-blue-600' : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        canUse ? 'btn-primary' : 'bg-bg-tertiary text-text-secondary cursor-not-allowed'
                       }`}
                     >
                       {remainingCooldown > 0 ? `⏳ ${remainingCooldown}` : 'Использовать'}
@@ -148,11 +148,11 @@ export const NpcAbilitiesManager = ({ npcId, abilities, onDataChanged, showError
                   )}
                   <button
                     onClick={() => handleToggleAbilityActive(ability.id)}
-                    className={`text-sm px-3 py-1 rounded-full ${ability.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-700'}`}
+                    className={`text-sm px-3 py-1 rounded-full ${ability.is_active ? 'bg-green-500/20 text-green-400' : 'bg-bg-tertiary text-text-secondary'}`}
                   >
                     {ability.is_active ? 'Активна' : 'Неактивна'}
                   </button>
-                  <button onClick={() => handleRemoveAbility(ability.id)} className="text-red-500 text-sm">
+                  <button onClick={() => handleRemoveAbility(ability.id)} className="text-accent-red text-sm hover:underline">
                     Удалить
                   </button>
                 </div>
@@ -174,19 +174,19 @@ export const NpcAbilitiesManager = ({ npcId, abilities, onDataChanged, showError
           placeholder="🔍 Поиск способностей..."
           value={abilitySearch}
           onChange={e => setAbilitySearch(e.target.value)}
-          className="w-full px-3 py-2 border rounded-xl"
+          className="form-input"
         />
         {abilitiesLoading ? (
-          <p>Загрузка...</p>
+          <p className="text-text-secondary">Загрузка...</p>
         ) : (
           <div className="space-y-2 max-h-[50vh] overflow-y-auto">
             {filtered.map(ability => {
               const owned = ownedIds.has(ability.id);
               return (
-                <div key={ability.id} className="bg-gray-50 p-3 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <div key={ability.id} className="card p-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                   <div>
-                    <p className="font-medium">{ability.name}</p>
-                    <p className="text-xs text-gray-500">{ability.ability_type}</p>
+                    <p className="font-medium text-text-primary">{ability.name}</p>
+                    <p className="text-xs text-text-secondary">{ability.ability_type}</p>
                   </div>
                   {!owned ? (
                     <button
@@ -195,29 +195,29 @@ export const NpcAbilitiesManager = ({ npcId, abilities, onDataChanged, showError
                           prev.includes(ability.id) ? prev.filter(id => id !== ability.id) : [...prev, ability.id]
                         )
                       }
-                      className={`px-3 py-1 rounded-xl ${selectedAbilities.includes(ability.id) ? 'bg-green-500 text-white' : 'bg-blue-100'}`}
+                      className={`px-3 py-1 rounded-xl ${selectedAbilities.includes(ability.id) ? 'btn-primary' : 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30'}`}
                     >
                       {selectedAbilities.includes(ability.id) ? '✓ Выбрана' : 'Выбрать'}
                     </button>
                   ) : (
-                    <span className="text-green-600 text-sm">✓ Уже есть</span>
+                    <span className="text-green-400 text-sm">✓ Уже есть</span>
                   )}
                 </div>
               );
             })}
           </div>
         )}
-        <div className="pt-2 flex flex-col sm:flex-row justify-between items-center gap-2 border-t">
-          <span>Выбрано: {selectedAbilities.length}</span>
+        <div className="pt-2 flex flex-col sm:flex-row justify-between items-center gap-2 border-t border-border-color">
+          <span className="text-text-primary">Выбрано: {selectedAbilities.length}</span>
           <button
             onClick={handleAddAbilities}
             disabled={selectedAbilities.length === 0 || loading}
-            className="w-full sm:w-auto px-4 py-2 bg-green-500 text-white rounded-xl"
+            className="w-full sm:w-auto px-4 py-2 btn-primary"
           >
             Добавить выбранные
           </button>
         </div>
-        <button onClick={() => setAbilitiesSubTab('list')} className="mt-2 text-sm text-gray-500 hover:text-gray-700">
+        <button onClick={() => setAbilitiesSubTab('list')} className="mt-2 text-sm text-text-secondary hover:text-text-primary transition-colors">
           ← Назад к списку
         </button>
       </div>
