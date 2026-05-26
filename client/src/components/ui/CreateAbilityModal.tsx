@@ -105,54 +105,56 @@ export const CreateAbilityModal = ({
   };
   
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={onClose}>
+      <div
+        className="modal-content w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-800">Создать способность</h2>
+            <h2 className="text-2xl font-bold modal-title">Создать способность</h2>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 text-2xl"
+              className="text-gray-400 hover:text-white text-2xl"
             >
               ×
             </button>
           </div>
           
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded text-sm">
+            <div className="mb-4 p-3 rounded-xl border border-red-500/30 bg-red-500/10 text-red-400 text-sm">
               {error}
             </div>
           )}
           
           {success && (
-            <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-600 rounded text-sm">
+            <div className="mb-4 p-3 rounded-xl border border-green-500/30 bg-green-500/10 text-green-400 text-sm">
               {success}
             </div>
           )}
           
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Основные поля */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="form-label block mb-2">
                   Название способности *
                 </label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({...formData, name: e.target.value})}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="form-input w-full"
                   placeholder="Введите название способности"
                   maxLength={100}
                   required
                 />
-                <div className="text-xs text-gray-500 mt-1">
+                <div className="text-xs text-gray-400 mt-1">
                   {formData.name.length}/100 символов
                 </div>
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="form-label block mb-2">
                   Тип способности *
                 </label>
                 <div className="flex space-x-6">
@@ -163,9 +165,9 @@ export const CreateAbilityModal = ({
                       value="active"
                       checked={formData.ability_type === 'active'}
                       onChange={(e) => setFormData({...formData, ability_type: e.target.value as 'active' | 'passive'})}
-                      className="w-4 h-4 text-blue-600"
+                      className="w-4 h-4"
                     />
-                    <span className="text-gray-700">Активная</span>
+                    <span>Активная</span>
                   </label>
                   <label className="flex items-center space-x-2 cursor-pointer">
                     <input
@@ -174,12 +176,12 @@ export const CreateAbilityModal = ({
                       value="passive"
                       checked={formData.ability_type === 'passive'}
                       onChange={(e) => setFormData({...formData, ability_type: e.target.value as 'active' | 'passive'})}
-                      className="w-4 h-4 text-blue-600"
+                      className="w-4 h-4"
                     />
-                    <span className="text-gray-700">Пассивная</span>
+                    <span>Пассивная</span>
                   </label>
                 </div>
-                <div className="text-xs text-gray-500 mt-1">
+                <div className="text-xs text-gray-400 mt-1">
                   {formData.ability_type === 'active' 
                     ? 'Требует активации игроком' 
                     : 'Работает постоянно'}
@@ -187,28 +189,26 @@ export const CreateAbilityModal = ({
               </div>
             </div>
             
-            {/* Описание */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="form-label block mb-2">
                 Описание
               </label>
               <textarea
                 value={formData.description}
                 onChange={(e) => setFormData({...formData, description: e.target.value})}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 h-32 resize-none"
+                className="form-textarea w-full resize-none h-32"
                 placeholder="Опишите способность, её эффекты и особенности..."
                 maxLength={500}
               />
-              <div className="text-xs text-gray-500 mt-1">
+              <div className="text-xs text-gray-400 mt-1">
                 {formData.description.length}/500 символов
               </div>
             </div>
             
-            {/* Время отката (только для активных способностей) */}
             {formData.ability_type === 'active' && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="form-label block mb-2">
                     Время отката (ходы)
                   </label>
                   <input
@@ -220,16 +220,16 @@ export const CreateAbilityModal = ({
                       ...formData, 
                       cooldown_turns: Math.max(0, parseInt(e.target.value) || 0)
                     })}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="form-input w-full"
                     placeholder="0"
                   />
-                  <div className="text-xs text-gray-500 mt-1">
+                  <div className="text-xs text-gray-400 mt-1">
                     Количество ходов до повторного использования
                   </div>
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="form-label block mb-2">
                     Время отката (дни)
                   </label>
                   <input
@@ -241,25 +241,24 @@ export const CreateAbilityModal = ({
                       ...formData, 
                       cooldown_days: Math.max(0, parseInt(e.target.value) || 0)
                     })}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="form-input w-full"
                     placeholder="0"
                   />
-                  <div className="text-xs text-gray-500 mt-1">
+                  <div className="text-xs text-gray-400 mt-1">
                     Количество дней до повторного использования
                   </div>
                 </div>
               </div>
             )}
             
-            {/* Выбор эффекта */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="form-label block mb-2">
                 Связанный эффект
               </label>
               <select
                 value={formData.effect_id || ''}
                 onChange={handleEffectChange}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                className="form-select w-full"
               >
                 <option value="">— Без эффекта —</option>
                 {effects
@@ -274,17 +273,16 @@ export const CreateAbilityModal = ({
                   </option>
                 ))}
               </select>
-              <div className="text-xs text-gray-500 mt-1">
+              <div className="text-xs text-gray-400 mt-1">
                 Выберите эффект, который применяет эта способность (необязательно)
               </div>
             </div>
             
-            {/* Кнопки действий */}
-            <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+            <div className="flex justify-end space-x-3 pt-6 border-t border-gray-700">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                className="btn-secondary"
                 disabled={loading}
               >
                 Отмена
@@ -292,11 +290,11 @@ export const CreateAbilityModal = ({
               <button
                 type="submit"
                 disabled={loading}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                className="btn-primary"
               >
                 {loading ? (
                   <span className="flex items-center">
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
