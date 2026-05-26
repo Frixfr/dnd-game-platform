@@ -5,17 +5,17 @@ interface ItemCardProps {
   item: ItemType & { quantity?: number };
   onClick?: () => void;
   onDelete?: () => void;
-  showId?: boolean; // добавлено
+  showId?: boolean;
 }
 
 const rarityConfig: Record<ItemType['rarity'], { label: string; gradient: string; badgeClass: string }> = {
-  common: { label: 'Обычный', gradient: 'from-gray-300 to-gray-400', badgeClass: 'bg-gray-100 text-gray-800' },
-  uncommon: { label: 'Необычный', gradient: 'from-green-400 to-green-500', badgeClass: 'bg-green-100 text-green-800' },
-  rare: { label: 'Редкий', gradient: 'from-blue-400 to-blue-500', badgeClass: 'bg-blue-100 text-blue-800' },
-  epic: { label: 'Эпический', gradient: 'from-purple-400 to-purple-500', badgeClass: 'bg-purple-100 text-purple-800' },
-  legendary: { label: 'Легендарный', gradient: 'from-yellow-400 to-yellow-500', badgeClass: 'bg-yellow-100 text-yellow-800' },
-  mythical: { label: 'Мифический', gradient: 'from-red-400 to-red-500', badgeClass: 'bg-red-100 text-red-800' },
-  story: { label: 'Сюжетный', gradient: 'from-orange-400 to-orange-500', badgeClass: 'bg-orange-100 text-orange-800' },
+  common: { label: 'Обычный', gradient: 'from-gray-300 to-gray-400', badgeClass: 'bg-bg-secondary text-text-primary' },
+  uncommon: { label: 'Необычный', gradient: 'from-green-400 to-green-500', badgeClass: 'bg-green-500/20 text-green-400' },
+  rare: { label: 'Редкий', gradient: 'from-blue-400 to-blue-500', badgeClass: 'bg-blue-500/20 text-blue-400' },
+  epic: { label: 'Эпический', gradient: 'from-purple-400 to-purple-500', badgeClass: 'bg-purple-500/20 text-purple-400' },
+  legendary: { label: 'Легендарный', gradient: 'from-yellow-400 to-yellow-500', badgeClass: 'bg-yellow-500/20 text-yellow-400' },
+  mythical: { label: 'Мифический', gradient: 'from-red-400 to-red-500', badgeClass: 'bg-red-500/20 text-red-400' },
+  story: { label: 'Сюжетный', gradient: 'from-orange-400 to-orange-500', badgeClass: 'bg-orange-500/20 text-orange-400' },
 };
 
 export const ItemCard = ({ item, onClick, onDelete, showId = true }: ItemCardProps) => {
@@ -33,26 +33,26 @@ export const ItemCard = ({ item, onClick, onDelete, showId = true }: ItemCardPro
   return (
     <div
       onClick={onClick}
-      className="group bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer overflow-hidden border border-gray-100 hover:border-gray-200"
+      className="group bg-card rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer overflow-hidden border border-border-color hover:border-accent-red/30"
     >
       <div className={`relative h-2 bg-gradient-to-r ${config.gradient}`} />
 
       <div className="p-5">
         <div className="flex justify-between items-start mb-3">
-          <h3 className="text-xl font-bold text-gray-800 tracking-tight">{item.name}</h3>
+          <h3 className="text-xl font-bold text-text-primary tracking-tight">{item.name}</h3>
           <div className="flex items-center gap-2">
             {item.quantity !== undefined && item.quantity > 0 && (
-              <span className="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded-full">
+              <span className="text-xs bg-bg-secondary text-text-secondary px-2 py-1 rounded-full">
                 ×{item.quantity}
               </span>
             )}
             {showId && (
-              <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full">#{item.id}</span>
+              <span className="text-xs text-text-secondary bg-bg-secondary px-2 py-1 rounded-full">#{item.id}</span>
             )}
             {onDelete && (
               <button
                 onClick={handleDelete}
-                className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors text-xl font-bold"
+                className="w-7 h-7 flex items-center justify-center text-text-secondary hover:text-accent-red hover:bg-accent-red/10 rounded-full transition-colors text-xl font-bold"
                 title="Удалить"
               >
                 ×
@@ -62,23 +62,23 @@ export const ItemCard = ({ item, onClick, onDelete, showId = true }: ItemCardPro
         </div>
 
         {item.description && (
-          <p className="text-sm text-gray-600 mb-4 line-clamp-2">{item.description}</p>
+          <p className="text-sm text-text-secondary mb-4 line-clamp-2">{item.description}</p>
         )}
 
         {activeCount > 0 && (
           <div className="text-sm mb-1 flex items-center gap-1">
-            <span className="font-semibold text-blue-600">Активные эффекты:</span>
-            <span className="text-gray-700">{activeCount}</span>
+            <span className="font-semibold text-blue-400">Активные эффекты:</span>
+            <span className="text-text-secondary">{activeCount}</span>
           </div>
         )}
         {passiveCount > 0 && (
           <div className="text-sm flex items-center gap-1">
-            <span className="font-semibold text-green-600">Пассивные эффекты:</span>
-            <span className="text-gray-700">{passiveCount}</span>
+            <span className="font-semibold text-green-400">Пассивные эффекты:</span>
+            <span className="text-text-secondary">{passiveCount}</span>
           </div>
         )}
         {activeCount === 0 && passiveCount === 0 && (
-          <span className="text-xs text-gray-400">Без эффектов</span>
+          <span className="text-xs text-text-secondary">Без эффектов</span>
         )}
       </div>
     </div>

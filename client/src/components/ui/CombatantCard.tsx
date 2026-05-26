@@ -33,20 +33,20 @@ export const CombatantCard = ({ participant, isCurrentTurn, onRemove, onEdit }: 
 
   return (
     <div
-      className={`bg-white rounded-xl shadow-md p-4 transition-all cursor-grab active:cursor-grabbing ${
-        isCurrentTurn ? "ring-2 ring-blue-500 shadow-lg" : ""
-      } ${isDead ? "bg-gray-300 opacity-70" : ""}`}
+      className={`bg-card rounded-xl shadow-lg p-4 transition-all cursor-grab active:cursor-grabbing border border-border-color ${
+        isCurrentTurn ? "ring-2 ring-accent-red shadow-xl" : ""
+      } ${isDead ? "bg-bg-secondary opacity-70" : ""}`}
       draggable
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       onClick={handleCardClick}
     >
       <div className="flex items-start gap-3">
-        <div className="w-12 h-12 rounded-full bg-gray-200 overflow-hidden flex-shrink-0">
+        <div className="w-12 h-12 rounded-full bg-bg-secondary overflow-hidden flex-shrink-0 border border-border-color">
           {avatarUrl ? (
             <img src={avatarUrl} alt={entityName} className="w-full h-full object-cover" />
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-gray-500 text-xl">
+            <div className="w-full h-full flex items-center justify-center text-text-secondary text-xl">
               {participant.entity_type === "player" ? "👤" : "👹"}
             </div>
           )}
@@ -54,15 +54,15 @@ export const CombatantCard = ({ participant, isCurrentTurn, onRemove, onEdit }: 
         <div className="flex-1">
           <div className="flex justify-between items-start">
             <div>
-              <h3 className="font-bold text-gray-800">{entityName}</h3>
-              <span className="text-xs text-gray-500">{entityTypeLabel}</span>
+              <h3 className="font-bold text-text-primary">{entityName}</h3>
+              <span className="text-xs text-text-secondary">{entityTypeLabel}</span>
             </div>
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 onRemove();
               }}
-              className="text-gray-400 hover:text-red-500 text-xl leading-none"
+              className="text-text-secondary hover:text-accent-red text-xl leading-none"
               title="Удалить из боя"
             >
               ×
@@ -70,18 +70,18 @@ export const CombatantCard = ({ participant, isCurrentTurn, onRemove, onEdit }: 
           </div>
 
           <div className="mt-1 flex justify-between items-center text-sm">
-            <span className="text-gray-600">🛡️ Броня</span>
-            <span className="font-semibold">{entity.armor}</span>
+            <span className="text-text-secondary">🛡️ Броня</span>
+            <span className="font-semibold text-text-primary">{entity.armor}</span>
           </div>
 
           <div className="mt-2">
-            <div className="flex justify-between text-sm text-gray-600">
+            <div className="flex justify-between text-sm text-text-secondary">
               <span>❤️ Здоровье</span>
-              <span>
+              <span className="text-text-primary">
                 {entity.health}/{entity.max_health}
               </span>
             </div>
-            <div className="h-2 bg-gray-200 rounded-full overflow-hidden mt-1">
+            <div className="h-2 bg-bg-secondary rounded-full overflow-hidden mt-1 border border-border-color">
               <div
                 className="h-full bg-red-500 transition-all"
                 style={{ width: `${Math.max(0, healthPercent)}%` }}
@@ -91,7 +91,7 @@ export const CombatantCard = ({ participant, isCurrentTurn, onRemove, onEdit }: 
         </div>
       </div>
       {isCurrentTurn && (
-        <div className="mt-2 text-xs text-blue-600 font-semibold text-center">▶ Текущий ход</div>
+        <div className="mt-2 text-xs text-accent-red font-semibold text-center">▶ Текущий ход</div>
       )}
     </div>
   );
