@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { LogOut, Menu, Shield } from 'lucide-react';
 
 interface HeaderProps {
   toggleSidebar: () => void;
@@ -19,44 +20,33 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, isMobile, onLogout }) =>
   };
 
   return (
-    <header className="bg-white border-b border-slate-200 shadow-sm">
+    <header className="bg-[var(--color-bg-secondary)]/90 backdrop-blur-md border-b border-[var(--border-color)] shadow-md">
       <div className="flex items-center justify-between h-16 px-6">
         <div className="flex items-center gap-3">
           {isMobile && (
             <button
               onClick={toggleSidebar}
-              className="p-2 rounded-md hover:bg-slate-100 focus:outline-none"
+              className="p-2 rounded-lg hover:bg-[var(--color-bg-card-hover)] focus:outline-none text-amber-400"
               aria-label="Меню"
             >
-              <svg
-                className="w-6 h-6 text-slate-700"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 6h16M4 12h16M4 18h16"
-                />
-              </svg>
+              <Menu size={24} />
             </button>
           )}
-          <h1 className="text-xl font-semibold text-slate-800">
-            Панель мастера
-          </h1>
+          <div className="flex items-center gap-2">
+            <Shield size={20} className="text-amber-400" />
+            <h1 className="text-xl font-semibold bg-gradient-to-r from-amber-200 to-amber-400 bg-clip-text text-transparent">
+              Панель мастера
+            </h1>
+          </div>
         </div>
 
-        <div className="flex items-center space-x-4">
-          <button
-            onClick={handleLogout}
-            className="text-sm text-slate-600 hover:text-slate-800 transition-colors"
-          >
-            Выйти
-          </button>
-        </div>
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-card-hover)] transition-all text-[var(--text-secondary)] hover:text-amber-300 border border-[var(--border-color)] hover:border-amber-500/30"
+        >
+          <LogOut size={18} />
+          <span className="hidden sm:inline">Выйти</span>
+        </button>
       </div>
     </header>
   );
