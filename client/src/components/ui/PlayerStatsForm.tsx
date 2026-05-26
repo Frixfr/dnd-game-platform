@@ -50,11 +50,11 @@ export const PlayerStatsForm = ({
       {/* Блок персонажа */}
       <div className="card p-4 md:p-5">
         <h3 className="text-md font-semibold text-text-primary mb-4 flex items-center gap-2">🧑‍🎤 Персона</h3>
-        <div className="flex flex-col sm:flex-row gap-5">
+        <div className="flex flex-col sm:flex-row gap-6">
           {/* Аватарка */}
           <div className="flex flex-col items-center gap-3 flex-shrink-0">
-            <div className="w-20 h-20 rounded-full bg-bg-secondary flex items-center justify-center overflow-hidden border-2 border-border-color shadow-sm">
-              {avatarPreview ? <img src={avatarPreview} alt="avatar" className="w-full h-full object-cover" /> : <span className="text-3xl text-text-secondary">👤</span>}
+            <div className="w-24 h-24 rounded-full bg-bg-secondary flex items-center justify-center overflow-hidden border-2 border-border-color shadow-md">
+              {avatarPreview ? <img src={avatarPreview} alt="avatar" className="w-full h-full object-cover" /> : <span className="text-4xl text-text-secondary">👤</span>}
             </div>
             <div className="flex flex-col gap-2 w-full">
               <label className="cursor-pointer text-xs btn-secondary px-3 py-1.5 text-center rounded-lg transition hover:shadow-md">
@@ -77,19 +77,19 @@ export const PlayerStatsForm = ({
 
           {/* Поля ввода */}
           <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="form-label text-sm font-medium text-text-secondary">Имя *</label>
+            <div>
+              <label className="form-label">Имя *</label>
               <input type="text" name="name" value={formData.name} onChange={handleInputChange} className="form-input" required disabled={loading} />
             </div>
-            <div className="space-y-1">
-              <label className="form-label text-sm font-medium text-text-secondary">Пол</label>
+            <div>
+              <label className="form-label">Пол</label>
               <select name="gender" value={formData.gender} onChange={handleInputChange} className="form-select" disabled={loading}>
                 <option value="male">Мужской</option>
                 <option value="female">Женский</option>
               </select>
             </div>
-            <div className="space-y-1">
-              <label className="form-label text-sm font-medium text-text-secondary">Раса</label>
+            <div>
+              <label className="form-label">Раса</label>
               <select
                 value={formData.race_id || ''}
                 onChange={(e) => setFormData({ ...formData, race_id: e.target.value ? Number(e.target.value) : null })}
@@ -101,8 +101,8 @@ export const PlayerStatsForm = ({
                 ))}
               </select>
             </div>
-            <div className="space-y-1">
-              <label className="form-label text-sm font-medium text-text-secondary">Пароль доступа</label>
+            <div>
+              <label className="form-label">Пароль доступа</label>
               <input
                 type="password"
                 name="access_password"
@@ -122,12 +122,12 @@ export const PlayerStatsForm = ({
       <div className="card p-4 md:p-5">
         <h3 className="text-md font-semibold text-text-primary mb-4">🛡️ Защита и здоровье</h3>
         {/* Прогресс бар здоровья */}
-        <div className="mb-5 p-3 bg-bg-tertiary rounded-xl border border-border-color">
+        <div className="mb-5 p-4 bg-bg-tertiary rounded-xl border border-border-color">
           <div className="flex justify-between items-center mb-2">
             <span className="text-sm text-text-secondary flex items-center gap-1">❤️ Здоровье</span>
             <span className="font-semibold text-text-primary">{formData.health} / {formData.max_health}</span>
           </div>
-          <div className="h-3 bg-bg-secondary rounded-full overflow-hidden border border-border-color shadow-inner">
+          <div className="h-4 bg-bg-secondary rounded-full overflow-hidden border border-border-color shadow-inner">
             <div 
               className="h-full bg-gradient-to-r from-red-500 to-red-600 rounded-full transition-all duration-300 shadow-sm" 
               style={{ width: `${Math.min((formData.health / formData.max_health) * 100, 100)}%` }} 
@@ -137,25 +137,25 @@ export const PlayerStatsForm = ({
         
         {/* Поля ввода здоровья и брони */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="space-y-1">
-            <label className="form-label text-sm font-medium text-text-secondary">Текущее здоровье</label>
+          <div>
+            <label className="form-label">Текущее здоровье</label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-red-500">❤️</span>
-              <input type="number" name="health" value={formData.health} onChange={handleInputChange} min="0" max={formData.max_health} className="form-input pl-9" disabled={loading} />
+              <input type="number" name="health" value={formData.health} onChange={handleInputChange} min="0" max={formData.max_health} className="form-input pl-10" disabled={loading} />
             </div>
           </div>
-          <div className="space-y-1">
-            <label className="form-label text-sm font-medium text-text-secondary">Макс. здоровье</label>
+          <div>
+            <label className="form-label">Макс. здоровье</label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-red-400">❤️</span>
-              <input type="number" name="max_health" value={formData.max_health} onChange={handleInputChange} min="1" className="form-input pl-9" disabled={loading} />
+              <input type="number" name="max_health" value={formData.max_health} onChange={handleInputChange} min="1" className="form-input pl-10" disabled={loading} />
             </div>
           </div>
-          <div className="space-y-1">
-            <label className="form-label text-sm font-medium text-text-secondary">Класс брони (AC)</label>
+          <div>
+            <label className="form-label">Класс брони (AC)</label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-500">🛡️</span>
-              <input type="number" name="armor" value={formData.armor} onChange={handleInputChange} min="0" className="form-input pl-9" disabled={loading} />
+              <input type="number" name="armor" value={formData.armor} onChange={handleInputChange} min="0" className="form-input pl-10" disabled={loading} />
             </div>
           </div>
         </div>
@@ -175,8 +175,8 @@ export const PlayerStatsForm = ({
               charisma: '✨ Харизма (CHA)' 
             };
             return (
-              <div key={stat} className="space-y-1">
-                <label className="form-label text-sm font-medium text-text-secondary">{labels[stat]}</label>
+              <div key={stat}>
+                <label className="form-label">{labels[stat]}</label>
                 <input type="number" name={stat} value={formData[stat]} onChange={handleInputChange} className="form-input" disabled={loading} />
               </div>
             );
