@@ -92,17 +92,17 @@ export const PlayerItemsManager = ({ playerId, items, onDataChanged, showError }
   };
 
   const renderCurrentItems = () => {
-    if (!items.length) return <p className="text-center text-gray-500 py-8">📦 Нет предметов</p>;
+    if (!items.length) return <p className="text-center text-[#F2E9E4]/60 py-8">📦 Нет предметов</p>;
     return (
       <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
         {items.map(item => {
           const hasActiveEffect = item.active_effects && item.active_effects.length > 0;
           return (
-            <div key={item.id} className="bg-gray-50 rounded-xl p-3 md:p-4 border">
+            <div key={item.id} className="bg-[#0A1F44]/50 rounded-xl p-3 md:p-4 border">
               <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
                 <div>
                   <h4 className="font-semibold">{item.name}</h4>
-                  <p className="text-sm text-gray-500">{item.description}</p>
+                  <p className="text-sm text-[#F2E9E4]/60">{item.description}</p>
                   <div className="flex flex-wrap gap-2 mt-2">
                     <span className="text-xs bg-white px-2 py-0.5 rounded-full">{item.rarity}</span>
                     <span className="text-xs bg-white px-2 py-0.5 rounded-full">×{item.quantity}</span>
@@ -147,10 +147,10 @@ export const PlayerItemsManager = ({ playerId, items, onDataChanged, showError }
               const currentQty = currentQuantityMap[item.id] || 0;
               const qtyToAdd = selectedItems[item.id] || 1;
               return (
-                <div key={item.id} className="bg-gray-50 p-3 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <div key={item.id} className="bg-[#0A1F44]/50 p-3 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                   <div>
                     <p className="font-medium">{item.name}</p>
-                    <p className="text-xs text-gray-500">{item.rarity}</p>
+                    <p className="text-xs text-[#F2E9E4]/60">{item.rarity}</p>
                     {owned && <p className="text-xs text-green-600">Уже есть: {currentQty} шт.</p>}
                   </div>
                   <div className="flex items-center gap-2">
@@ -177,7 +177,7 @@ export const PlayerItemsManager = ({ playerId, items, onDataChanged, showError }
           <span>Выбрано: {Object.keys(selectedItems).length}</span>
           <button onClick={handleAddItems} disabled={Object.keys(selectedItems).length === 0 || loading} className="w-full sm:w-auto px-4 py-2 bg-green-500 text-white rounded-xl">Добавить выбранные</button>
         </div>
-        <button onClick={() => setItemsSubTab('list')} className="mt-2 text-sm text-gray-500 hover:text-gray-700">← Назад к списку</button>
+        <button onClick={() => setItemsSubTab('list')} className="mt-2 text-sm text-[#F2E9E4]/60 hover:text-[#F2E9E4]">← Назад к списку</button>
       </div>
     );
   };

@@ -105,7 +105,7 @@ export const NpcEffectsManager = ({
       itemPassiveEffects.length > 0;
 
     if (!hasEffects) {
-      return <p className="text-center text-gray-500 py-8">🌀 Нет эффектов</p>;
+      return <p className="text-center text-[#F2E9E4]/60 py-8">🌀 Нет эффектов</p>;
     }
 
     return (
@@ -169,7 +169,7 @@ export const NpcEffectsManager = ({
 
         {temporaryEffects.length > 0 && (
           <div>
-            <h3 className="text-md font-semibold text-gray-700 mb-2 flex items-center gap-2">
+            <h3 className="text-md font-semibold text-[#F2E9E4] mb-2 flex items-center gap-2">
               <span className="text-xl">🌀</span> Временные эффекты
             </h3>
             <div className="space-y-3">
@@ -209,10 +209,10 @@ export const NpcEffectsManager = ({
             {filtered.map(effect => {
               const owned = ownedIds.has(effect.id);
               return (
-                <div key={effect.id} className="bg-gray-50 p-3 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <div key={effect.id} className="bg-[#0A1F44]/50 p-3 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                   <div>
                     <p className="font-medium">{effect.name}</p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-[#F2E9E4]/60">
                       {effect.attribute} {effect.modifier > 0 ? `+${effect.modifier}` : effect.modifier}
                     </p>
                   </div>
@@ -245,7 +245,7 @@ export const NpcEffectsManager = ({
             Добавить выбранные
           </button>
         </div>
-        <button onClick={() => setEffectsSubTab('list')} className="mt-2 text-sm text-gray-500 hover:text-gray-700">
+        <button onClick={() => setEffectsSubTab('list')} className="mt-2 text-sm text-[#F2E9E4]/60 hover:text-[#F2E9E4]">
           ← Назад к списку
         </button>
       </div>

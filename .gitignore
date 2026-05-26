@@ -1,36 +1,26 @@
-```gitignore
+```
 # Dependencies
 node_modules/
 
 # Build outputs
 dist/
 build/
-*.js.map
-*.ts.map
-
-# Logs
-*.log
+target/
 
 # Environment variables
 .env
 .env.local
-*.env.*
+.env.*
 
-# Editor files
+# IDE files
 .vscode/
 .idea/
 *.swp
 *.swo
 *.tmp
 
-# OS generated files
-.DS_Store
-Thumbs.db
-
-# Coverage reports
-coverage/
-htmlcov/
-.coverage
+# Logs
+*.log
 
 # Python specific
 __pycache__/
@@ -38,20 +28,41 @@ __pycache__/
 *.pyo
 *.pyd
 .Python
-*.so
-.Pytest_cache/
+env/
+venv/
+.venv/
+.ENV
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.git/
+.mypy_cache/
+.pytest_cache/
+.hypothesis/
 
 # Node.js specific
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+node_modules/
+dist
+build
+.nyc_output
+coverage
+.nyc_output/
+coverage/
 
-# Compiled files
-*.o
-*.obj
-*.exe
-*.dll
-*.so
-*.a
-*.out
+# TypeScript/JavaScript build output
+*.tsbuildinfo
+.next/
+out/
+.nuxt/
+public/dist/
 ```

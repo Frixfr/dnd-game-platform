@@ -18,8 +18,8 @@ export const SelectedEffectsList = ({
   if (effects.length === 0) {
     return (
       <div>
-        {title && <h3 className="text-sm font-medium text-gray-700 mb-2">{title}</h3>}
-        <div className="text-sm text-gray-500 border border-dashed rounded p-3 text-center">
+        {title && <h3 className="text-sm font-medium text-[#F2E9E4] mb-2">{title}</h3>}
+        <div className="text-sm text-[#F2E9E4]/60 border border-dashed border-[#F2E9E4]/20 rounded p-3 text-center">
           {emptyText}
         </div>
       </div>
@@ -28,16 +28,16 @@ export const SelectedEffectsList = ({
 
   return (
     <div>
-      {title && <h3 className="text-sm font-medium text-gray-700 mb-2">{title}</h3>}
-      <div className="space-y-2 max-h-48 overflow-y-auto border rounded p-2 bg-gray-50">
+      {title && <h3 className="text-sm font-medium text-[#F2E9E4] mb-2">{title}</h3>}
+      <div className="space-y-2 max-h-48 overflow-y-auto border border-[#F2E9E4]/20 rounded p-2 bg-[#0A1F44]/50">
         {effects.map((effect) => (
           <div
             key={effect.id}
-            className="flex items-center justify-between bg-white p-2 rounded shadow-sm border"
+            className="flex items-center justify-between bg-[#0A1F44] p-2 rounded shadow-sm border border-[#F2E9E4]/20"
           >
             <div className="flex-1">
-              <div className="font-medium text-sm">{effect.name}</div>
-              <div className="text-xs text-gray-500 flex gap-3 mt-1">
+              <div className="font-medium text-sm text-[#F2E9E4]">{effect.name}</div>
+              <div className="text-xs text-[#F2E9E4]/60 flex gap-3 mt-1">
                 {effect.attribute && (
                   <span>
                     {effect.attribute}: {effect.modifier > 0 ? `+${effect.modifier}` : effect.modifier}
@@ -55,7 +55,7 @@ export const SelectedEffectsList = ({
             <button
               type="button"
               onClick={() => onRemove(effect.id)}
-              className="text-red-500 hover:text-red-700 p-1"
+              className="text-[#FF0026] hover:text-[#FF0026]/80 p-1"
               title="Удалить эффект"
             >
               <X size={16} />
