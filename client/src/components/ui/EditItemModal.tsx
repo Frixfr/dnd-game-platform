@@ -218,213 +218,211 @@ export const EditItemModal = ({ item, onClose, onItemUpdated, mode = 'edit' }: E
 
   return (
     <div 
-      className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+      className="fixed inset-0 bg-midnight-blue/80 backdrop-blur-sm flex items-center justify-center p-4 z-50"
       onClick={handleOverlayClick}
       onKeyDown={handleKeyDown}
     >
       <div 
-        className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto"
+        className="modal-content w-full max-w-3xl max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-          <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
-            <h2 className="text-2xl font-bold text-gray-800">
-              {mode === 'edit' ? '✏️ Редактирование предмета' : '📦 Создание предмета'}
-            </h2>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">
-              &times;
-            </button>
+        <div className="sticky top-0 bg-bg-card border-b border-border-color px-6 py-4 flex justify-between items-center">
+          <h2 className="modal-title">
+            {mode === 'edit' ? '✏️ Редактирование предмета' : '📦 Создание предмета'}
+          </h2>
+          <button onClick={onClose} className="text-text-secondary hover:text-text-primary text-2xl leading-none transition-colors">
+            &times;
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {error && (
+            <div className="p-3 rounded-xl bg-accent-red/10 text-accent-red text-sm border border-accent-red/30">
+              {error}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+              <label className="form-label">Название *</label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={e => setFormData({...formData, name: e.target.value})}
+                className="form-input"
+                placeholder="Название предмета"
+                required
+              />
+            </div>
+            <div>
+              <label className="form-label">Редкость</label>
+              <select
+                value={formData.rarity}
+                onChange={e => setFormData({...formData, rarity: e.target.value as RarityType})}
+                className="form-select"
+              >
+                {Object.entries(rarityConfig).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+            </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="p-6 space-y-6">
-            {error && (
-              <div className="p-3 rounded-xl bg-red-50 text-red-700 text-sm border border-red-200">
-                {error}
-              </div>
-            )}
+          <div>
+            <label className="form-label">Описание</label>
+            <textarea
+              value={formData.description}
+              onChange={e => setFormData({...formData, description: e.target.value})}
+              rows={3}
+              className="form-textarea"
+              placeholder="Описание предмета..."
+            />
+          </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Название *</label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={e => setFormData({...formData, name: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:outline-none"
-                  placeholder="Название предмета"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Редкость</label>
+          <div className="flex flex-wrap gap-6">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.is_deletable}
+                onChange={e => setFormData({...formData, is_deletable: e.target.checked})}
+                className="w-4 h-4 accent-accent-red rounded focus:ring-accent-red"
+              />
+              <span className="text-sm text-text-primary">🗑️ Можно выбросить/передать</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.is_usable}
+                onChange={e => setFormData({...formData, is_usable: e.target.checked})}
+                className="w-4 h-4 accent-accent-red rounded focus:ring-accent-red"
+              />
+              <span className="text-sm text-text-primary">⚡ Можно использовать</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.infinite_uses}
+                onChange={e => setFormData({...formData, infinite_uses: e.target.checked})}
+                className="w-4 h-4 accent-accent-red rounded focus:ring-accent-red"
+              />
+              <span className="text-sm text-text-primary">♾️ Бесконечное количество</span>
+            </label>
+          </div>
+
+          <div className="card space-y-4">
+            <h3 className="font-semibold text-text-primary flex items-center gap-2">
+              <span className="text-lg">✨</span> Активные эффекты
+            </h3>
+            <SelectedEffectsList
+              effects={formData.active_effect_ids.map(id => getEffectById(id)).filter((e): e is EffectType => !!e)}
+              onRemove={(id) => handleRemoveEffect('active', id)}
+              emptyText="Нет активных эффектов"
+            />
+            <div className="space-y-2">
+              <input
+                type="text"
+                placeholder="🔍 Поиск по названию или тегам..."
+                value={activeSearch}
+                onChange={(e) => setActiveSearch(e.target.value)}
+                className="form-input text-sm"
+              />
+              <div className="flex gap-2">
                 <select
-                  value={formData.rarity}
-                  onChange={e => setFormData({...formData, rarity: e.target.value as RarityType})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:outline-none"
+                  value={selectedActiveEffectId}
+                  onChange={(e) => setSelectedActiveEffectId(e.target.value)}
+                  className="flex-1 form-select text-sm"
+                  size={Math.min(5, availableActiveEffects.length + 1)}
                 >
-                  {Object.entries(rarityConfig).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  <option value="">-- Выберите эффект --</option>
+                  {availableActiveEffects.map(effect => (
+                    <option key={effect.id} value={effect.id}>
+                      {effect.name} {effect.modifier !== 0 && (effect.modifier > 0 ? `+${effect.modifier}` : effect.modifier)}
+                      {effect.duration_turns && ` (${effect.duration_turns} ходов)`}
+                      {effect.duration_days && ` (${effect.duration_days} дней)`}
+                    </option>
+                  ))}
                 </select>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Описание</label>
-              <textarea
-                value={formData.description}
-                onChange={e => setFormData({...formData, description: e.target.value})}
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-xl resize-none focus:ring-2 focus:ring-blue-400 focus:outline-none"
-                placeholder="Описание предмета..."
-              />
-            </div>
-
-            <div className="flex flex-wrap gap-6">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={formData.is_deletable}
-                  onChange={e => setFormData({...formData, is_deletable: e.target.checked})}
-                  className="w-4 h-4 text-blue-500 rounded focus:ring-blue-400"
-                />
-                <span className="text-sm text-gray-700">🗑️ Можно выбросить/передать</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={formData.is_usable}
-                  onChange={e => setFormData({...formData, is_usable: e.target.checked})}
-                  className="w-4 h-4 text-blue-500 rounded focus:ring-blue-400"
-                />
-                <span className="text-sm text-gray-700">⚡ Можно использовать</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={formData.infinite_uses}
-                  onChange={e => setFormData({...formData, infinite_uses: e.target.checked})}
-                  className="w-4 h-4 text-blue-500 rounded focus:ring-blue-400"
-                />
-                <span className="text-sm text-gray-700">♾️ Бесконечное количество</span>
-              </label>
-            </div>
-
-            <div className="border border-gray-200 rounded-xl p-5 bg-gray-50 space-y-4">
-              <h3 className="font-semibold text-gray-800 flex items-center gap-2">
-                <span className="text-lg">✨</span> Активные эффекты
-              </h3>
-              <SelectedEffectsList
-                effects={formData.active_effect_ids.map(id => getEffectById(id)).filter((e): e is EffectType => !!e)}
-                onRemove={(id) => handleRemoveEffect('active', id)}
-                emptyText="Нет активных эффектов"
-              />
-              <div className="space-y-2">
-                <input
-                  type="text"
-                  placeholder="🔍 Поиск по названию или тегам..."
-                  value={activeSearch}
-                  onChange={(e) => setActiveSearch(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:outline-none text-sm"
-                />
-                <div className="flex gap-2">
-                  <select
-                    value={selectedActiveEffectId}
-                    onChange={(e) => setSelectedActiveEffectId(e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:outline-none text-sm"
-                    size={Math.min(5, availableActiveEffects.length + 1)}
-                  >
-                    <option value="">-- Выберите эффект --</option>
-                    {availableActiveEffects.map(effect => (
-                      <option key={effect.id} value={effect.id}>
-                        {effect.name} {effect.modifier !== 0 && (effect.modifier > 0 ? `+${effect.modifier}` : effect.modifier)}
-                        {effect.duration_turns && ` (${effect.duration_turns} ходов)`}
-                        {effect.duration_days && ` (${effect.duration_days} дней)`}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    onClick={handleAddActiveEffect}
-                    disabled={!selectedActiveEffectId}
-                    className="px-4 py-2 bg-green-500 text-white rounded-xl hover:bg-green-600 transition disabled:opacity-50"
-                  >
-                    + Добавить
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="border border-gray-200 rounded-xl p-5 bg-gray-50 space-y-4">
-              <h3 className="font-semibold text-gray-800 flex items-center gap-2">
-                <span className="text-lg">🛡️</span> Пассивные эффекты
-              </h3>
-              <SelectedEffectsList
-                effects={formData.passive_effect_ids.map(id => getEffectById(id)).filter((e): e is EffectType => !!e)}
-                onRemove={(id) => handleRemoveEffect('passive', id)}
-                emptyText="Нет пассивных эффектов"
-              />
-              <div className="space-y-2">
-                <input
-                  type="text"
-                  placeholder="🔍 Поиск по названию или тегам..."
-                  value={passiveSearch}
-                  onChange={(e) => setPassiveSearch(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:outline-none text-sm"
-                />
-                <div className="flex gap-2">
-                  <select
-                    value={selectedPassiveEffectId}
-                    onChange={(e) => setSelectedPassiveEffectId(e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:outline-none text-sm"
-                    size={Math.min(5, availablePassiveEffects.length + 1)}
-                  >
-                    <option value="">-- Выберите эффект --</option>
-                    {availablePassiveEffects.map(effect => (
-                      <option key={effect.id} value={effect.id}>
-                        {effect.name} {effect.modifier !== 0 && (effect.modifier > 0 ? `+${effect.modifier}` : effect.modifier)}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    onClick={handleAddPassiveEffect}
-                    disabled={!selectedPassiveEffectId}
-                    className="px-4 py-2 bg-green-500 text-white rounded-xl hover:bg-green-600 transition disabled:opacity-50"
-                  >
-                    + Добавить
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-between items-center pt-2">
-              {mode === 'edit' && (
                 <button
                   type="button"
-                  onClick={handleDelete}
-                  className="px-5 py-2 bg-red-500 text-white rounded-xl hover:bg-red-600 transition"
+                  onClick={handleAddActiveEffect}
+                  disabled={!selectedActiveEffectId}
+                  className="px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition disabled:opacity-50"
                 >
-                  🗑️ Удалить предмет
-                </button>
-              )}
-              <div className="flex gap-3 ml-auto">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="px-5 py-2 border border-gray-300 rounded-xl hover:bg-gray-50 transition text-gray-700"
-                >
-                  Отмена
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="px-5 py-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition disabled:opacity-50"
-                >
-                  {loading ? 'Сохранение...' : 'Сохранить'}
+                  + Добавить
                 </button>
               </div>
             </div>
-          </form>
-        </div>
+          </div>
+
+          <div className="card space-y-4">
+            <h3 className="font-semibold text-text-primary flex items-center gap-2">
+              <span className="text-lg">🛡️</span> Пассивные эффекты
+            </h3>
+            <SelectedEffectsList
+              effects={formData.passive_effect_ids.map(id => getEffectById(id)).filter((e): e is EffectType => !!e)}
+              onRemove={(id) => handleRemoveEffect('passive', id)}
+              emptyText="Нет пассивных эффектов"
+            />
+            <div className="space-y-2">
+              <input
+                type="text"
+                placeholder="🔍 Поиск по названию или тегам..."
+                value={passiveSearch}
+                onChange={(e) => setPassiveSearch(e.target.value)}
+                className="form-input text-sm"
+              />
+              <div className="flex gap-2">
+                <select
+                  value={selectedPassiveEffectId}
+                  onChange={(e) => setSelectedPassiveEffectId(e.target.value)}
+                  className="flex-1 form-select text-sm"
+                  size={Math.min(5, availablePassiveEffects.length + 1)}
+                >
+                  <option value="">-- Выберите эффект --</option>
+                  {availablePassiveEffects.map(effect => (
+                    <option key={effect.id} value={effect.id}>
+                      {effect.name} {effect.modifier !== 0 && (effect.modifier > 0 ? `+${effect.modifier}` : effect.modifier)}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={handleAddPassiveEffect}
+                  disabled={!selectedPassiveEffectId}
+                  className="px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition disabled:opacity-50"
+                >
+                  + Добавить
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-between items-center pt-2">
+            {mode === 'edit' && (
+              <button
+                type="button"
+                onClick={handleDelete}
+                className="btn-danger"
+              >
+                🗑️ Удалить предмет
+              </button>
+            )}
+            <div className="flex gap-3 ml-auto">
+              <button
+                type="button"
+                onClick={onClose}
+                className="btn-secondary"
+              >
+                Отмена
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="btn-primary"
+              >
+                {loading ? 'Сохранение...' : 'Сохранить'}
+              </button>
+            </div>
+          </div>
+        </form>
       </div>
       {ConfirmModalComponent}
     </div>

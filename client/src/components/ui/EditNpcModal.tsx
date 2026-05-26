@@ -298,21 +298,21 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
 
   if (loadingDetails) {
     return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white p-6 rounded-xl w-full max-w-sm text-center">Загрузка данных NPC...</div>
+      <div className="fixed inset-0 bg-midnight-blue/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="modal-content w-full max-w-sm text-center">Загрузка данных NPC...</div>
       </div>
     );
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 md:p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[95vh] flex flex-col md:flex-row overflow-hidden" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-midnight-blue/80 backdrop-blur-sm flex items-center justify-center z-50 p-2 md:p-4" onClick={onClose}>
+      <div className="modal-content w-full max-w-4xl max-h-[95vh] flex flex-col md:flex-row overflow-hidden" onClick={(e) => e.stopPropagation()}>
         {isMobile ? (
-          <div className="border-b border-gray-200 p-3 bg-gray-50">
+          <div className="border-b border-border-color p-3 bg-bg-secondary">
             <select
               value={activeMainTab}
               onChange={(e) => setActiveMainTab(e.target.value as MainTab)}
-              className="w-full py-3 px-4 text-base border rounded-xl bg-white shadow-sm"
+              className="w-full py-3 px-4 text-base border border-border-color rounded-xl bg-bg-card text-text-primary shadow-sm focus:outline-none focus:ring-2 focus:ring-accent-red"
             >
               <option value="stats">📋 Основное</option>
               <option value="items">📦 Предметы</option>
@@ -321,28 +321,28 @@ export const EditNpcModal = ({ npc, onClose, onNpcUpdated }: EditNpcModalProps) 
             </select>
           </div>
         ) : (
-          <div className="w-56 bg-gray-50 border-r border-gray-200 p-4 flex flex-col gap-2">
+          <div className="w-56 bg-bg-secondary border-r border-border-color p-4 flex flex-col gap-2">
             <button
               onClick={() => setActiveMainTab('stats')}
-              className={`flex items-center gap-3 px-4 py-2 rounded-xl text-left transition ${activeMainTab === 'stats' ? 'bg-blue-500 text-white shadow' : 'hover:bg-gray-100 text-gray-700'}`}
+              className={`flex items-center gap-3 px-4 py-2 rounded-xl text-left transition ${activeMainTab === 'stats' ? 'bg-accent-red text-white shadow-lg' : 'hover:bg-bg-tertiary text-text-primary'}`}
             >
               <span className="text-xl">📋</span> Основное
             </button>
             <button
               onClick={() => setActiveMainTab('items')}
-              className={`flex items-center gap-3 px-4 py-2 rounded-xl text-left transition ${activeMainTab === 'items' ? 'bg-blue-500 text-white shadow' : 'hover:bg-gray-100 text-gray-700'}`}
+              className={`flex items-center gap-3 px-4 py-2 rounded-xl text-left transition ${activeMainTab === 'items' ? 'bg-accent-red text-white shadow-lg' : 'hover:bg-bg-tertiary text-text-primary'}`}
             >
               <span className="text-xl">📦</span> Предметы
             </button>
             <button
               onClick={() => setActiveMainTab('abilities')}
-              className={`flex items-center gap-3 px-4 py-2 rounded-xl text-left transition ${activeMainTab === 'abilities' ? 'bg-blue-500 text-white shadow' : 'hover:bg-gray-100 text-gray-700'}`}
+              className={`flex items-center gap-3 px-4 py-2 rounded-xl text-left transition ${activeMainTab === 'abilities' ? 'bg-accent-red text-white shadow-lg' : 'hover:bg-bg-tertiary text-text-primary'}`}
             >
               <span className="text-xl">✨</span> Способности
             </button>
             <button
               onClick={() => setActiveMainTab('effects')}
-              className={`flex items-center gap-3 px-4 py-2 rounded-xl text-left transition ${activeMainTab === 'effects' ? 'bg-blue-500 text-white shadow' : 'hover:bg-gray-100 text-gray-700'}`}
+              className={`flex items-center gap-3 px-4 py-2 rounded-xl text-left transition ${activeMainTab === 'effects' ? 'bg-accent-red text-white shadow-lg' : 'hover:bg-bg-tertiary text-text-primary'}`}
             >
               <span className="text-xl">🌀</span> Эффекты
             </button>
