@@ -32,15 +32,15 @@ const PlayerSidebar: React.FC<PlayerSidebarProps> = ({ onClose, isMobile, player
   ];
 
   return (
-    <aside className="w-72 h-full bg-gray-900/90 backdrop-blur-md border-r border-amber-500/20 flex flex-col shadow-2xl">
-      <div className="p-6 flex items-center justify-between border-b border-amber-500/20">
-        <h2 className="text-xl font-bold bg-gradient-to-r from-amber-300 to-yellow-500 bg-clip-text text-transparent">
+    <aside className="w-72 h-full bg-[#0A1F44]/90 backdrop-blur-md border-r border-[#FF0026]/20 flex flex-col shadow-2xl">
+      <div className="p-6 flex items-center justify-between border-b border-[#FF0026]/20">
+        <h2 className="text-xl font-bold bg-gradient-to-r from-[#F2E9E4] to-[#d4c9c3] bg-clip-text text-transparent">
           Игровой режим
         </h2>
         {isMobile && (
           <button
             onClick={onClose}
-            className="p-1 rounded-lg hover:bg-gray-800 transition-colors text-gray-400 hover:text-amber-400"
+            className="p-1 rounded-lg hover:bg-[#0d2552] transition-colors text-[#F2E9E4] hover:text-[#FF0026]"
           >
             <X size={24} />
           </button>
@@ -57,8 +57,8 @@ const PlayerSidebar: React.FC<PlayerSidebarProps> = ({ onClose, isMobile, player
                 className={({ isActive }) =>
                   `flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 ${
                     isActive
-                      ? 'bg-amber-600/20 text-amber-400 border border-amber-500/30 shadow-md'
-                      : 'text-gray-300 hover:bg-gray-800/60 hover:text-amber-300'
+                      ? 'bg-[#FF0026]/20 text-[#FF0026] border border-[#FF0026]/30 shadow-md'
+                      : 'text-[#F2E9E4] hover:bg-[#0d2552] hover:text-[#FF0026]'
                   }`
                 }
               >
@@ -69,7 +69,7 @@ const PlayerSidebar: React.FC<PlayerSidebarProps> = ({ onClose, isMobile, player
           ))}
         </ul>
       </nav>
-      <div className="p-4 border-t border-amber-500/20 text-center text-xs text-gray-500">
+      <div className="p-4 border-t border-[#FF0026]/20 text-center text-xs text-[#8b9bb4]">
         D&D Campaign Manager
       </div>
     </aside>

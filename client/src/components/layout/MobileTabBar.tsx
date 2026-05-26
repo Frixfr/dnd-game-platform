@@ -15,7 +15,7 @@ const MobileTabBar: React.FC<MobileTabBarProps> = ({ playerId }) => {
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-gray-900/90 backdrop-blur-md border-t border-amber-500/20 z-50">
+    <div className="fixed bottom-0 left-0 right-0 bg-[#0A1F44]/90 backdrop-blur-md border-t border-[#FF0026]/20 z-50">
       <div className="flex justify-around items-center h-16">
         {navItems.map((item) => (
           <NavLink
@@ -24,8 +24,8 @@ const MobileTabBar: React.FC<MobileTabBarProps> = ({ playerId }) => {
             className={({ isActive }) =>
               `flex flex-col items-center justify-center flex-1 h-full transition-colors ${
                 isActive
-                  ? 'text-amber-400'
-                  : 'text-gray-400 hover:text-gray-300'
+                  ? 'text-[#FF0026]'
+                  : 'text-[#8b9bb4] hover:text-[#F2E9E4]'
               }`
             }
           >

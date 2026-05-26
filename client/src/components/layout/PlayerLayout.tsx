@@ -102,7 +102,7 @@ const PlayerLayout: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-gray-900 to-gray-800 relative">
+    <div className="flex h-screen bg-gradient-to-br from-[#0A1F44] to-[#0d2552] relative">
       {isMobile && isSidebarOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30" onClick={closeSidebar} />
       )}
