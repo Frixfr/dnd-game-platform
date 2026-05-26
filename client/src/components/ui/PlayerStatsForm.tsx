@@ -45,17 +45,19 @@ export const PlayerStatsForm = ({
   };
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4 md:space-y-6">
+    <form onSubmit={onSubmit} className="space-y-5 md:space-y-6">
 
+      {/* Блок персонажа */}
       <div className="card p-4 md:p-5">
-        <h3 className="text-md font-semibold text-text-primary mb-3 flex items-center gap-2">🧑‍🎤 Персона</h3>
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex flex-col items-center gap-2">
-            <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-bg-secondary flex items-center justify-center overflow-hidden border border-border-color">
+        <h3 className="text-md font-semibold text-text-primary mb-4 flex items-center gap-2">🧑‍🎤 Персона</h3>
+        <div className="flex flex-col sm:flex-row gap-5">
+          {/* Аватарка */}
+          <div className="flex flex-col items-center gap-3 flex-shrink-0">
+            <div className="w-20 h-20 rounded-full bg-bg-secondary flex items-center justify-center overflow-hidden border-2 border-border-color shadow-sm">
               {avatarPreview ? <img src={avatarPreview} alt="avatar" className="w-full h-full object-cover" /> : <span className="text-3xl text-text-secondary">👤</span>}
             </div>
-            <div className="flex gap-2">
-              <label className="cursor-pointer text-xs btn-secondary px-2 py-1">
+            <div className="flex flex-col gap-2 w-full">
+              <label className="cursor-pointer text-xs btn-secondary px-3 py-1.5 text-center rounded-lg transition hover:shadow-md">
                 Загрузить
                 <input type="file" accept="image/*" className="hidden" onChange={onAvatarChange} disabled={loading || uploadingAvatar} />
               </label>
@@ -64,7 +66,7 @@ export const PlayerStatsForm = ({
                   type="button"
                   onClick={onAvatarDelete}
                   disabled={loading || uploadingAvatar}
-                  className="text-xs px-2 py-1 rounded border border-accent-red/30 text-accent-red hover:bg-accent-red/10"
+                  className="text-xs px-3 py-1.5 rounded-lg border border-accent-red/30 text-accent-red hover:bg-accent-red/10 transition disabled:opacity-50"
                 >
                   Удалить
                 </button>
@@ -72,11 +74,22 @@ export const PlayerStatsForm = ({
             </div>
             {uploadingAvatar && <span className="text-xs text-text-secondary">Загрузка...</span>}
           </div>
-          <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
-            <div><label className="form-label">Имя *</label><input type="text" name="name" value={formData.name} onChange={handleInputChange} className="form-input" required disabled={loading} /></div>
-            <div><label className="form-label">Пол</label><select name="gender" value={formData.gender} onChange={handleInputChange} className="form-select" disabled={loading}><option value="male">Мужской</option><option value="female">Женский</option></select></div>
-            <div>
-              <label className="form-label">Раса</label>
+
+          {/* Поля ввода */}
+          <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="form-label text-sm font-medium text-text-secondary">Имя *</label>
+              <input type="text" name="name" value={formData.name} onChange={handleInputChange} className="form-input" required disabled={loading} />
+            </div>
+            <div className="space-y-1">
+              <label className="form-label text-sm font-medium text-text-secondary">Пол</label>
+              <select name="gender" value={formData.gender} onChange={handleInputChange} className="form-select" disabled={loading}>
+                <option value="male">Мужской</option>
+                <option value="female">Женский</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="form-label text-sm font-medium text-text-secondary">Раса</label>
               <select
                 value={formData.race_id || ''}
                 onChange={(e) => setFormData({ ...formData, race_id: e.target.value ? Number(e.target.value) : null })}
@@ -88,8 +101,8 @@ export const PlayerStatsForm = ({
                 ))}
               </select>
             </div>
-            <div>
-              <label className="form-label">Пароль доступа</label>
+            <div className="space-y-1">
+              <label className="form-label text-sm font-medium text-text-secondary">Пароль доступа</label>
               <input
                 type="password"
                 name="access_password"
@@ -105,35 +118,83 @@ export const PlayerStatsForm = ({
         </div>
       </div>
 
+      {/* Здоровье и броня */}
       <div className="card p-4 md:p-5">
-        <h3 className="text-md font-semibold text-text-primary mb-3">🛡️ Защита и здоровье</h3>
-        <div className="mb-4"><div className="flex justify-between text-sm text-text-secondary mb-1"><span>❤️ Здоровье</span><span className="font-medium">{formData.health} / {formData.max_health}</span></div><div className="h-2 bg-bg-tertiary rounded-full overflow-hidden border border-border-color"><div className="h-full bg-gradient-to-r from-red-400 to-red-500 rounded-full transition-all duration-300" style={{ width: `${(formData.health / formData.max_health) * 100}%` }} /></div></div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
-          <div><label className="form-label">Текущее здоровье</label><div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-red-500">❤️</span><input type="number" name="health" value={formData.health} onChange={handleInputChange} min="0" max={formData.max_health} className="form-input pl-8" disabled={loading} /></div></div>
-          <div><label className="form-label">Макс. здоровье</label><div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-red-400">❤️</span><input type="number" name="max_health" value={formData.max_health} onChange={handleInputChange} min="1" className="form-input pl-8" disabled={loading} /></div></div>
-          <div><label className="form-label">Класс брони (AC)</label><div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-500">🛡️</span><input type="number" name="armor" value={formData.armor} onChange={handleInputChange} min="0" className="form-input pl-8" disabled={loading} /></div></div>
+        <h3 className="text-md font-semibold text-text-primary mb-4">🛡️ Защита и здоровье</h3>
+        {/* Прогресс бар здоровья */}
+        <div className="mb-5 p-3 bg-bg-tertiary rounded-xl border border-border-color">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-sm text-text-secondary flex items-center gap-1">❤️ Здоровье</span>
+            <span className="font-semibold text-text-primary">{formData.health} / {formData.max_health}</span>
+          </div>
+          <div className="h-3 bg-bg-secondary rounded-full overflow-hidden border border-border-color shadow-inner">
+            <div 
+              className="h-full bg-gradient-to-r from-red-500 to-red-600 rounded-full transition-all duration-300 shadow-sm" 
+              style={{ width: `${Math.min((formData.health / formData.max_health) * 100, 100)}%` }} 
+            />
+          </div>
+        </div>
+        
+        {/* Поля ввода здоровья и брони */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="space-y-1">
+            <label className="form-label text-sm font-medium text-text-secondary">Текущее здоровье</label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-red-500">❤️</span>
+              <input type="number" name="health" value={formData.health} onChange={handleInputChange} min="0" max={formData.max_health} className="form-input pl-9" disabled={loading} />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <label className="form-label text-sm font-medium text-text-secondary">Макс. здоровье</label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-red-400">❤️</span>
+              <input type="number" name="max_health" value={formData.max_health} onChange={handleInputChange} min="1" className="form-input pl-9" disabled={loading} />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <label className="form-label text-sm font-medium text-text-secondary">Класс брони (AC)</label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-500">🛡️</span>
+              <input type="number" name="armor" value={formData.armor} onChange={handleInputChange} min="0" className="form-input pl-9" disabled={loading} />
+            </div>
+          </div>
         </div>
       </div>
 
+      {/* Характеристики */}
       <div className="card p-4 md:p-5">
-        <h3 className="text-md font-semibold text-text-primary mb-3">⚔️ Характеристики</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4">
+        <h3 className="text-md font-semibold text-text-primary mb-4">⚔️ Характеристики</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           {statFields.map(stat => {
-            const labels: Record<string, string> = { strength: 'Сила (STR)', agility: 'Ловкость (DEX)', intelligence: 'Интеллект (INT)', physique: 'Телосложение (CON)', wisdom: 'Мудрость (WIS)', charisma: 'Харизма (CHA)' };
-            return <div key={stat}><label className="form-label">{labels[stat]}</label><input type="number" name={stat} value={formData[stat]} onChange={handleInputChange} className="form-input" disabled={loading} /></div>;
+            const labels: Record<string, string> = { 
+              strength: '💪 Сила (STR)', 
+              agility: '🏃 Ловкость (DEX)', 
+              intelligence: '📚 Интеллект (INT)', 
+              physique: '💪 Телосложение (CON)', 
+              wisdom: '🦉 Мудрость (WIS)', 
+              charisma: '✨ Харизма (CHA)' 
+            };
+            return (
+              <div key={stat} className="space-y-1">
+                <label className="form-label text-sm font-medium text-text-secondary">{labels[stat]}</label>
+                <input type="number" name={stat} value={formData[stat]} onChange={handleInputChange} className="form-input" disabled={loading} />
+              </div>
+            );
           })}
         </div>
       </div>
 
+      {/* История */}
       <div className="card p-4 md:p-5">
         <h3 className="text-md font-semibold text-text-primary mb-3">📜 История</h3>
-        <textarea name="history" rows={3} value={formData.history || ''} onChange={handleInputChange} className="form-textarea resize-none" disabled={loading} />
+        <textarea name="history" rows={4} value={formData.history || ''} onChange={handleInputChange} className="form-textarea resize-none" disabled={loading} />
       </div>
 
+      {/* Статусы */}
       <div className="card p-4 md:p-5">
         <h3 className="text-md font-semibold text-text-primary mb-3">🏷️ Статусы</h3>
         <div className="flex flex-wrap gap-4">
-          <label className="flex items-center gap-2 text-text-primary">
+          <label className="flex items-center gap-2 text-text-primary cursor-pointer hover:bg-bg-tertiary px-3 py-2 rounded-lg transition">
             <input
               type="checkbox"
               name="is_online"
@@ -144,7 +205,7 @@ export const PlayerStatsForm = ({
             />
             🟢 Онлайн
           </label>
-          <label className="flex items-center gap-2 text-text-primary">
+          <label className="flex items-center gap-2 text-text-primary cursor-pointer hover:bg-bg-tertiary px-3 py-2 rounded-lg transition">
             <input
               type="checkbox"
               name="is_card_shown"
