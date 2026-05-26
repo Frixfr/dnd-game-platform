@@ -1,4 +1,4 @@
-// client/src/components/ui/CreateItemModal.tsx
+// client/src/components/ui/CreateItemModal.tsx - Новый дизайн
 import { useState, useEffect, useMemo } from 'react';
 import type { EffectType, RarityType } from '../../types';
 import { SelectedEffectsList } from './SelectedEffectsList';
@@ -147,25 +147,24 @@ export const CreateItemModal = ({ onClose, onItemCreated }: CreateItemModalProps
 
   return (
     <div 
-      className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+      className="fixed inset-0 modal-overlay flex items-center justify-center p-4 z-50"
       onClick={handleOverlayClick}
       onKeyDown={handleKeyDown}
     >
       <div 
-        className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto"
+        className="modal-content w-full max-w-3xl max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
-          <h2 className="text-2xl font-bold text-gray-800">📦 Создание предмета</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">
+        <div className="modal-header px-6 py-4 flex justify-between items-center">
+          <h2 className="text-2xl font-bold modal-title">📦 Создание предмета</h2>
+          <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text-primary)] text-2xl leading-none">
             &times;
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {error && (
-            <div className="p-3 rounded-xl bg-red-50 text-red-700 text-sm border border-red-200">
+            <div className="p-3 rounded-xl bg-[#FF0026]/10 border border-[#FF0026]/30 text-[#FF0026] text-sm">
               {error}
             </div>
           )}
@@ -173,23 +172,23 @@ export const CreateItemModal = ({ onClose, onItemCreated }: CreateItemModalProps
           {/* Основные поля */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Название *</label>
+              <label className="block text-sm font-medium form-label mb-1">Название *</label>
               <input
                 type="text"
                 value={formData.name}
                 onChange={e => setFormData({...formData, name: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:outline-none"
+                className="w-full form-input"
                 placeholder="Меч правды"
                 required
                 maxLength={100}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Редкость</label>
+              <label className="block text-sm font-medium form-label mb-1">Редкость</label>
               <select
                 value={formData.rarity}
                 onChange={e => setFormData({...formData, rarity: e.target.value as RarityType})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:outline-none"
+                className="w-full form-select"
               >
                 <option value="common">Обычный</option>
                 <option value="uncommon">Необычный</option>
@@ -203,12 +202,12 @@ export const CreateItemModal = ({ onClose, onItemCreated }: CreateItemModalProps
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Описание</label>
+            <label className="block text-sm font-medium form-label mb-1">Описание</label>
             <textarea
               value={formData.description}
               onChange={e => setFormData({...formData, description: e.target.value})}
               rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-xl resize-none focus:ring-2 focus:ring-blue-400 focus:outline-none"
+              className="w-full form-textarea"
               placeholder="Опишите свойства предмета..."
             />
           </div>
@@ -220,33 +219,33 @@ export const CreateItemModal = ({ onClose, onItemCreated }: CreateItemModalProps
                 type="checkbox"
                 checked={formData.is_deletable}
                 onChange={e => setFormData({...formData, is_deletable: e.target.checked})}
-                className="w-4 h-4 text-blue-500 rounded focus:ring-blue-400"
+                className="w-4 h-4 accent-[#FF0026]"
               />
-              <span className="text-sm text-gray-700">🗑️ Можно выбросить/передать</span>
+              <span className="text-sm text-[var(--text-secondary)]">🗑️ Можно выбросить/передать</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
                 checked={formData.is_usable}
                 onChange={e => setFormData({...formData, is_usable: e.target.checked})}
-                className="w-4 h-4 text-blue-500 rounded focus:ring-blue-400"
+                className="w-4 h-4 accent-[#FF0026]"
               />
-              <span className="text-sm text-gray-700">⚡ Можно использовать</span>
+              <span className="text-sm text-[var(--text-secondary)]">⚡ Можно использовать</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
                 checked={formData.infinite_uses}
                 onChange={e => setFormData({...formData, infinite_uses: e.target.checked})}
-                className="w-4 h-4 text-blue-500 rounded focus:ring-blue-400"
+                className="w-4 h-4 accent-[#FF0026]"
               />
-              <span className="text-sm text-gray-700">♾️ Бесконечное количество</span>
+              <span className="text-sm text-[var(--text-secondary)]">♾️ Бесконечное количество</span>
             </label>
           </div>
 
           {/* Активные эффекты */}
-          <div className="border border-gray-200 rounded-xl p-5 bg-gray-50 space-y-4">
-            <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+          <div className="border border-[var(--border-color)] rounded-xl p-5 bg-[var(--color-bg-secondary)] space-y-4">
+            <h3 className="font-semibold text-[var(--text-primary)] flex items-center gap-2">
               <span className="text-lg">✨</span> Активные эффекты (срабатывают при использовании)
             </h3>
             <SelectedEffectsList
@@ -260,13 +259,13 @@ export const CreateItemModal = ({ onClose, onItemCreated }: CreateItemModalProps
                 placeholder="🔍 Поиск по названию или тегам..."
                 value={activeSearch}
                 onChange={(e) => setActiveSearch(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:outline-none text-sm"
+                className="w-full form-input text-sm"
               />
               <div className="flex gap-2">
                 <select
                   value={selectedActiveEffectId}
                   onChange={(e) => setSelectedActiveEffectId(e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:outline-none text-sm"
+                  className="flex-1 form-select text-sm"
                   size={Math.min(5, availableActiveEffects.length + 1)}
                 >
                   <option value="">-- Выберите эффект --</option>
@@ -282,20 +281,20 @@ export const CreateItemModal = ({ onClose, onItemCreated }: CreateItemModalProps
                   type="button"
                   onClick={handleAddActiveEffect}
                   disabled={!selectedActiveEffectId}
-                  className="px-4 py-2 bg-green-500 text-white rounded-xl hover:bg-green-600 transition disabled:opacity-50"
+                  className="px-4 py-2 btn-primary disabled:opacity-50"
                 >
                   + Добавить
                 </button>
               </div>
               {availableActiveEffects.length === 0 && activeSearch && (
-                <p className="text-xs text-gray-500">Ничего не найдено</p>
+                <p className="text-xs text-[var(--text-muted)]">Ничего не найдено</p>
               )}
             </div>
           </div>
 
           {/* Пассивные эффекты */}
-          <div className="border border-gray-200 rounded-xl p-5 bg-gray-50 space-y-4">
-            <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+          <div className="border border-[var(--border-color)] rounded-xl p-5 bg-[var(--color-bg-secondary)] space-y-4">
+            <h3 className="font-semibold text-[var(--text-primary)] flex items-center gap-2">
               <span className="text-lg">🛡️</span> Пассивные эффекты (действуют постоянно)
             </h3>
             <SelectedEffectsList
@@ -309,13 +308,13 @@ export const CreateItemModal = ({ onClose, onItemCreated }: CreateItemModalProps
                 placeholder="🔍 Поиск по названию или тегам..."
                 value={passiveSearch}
                 onChange={(e) => setPassiveSearch(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:outline-none text-sm"
+                className="w-full form-input text-sm"
               />
               <div className="flex gap-2">
                 <select
                   value={selectedPassiveEffectId}
                   onChange={(e) => setSelectedPassiveEffectId(e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:outline-none text-sm"
+                  className="flex-1 form-select text-sm"
                   size={Math.min(5, availablePassiveEffects.length + 1)}
                 >
                   <option value="">-- Выберите эффект --</option>
@@ -329,13 +328,13 @@ export const CreateItemModal = ({ onClose, onItemCreated }: CreateItemModalProps
                   type="button"
                   onClick={handleAddPassiveEffect}
                   disabled={!selectedPassiveEffectId}
-                  className="px-4 py-2 bg-green-500 text-white rounded-xl hover:bg-green-600 transition disabled:opacity-50"
+                  className="px-4 py-2 btn-primary disabled:opacity-50"
                 >
                   + Добавить
                 </button>
               </div>
               {availablePassiveEffects.length === 0 && passiveSearch && (
-                <p className="text-xs text-gray-500">Ничего не найдено</p>
+                <p className="text-xs text-[var(--text-muted)]">Ничего не найдено</p>
               )}
             </div>
           </div>
@@ -345,21 +344,20 @@ export const CreateItemModal = ({ onClose, onItemCreated }: CreateItemModalProps
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2 border border-gray-300 rounded-xl hover:bg-gray-50 transition text-gray-700"
+              className="px-5 py-2 btn-secondary"
             >
               Отмена
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="px-5 py-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition disabled:opacity-50"
+              className="px-5 py-2 btn-primary disabled:opacity-50"
             >
               {loading ? 'Создание...' : 'Создать предмет'}
             </button>
           </div>
         </form>
       </div>
-    </div>
     </div>
   );
 };
