@@ -1,4 +1,4 @@
-// client/src/components/ui/CreatePlayerModal.tsx
+// client/src/components/ui/CreatePlayerModal.tsx - Новый дизайн
 import { useState } from 'react';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useErrorHandler } from '../../hooks/useErrorHandler';
@@ -60,11 +60,11 @@ export const CreatePlayerModal = ({ onClose }: { onClose: () => void }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
-          <h2 className="text-2xl font-bold text-gray-800">✨ Создание игрока</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">
+    <div className="fixed inset-0 modal-overlay flex items-center justify-center p-4 z-50">
+      <div className="modal-content w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="modal-header px-6 py-4 flex justify-between items-center">
+          <h2 className="text-2xl font-bold modal-title">✨ Создание игрока</h2>
+          <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text-primary)] text-2xl leading-none">
             &times;
           </button>
         </div>
@@ -74,37 +74,37 @@ export const CreatePlayerModal = ({ onClose }: { onClose: () => void }) => {
           {/* Имя и пол */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Имя *</label>
+              <label className="block text-sm font-medium form-label mb-1">Имя *</label>
               <input
                 type="text"
                 value={formData.name}
                 onChange={e => setFormData({ ...formData, name: e.target.value.slice(0, 30) })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:outline-none"
+                className="w-full form-input"
                 placeholder="Арагорн"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Пол</label>
+              <label className="block text-sm font-medium form-label mb-1">Пол</label>
               <div className="flex gap-4 mt-1">
-                <label className="flex items-center gap-2">
+                <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="radio"
                     value="male"
                     checked={formData.gender === 'male'}
                     onChange={() => setFormData({ ...formData, gender: 'male' })}
-                    className="w-4 h-4"
+                    className="w-4 h-4 accent-[#FF0026]"
                   />
-                  <span>Мужской</span>
+                  <span className="text-[var(--text-secondary)]">Мужской</span>
                 </label>
-                <label className="flex items-center gap-2">
+                <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="radio"
                     value="female"
                     checked={formData.gender === 'female'}
                     onChange={() => setFormData({ ...formData, gender: 'female' })}
-                    className="w-4 h-4"
+                    className="w-4 h-4 accent-[#FF0026]"
                   />
-                  <span>Женский</span>
+                  <span className="text-[var(--text-secondary)]">Женский</span>
                 </label>
               </div>
             </div>
@@ -113,32 +113,32 @@ export const CreatePlayerModal = ({ onClose }: { onClose: () => void }) => {
           {/* Здоровье и броня */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">❤️ Макс. здоровье</label>
+              <label className="block text-sm font-medium form-label mb-1">❤️ Макс. здоровье</label>
               <input
                 type="number"
                 min="1"
                 max="500"
                 value={formData.max_health}
                 onChange={e => setFormData({ ...formData, max_health: Math.max(1, parseInt(e.target.value) || 1) })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-xl"
+                className="w-full form-input"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">🛡️ Класс брони</label>
+              <label className="block text-sm font-medium form-label mb-1">🛡️ Класс брони</label>
               <input
                 type="number"
                 min="0"
                 max="30"
                 value={formData.armor}
                 onChange={e => setFormData({ ...formData, armor: Math.max(0, parseInt(e.target.value) || 0) })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-xl"
+                className="w-full form-input"
               />
             </div>
           </div>
 
           {/* Характеристики со слайдерами */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">📊 Характеристики (от -10 до 10)</label>
+            <label className="block text-sm font-medium form-label mb-2">📊 Характеристики (от -10 до 10)</label>
             <div className="space-y-3">
               {(['strength', 'agility', 'intelligence', 'physique', 'wisdom', 'charisma'] as const).map(stat => {
                 const labels: Record<string, string> = {
@@ -148,8 +148,8 @@ export const CreatePlayerModal = ({ onClose }: { onClose: () => void }) => {
                 return (
                   <div key={stat}>
                     <div className="flex justify-between text-sm">
-                      <span>{labels[stat]}</span>
-                      <span className="font-mono font-bold">{formData[stat]}</span>
+                      <span className="text-[var(--text-secondary)]">{labels[stat]}</span>
+                      <span className="font-mono font-bold text-[#FF0026]">{formData[stat]}</span>
                     </div>
                     <input
                       type="range"
@@ -158,7 +158,7 @@ export const CreatePlayerModal = ({ onClose }: { onClose: () => void }) => {
                       step="1"
                       value={formData[stat]}
                       onChange={e => handleStatChange(stat, parseInt(e.target.value))}
-                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                      className="w-full h-2 bg-[var(--color-bg-tertiary)] rounded-lg appearance-none cursor-pointer accent-[#FF0026]"
                     />
                   </div>
                 );
@@ -168,22 +168,22 @@ export const CreatePlayerModal = ({ onClose }: { onClose: () => void }) => {
 
           {/* История */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">📜 История персонажа</label>
+            <label className="block text-sm font-medium form-label mb-1">📜 История персонажа</label>
             <textarea
               rows={3}
               value={formData.history}
               onChange={e => setFormData({ ...formData, history: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-xl resize-none"
+              className="w-full form-textarea"
               placeholder="Расскажите о прошлом героя..."
             />
           </div>
 
           {/* Кнопки */}
           <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-xl hover:bg-gray-50">
+            <button type="button" onClick={onClose} className="px-4 py-2 btn-secondary">
               Отмена
             </button>
-            <button type="submit" className="px-4 py-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition">
+            <button type="submit" className="px-4 py-2 btn-primary transition">
               Создать игрока
             </button>
           </div>

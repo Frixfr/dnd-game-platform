@@ -1,4 +1,4 @@
-// LoginPage - Единый дизайн в стиле Dark Fantasy
+// LoginPage - Новый дизайн в стиле Midnight Blue + Torch Red
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MasterAuthModal from '../components/ui/MasterAuthModal';
@@ -22,26 +22,26 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0f0f13] via-[#1a1a24] to-[#0f0f13] flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-[#0A1F44] via-[#0d2552] to-[#0A1F44] flex items-center justify-center p-4 relative overflow-hidden">
       {/* Декоративные элементы фона */}
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-amber-600/5 rounded-full blur-3xl" />
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#FF0026]/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-[#FF0026]/8 rounded-full blur-3xl" />
       </div>
 
       {/* Контейнер карточки */}
       <div className="w-full max-w-md relative z-10">
         {/* Карточка входа */}
-        <div className="bg-[var(--color-bg-secondary)]/80 backdrop-blur-xl border border-[var(--border-color)] rounded-2xl shadow-2xl p-8 animate-fade-in">
+        <div className="bg-[var(--color-bg-secondary)]/90 backdrop-blur-xl border border-[var(--border-color)] rounded-2xl shadow-2xl p-8 animate-fade-in">
           {/* Логотип и заголовок */}
           <div className="text-center mb-8">
             <div className="flex justify-center mb-4">
               <div className="relative">
-                <div className="absolute inset-0 bg-amber-500/20 blur-xl rounded-full" />
-                <Shield size={64} className="text-amber-400 relative z-10" />
+                <div className="absolute inset-0 bg-[#FF0026]/20 blur-xl rounded-full" />
+                <Shield size={64} className="text-[#FF0026] relative z-10" />
               </div>
             </div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 bg-clip-text text-transparent mb-2">
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-[var(--color-parchment)] via-[var(--color-parchment-muted)] to-[var(--color-parchment)] bg-clip-text text-transparent mb-2">
               DnD Game Platform
             </h1>
             <p className="text-[var(--text-secondary)] text-sm">
@@ -53,9 +53,9 @@ const LoginPage: React.FC = () => {
           <div className="space-y-4">
             <button
               onClick={() => setIsMasterModalOpen(true)}
-              className="w-full group relative py-4 px-6 bg-gradient-to-r from-amber-600 to-amber-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl hover:shadow-amber-500/20 transition-all duration-300 overflow-hidden"
+              className="w-full group relative py-4 px-6 bg-gradient-to-r from-[#FF0026] to-[#cc001f] text-white font-semibold rounded-xl shadow-lg hover:shadow-xl hover:shadow-[#FF0026]/30 transition-all duration-300 overflow-hidden"
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-amber-500 to-amber-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="absolute inset-0 bg-gradient-to-r from-[#ff3355] to-[#FF0026] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               <div className="relative flex items-center justify-center gap-3">
                 <Sword size={20} />
                 <span>Войти как Мастер</span>
@@ -64,10 +64,10 @@ const LoginPage: React.FC = () => {
 
             <button
               onClick={() => setIsPlayerModalOpen(true)}
-              className="w-full group relative py-4 px-6 bg-[var(--color-bg-tertiary)] text-[var(--text-primary)] font-semibold rounded-xl border border-[var(--border-color)] hover:border-amber-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-amber-500/10"
+              className="w-full group relative py-4 px-6 bg-[var(--color-bg-tertiary)] text-[var(--text-primary)] font-semibold rounded-xl border border-[var(--border-color)] hover:border-[#FF0026]/50 transition-all duration-300 hover:shadow-lg hover:shadow-[#FF0026]/15"
             >
               <div className="flex items-center justify-center gap-3">
-                <Sparkles size={20} className="text-amber-400" />
+                <Sparkles size={20} className="text-[#FF0026]" />
                 <span>Войти как Игрок</span>
               </div>
             </button>

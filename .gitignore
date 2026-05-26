@@ -1,11 +1,24 @@
-```
+```gitignore
 # Dependencies
 node_modules/
 
-# Environment
+# Build outputs
+dist/
+build/
+*.bundle.js
+*.min.js
+*.css.map
+
+# Environment variables
 .env
 .env.local
-.env.*
+*.env.*
+
+# IDE specific
+.vscode/
+.idea/
+*.swp
+*.swo
 
 # Logs
 *.log
@@ -13,16 +26,9 @@ node_modules/
 # Coverage
 coverage/
 htmlcov/
-.coverage
+*.coverage
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*.tmp
-
-# OS
+# OS generated
 .DS_Store
 Thumbs.db
 
@@ -32,34 +38,20 @@ __pycache__/
 *.pyo
 *.pyd
 .Python
-env/
-venv/
-.venv/
-pip-log.txt
-pip-delete-this-directory.txt
 *.so
-.Python
-*.sqlite3
+.coverage
 
-# Build outputs
-dist/
-build/
-*.out
-*.exe
-*.dll
-*.so
-*.a
-*.obj
+# Node.js
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# Testing
-.pytest_cache/
-.mypy_cache/
-.nyc_output/
-coverage.xml
-*.gcda
-*.gcno
+# Temporary files
+*.tmp
+*.temp
+*.bak
 
-# Compression
+# Compressed files
 *.zip
 *.gz
 *.tar
