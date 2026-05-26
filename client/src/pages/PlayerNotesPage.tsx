@@ -38,24 +38,24 @@ export const PlayerNotesPage: React.FC = () => {
   };
 
   if (!player) {
-    return <div className="p-8 text-center">Загрузка...</div>;
+    return <div className="p-8 text-center text-text-primary">Загрузка...</div>;
   }
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">📝 Мои заметки</h1>
-      <div className="bg-white rounded-lg shadow p-6">
+      <h1 className="text-2xl font-bold mb-6 text-text-primary">📝 Мои заметки</h1>
+      <div className="bg-card rounded-lg border border-border-color shadow p-6">
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          className="w-full h-96 p-3 border border-gray-300 rounded-lg resize-y"
+          className="w-full h-96 p-3 bg-bg-secondary border border-border-color rounded-lg resize-y text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent-red/50"
           placeholder="Здесь вы можете записывать важную информацию: имена других игроков, квесты, заметки по сюжету и т.д."
         />
         <div className="mt-4 flex justify-end">
           <button
             onClick={handleSave}
             disabled={isSaving}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+            className="btn-primary disabled:opacity-50"
           >
             {isSaving ? 'Сохранение...' : 'Сохранить'}
           </button>

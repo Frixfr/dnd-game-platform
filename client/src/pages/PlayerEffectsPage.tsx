@@ -22,7 +22,7 @@ export const PlayerEffectsPage = () => {
   }, [selectedPlayer]);
 
   const loading = !selectedPlayer || selectedPlayer.id !== Number(playerId);
-  if (loading) return <div className="text-center py-12">Загрузка эффектов...</div>;
+  if (loading) return <div className="text-center py-12 text-text-primary">Загрузка эффектов...</div>;
   if (!selectedPlayer) return null;
 
   const allEffects: PlayerEffectExtended[] = selectedPlayer.active_effects || [];
@@ -46,7 +46,7 @@ export const PlayerEffectsPage = () => {
     <div className="max-w-4xl mx-auto space-y-8">
       {raceEffects.length > 0 && (
         <div>
-          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-text-primary">
             <span className="text-2xl">🌿</span> Эффекты расы
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -59,7 +59,7 @@ export const PlayerEffectsPage = () => {
 
       {itemPassiveEffects.length > 0 && (
         <div>
-          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-text-primary">
             <span className="text-2xl">📦</span> Пассивные эффекты предметов
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -72,7 +72,7 @@ export const PlayerEffectsPage = () => {
 
       {passiveAbilityEffects.length > 0 && (
         <div>
-          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-text-primary">
             <span className="text-2xl">⚡</span> Пассивные способности
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -85,7 +85,7 @@ export const PlayerEffectsPage = () => {
 
       {temporaryEffects.length > 0 && (
         <div>
-          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-text-primary">
             <span className="text-2xl">🌀</span> Временные эффекты
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -97,7 +97,7 @@ export const PlayerEffectsPage = () => {
       )}
 
       {raceEffects.length === 0 && itemPassiveEffects.length === 0 && passiveAbilityEffects.length === 0 && temporaryEffects.length === 0 && (
-        <p className="text-center text-gray-500 py-12">Нет эффектов</p>
+        <p className="text-center text-text-secondary py-12">Нет эффектов</p>
       )}
     </div>
   );
