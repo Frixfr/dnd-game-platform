@@ -73,18 +73,18 @@ const TransferItemPopover: React.FC<TransferItemPopoverProps> = ({ item, playerI
 
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-gray-800 rounded-2xl p-6 w-96 max-w-[90%]" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-[#0e2350] rounded-2xl p-6 w-96 max-w-[90%]" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-xl font-bold text-amber-400">Передать предмет</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-200"><X size={24} /></button>
+          <h3 className="text-xl font-bold text-[#FF0026]">Передать предмет</h3>
+          <button onClick={onClose} className="text-[#F2E9E4] hover:text-white"><X size={24} /></button>
         </div>
-        <p className="text-gray-300 mb-4 text-lg">Предмет: <span className="font-semibold">{item.name}</span></p>
+        <p className="text-[#F2E9E4] mb-4 text-lg">Предмет: <span className="font-semibold">{item.name}</span></p>
         <div className="mb-4">
-          <label className="block text-sm text-gray-400 mb-1">Игроку</label>
+          <label className="block text-sm text-[#d4c9c3] mb-1">Игроку</label>
           <select
             value={selectedPlayerId || ""}
             onChange={(e) => setSelectedPlayerId(Number(e.target.value))}
-            className="w-full p-3 rounded-lg bg-gray-700 text-gray-200 text-base"
+            className="w-full p-3 rounded-lg bg-[#112d63] text-[#F2E9E4] text-base border border-[#FF0026]/20 focus:border-[#FF0026] focus:outline-none"
           >
             <option value="">Выберите игрока</option>
             {players.map(p => (
@@ -93,20 +93,20 @@ const TransferItemPopover: React.FC<TransferItemPopoverProps> = ({ item, playerI
           </select>
         </div>
         <div className="mb-6">
-          <label className="block text-sm text-gray-400 mb-1">Количество (макс. {maxQuantity})</label>
+          <label className="block text-sm text-[#d4c9c3] mb-1">Количество (макс. {maxQuantity})</label>
           <div className="flex items-center gap-3">
             <button
               onClick={decrement}
               disabled={quantity <= 1}
-              className="p-3 rounded-lg bg-gray-700 hover:bg-gray-600 disabled:opacity-50"
+              className="p-3 rounded-lg bg-[#112d63] hover:bg-[#0d2552] disabled:opacity-50"
             >
               <Minus size={20} />
             </button>
-            <span className="flex-1 text-center text-2xl font-bold text-white">{quantity}</span>
+            <span className="flex-1 text-center text-2xl font-bold text-[#F2E9E4]">{quantity}</span>
             <button
               onClick={increment}
               disabled={quantity >= maxQuantity}
-              className="p-3 rounded-lg bg-gray-700 hover:bg-gray-600 disabled:opacity-50"
+              className="p-3 rounded-lg bg-[#112d63] hover:bg-[#0d2552] disabled:opacity-50"
             >
               <Plus size={20} />
             </button>
@@ -117,18 +117,18 @@ const TransferItemPopover: React.FC<TransferItemPopoverProps> = ({ item, playerI
             max={maxQuantity}
             value={quantity}
             onChange={(e) => setQuantity(Number(e.target.value))}
-            className="w-full mt-2"
+            className="w-full mt-2 accent-[#FF0026]"
           />
         </div>
         <div className="flex gap-3">
           <button
             onClick={handleTransfer}
             disabled={loading}
-            className="flex-1 bg-amber-600 hover:bg-amber-500 py-3 rounded-lg text-lg font-medium"
+            className="flex-1 bg-[#FF0026] hover:bg-[#cc001f] py-3 rounded-lg text-lg font-medium text-white"
           >
             {loading ? "Передача..." : "Передать"}
           </button>
-          <button onClick={onClose} className="flex-1 bg-gray-700 hover:bg-gray-600 py-3 rounded-lg text-lg">Отмена</button>
+          <button onClick={onClose} className="flex-1 bg-[#112d63] hover:bg-[#0d2552] py-3 rounded-lg text-lg text-[#F2E9E4]">Отмена</button>
         </div>
       </div>
     </div>
