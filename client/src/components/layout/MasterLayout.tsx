@@ -51,17 +51,17 @@ const MasterLayout: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen bg-slate-50 relative">
+    <div className="flex h-screen bg-[var(--color-bg-primary)] relative">
       <MasterRequestsListener />
       {isMobile && isSidebarOpen && (
-        <div className="fixed inset-0 bg-black/50 z-30" onClick={closeSidebar} />
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30" onClick={closeSidebar} />
       )}
       <div className={`fixed md:relative z-40 transition-transform duration-300 ease-in-out ${isMobile && !isSidebarOpen ? '-translate-x-full' : 'translate-x-0'}`}>
         <Sidebar onClose={closeSidebar} isMobile={isMobile} />
       </div>
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header toggleSidebar={toggleSidebar} isMobile={isMobile} onLogout={handleLogout} />
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6">
           <Outlet />
         </main>
       </div>
