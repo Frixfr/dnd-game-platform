@@ -39,7 +39,7 @@ export const Pagination = ({
       <button
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
-        className="p-2 rounded-md border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+        className="p-2 rounded-md border border-[#F2E9E4]/30 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#0A1F44]/80 text-[#F2E9E4]"
       >
         <ChevronLeft className="w-4 h-4" />
       </button>
@@ -50,14 +50,14 @@ export const Pagination = ({
             onClick={() => onPageChange(page)}
             className={`px-3 py-1 rounded-md ${
               currentPage === page
-                ? 'bg-blue-500 text-white'
-                : 'border border-gray-300 hover:bg-gray-50'
+                ? 'bg-[#FF0026] text-white'
+                : 'border border-[#F2E9E4]/30 hover:bg-[#0A1F44]/80 text-[#F2E9E4]'
             }`}
           >
             {page}
           </button>
         ) : (
-          <span key={idx} className="px-2">
+          <span key={idx} className="px-2 text-[#F2E9E4]/60">
             ...
           </span>
         )
@@ -65,7 +65,7 @@ export const Pagination = ({
       <button
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
-        className="p-2 rounded-md border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+        className="p-2 rounded-md border border-[#F2E9E4]/30 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#0A1F44]/80 text-[#F2E9E4]"
       >
         <ChevronRight className="w-4 h-4" />
       </button>

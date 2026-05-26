@@ -95,14 +95,14 @@ export const CreateRaceModal = ({ onClose }: { onClose: () => void }) => {
       >
         <div className="modal-header px-6 py-4 flex justify-between items-center">
           <h2 className="text-2xl font-bold modal-title">📦 Создание расы</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl leading-none">
+          <button onClick={onClose} className="text-[#F2E9E4]/60 hover:text-[#F2E9E4] text-2xl leading-none">
             &times;
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6">
           {error && (
-            <div className="mb-4 p-3 rounded-xl border border-red-500/30 bg-red-500/10 text-red-400 text-sm">
+            <div className="mb-4 p-3 rounded-xl border border-[#FF0026]/30 bg-[#FF0026]/10 text-[#FF0026] text-sm">
               ⚠️ {error}
             </div>
           )}
@@ -175,12 +175,12 @@ export const CreateRaceModal = ({ onClose }: { onClose: () => void }) => {
                   </button>
                 </div>
                 {availableEffects.length === 0 && searchTerm && (
-                  <p className="text-xs text-gray-400">Ничего не найдено</p>
+                  <p className="text-xs text-[#F2E9E4]/60">Ничего не найдено</p>
                 )}
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 pt-4 border-t border-gray-700">
+            <div className="flex justify-end gap-3 pt-4 border-t border-[#F2E9E4]/20">
               <button
                 type="button"
                 onClick={onClose}

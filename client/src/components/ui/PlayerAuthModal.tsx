@@ -50,34 +50,34 @@ const PlayerAuthModal: React.FC<PlayerAuthModalProps> = ({ onClose, onSelectAvai
     <Modal onClose={onClose} title="Вход для игрока">
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-[#F2E9E4] mb-1">
             Пароль от персонажа (если есть)
           </label>
           <input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+            className="mt-1 block w-full px-3 py-2 border border-[#F2E9E4]/30 rounded-md shadow-sm bg-[#0A1F44] text-[#F2E9E4]"
             placeholder="Введите пароль"
             autoFocus
           />
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-[#F2E9E4]/60 mt-1">
             Если у персонажа нет пароля, выберите "Выберу доступных"
           </p>
         </div>
-        {error && <p className="text-red-600 text-sm">{error}</p>}
+        {error && <p className="text-[#FF0026] text-sm">{error}</p>}
         <div className="flex justify-end space-x-3 pt-2">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-slate-700 bg-slate-200 rounded hover:bg-slate-300"
+            className="px-4 py-2 text-[#F2E9E4] bg-[#0A1F44]/80 border border-[#F2E9E4]/30 rounded hover:bg-[#0A1F44]"
           >
             Отмена
           </button>
           <button
             type="button"
             onClick={handleSelectAvailable}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            className="px-4 py-2 bg-[#FF0026] text-white rounded hover:bg-[#FF0026]/90"
           >
             Выберу доступных
           </button>
@@ -85,7 +85,7 @@ const PlayerAuthModal: React.FC<PlayerAuthModalProps> = ({ onClose, onSelectAvai
             type="button"
             onClick={handleLoginWithPassword}
             disabled={loading}
-            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+            className="px-4 py-2 bg-[#FF0026] text-white rounded hover:bg-[#FF0026]/90 disabled:opacity-50"
           >
             {loading ? 'Вход...' : 'Ввести пароль'}
           </button>

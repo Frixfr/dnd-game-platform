@@ -115,14 +115,14 @@ export const CreateAbilityModal = ({
             <h2 className="text-2xl font-bold modal-title">Создать способность</h2>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-white text-2xl"
+              className="text-[#F2E9E4]/60 hover:text-[#F2E9E4] text-2xl"
             >
               ×
             </button>
           </div>
           
           {error && (
-            <div className="mb-4 p-3 rounded-xl border border-red-500/30 bg-red-500/10 text-red-400 text-sm">
+            <div className="mb-4 p-3 rounded-xl border border-[#FF0026]/30 bg-[#FF0026]/10 text-[#FF0026] text-sm">
               {error}
             </div>
           )}
@@ -148,7 +148,7 @@ export const CreateAbilityModal = ({
                   maxLength={100}
                   required
                 />
-                <div className="text-xs text-gray-400 mt-1">
+                <div className="text-xs text-[#F2E9E4]/60 mt-1">
                   {formData.name.length}/100 символов
                 </div>
               </div>
@@ -181,7 +181,7 @@ export const CreateAbilityModal = ({
                     <span>Пассивная</span>
                   </label>
                 </div>
-                <div className="text-xs text-gray-400 mt-1">
+                <div className="text-xs text-[#F2E9E4]/60 mt-1">
                   {formData.ability_type === 'active' 
                     ? 'Требует активации игроком' 
                     : 'Работает постоянно'}
@@ -200,7 +200,7 @@ export const CreateAbilityModal = ({
                 placeholder="Опишите способность, её эффекты и особенности..."
                 maxLength={500}
               />
-              <div className="text-xs text-gray-400 mt-1">
+              <div className="text-xs text-[#F2E9E4]/60 mt-1">
                 {formData.description.length}/500 символов
               </div>
             </div>
@@ -223,7 +223,7 @@ export const CreateAbilityModal = ({
                     className="form-input w-full"
                     placeholder="0"
                   />
-                  <div className="text-xs text-gray-400 mt-1">
+                  <div className="text-xs text-[#F2E9E4]/60 mt-1">
                     Количество ходов до повторного использования
                   </div>
                 </div>
@@ -244,7 +244,7 @@ export const CreateAbilityModal = ({
                     className="form-input w-full"
                     placeholder="0"
                   />
-                  <div className="text-xs text-gray-400 mt-1">
+                  <div className="text-xs text-[#F2E9E4]/60 mt-1">
                     Количество дней до повторного использования
                   </div>
                 </div>
@@ -273,12 +273,12 @@ export const CreateAbilityModal = ({
                   </option>
                 ))}
               </select>
-              <div className="text-xs text-gray-400 mt-1">
+              <div className="text-xs text-[#F2E9E4]/60 mt-1">
                 Выберите эффект, который применяет эта способность (необязательно)
               </div>
             </div>
             
-            <div className="flex justify-end space-x-3 pt-6 border-t border-gray-700">
+            <div className="flex justify-end space-x-3 pt-6 border-t border-[#F2E9E4]/20">
               <button
                 type="button"
                 onClick={onClose}

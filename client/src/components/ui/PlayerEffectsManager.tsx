@@ -102,7 +102,7 @@ export const PlayerEffectsManager = ({
       itemPassiveEffects.length > 0;
 
     if (!hasEffects) {
-      return <p className="text-center text-gray-500 py-8">🌀 Нет эффектов</p>;
+      return <p className="text-center text-[#F2E9E4]/60 py-8">🌀 Нет эффектов</p>;
     }
 
     return (
@@ -166,7 +166,7 @@ export const PlayerEffectsManager = ({
 
         {temporaryEffects.length > 0 && (
           <div>
-            <h3 className="text-md font-semibold text-gray-700 mb-2 flex items-center gap-2">
+            <h3 className="text-md font-semibold text-[#F2E9E4] mb-2 flex items-center gap-2">
               <span className="text-xl">🌀</span> Временные эффекты
             </h3>
             <div className="space-y-3">
@@ -198,8 +198,8 @@ export const PlayerEffectsManager = ({
             {filtered.map(effect => {
               const owned = ownedIds.has(effect.id);
               return (
-                <div key={effect.id} className="bg-gray-50 p-3 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                  <div><p className="font-medium">{effect.name}</p><p className="text-xs text-gray-500">{effect.attribute} {effect.modifier > 0 ? `+${effect.modifier}` : effect.modifier}</p></div>
+                <div key={effect.id} className="bg-[#0A1F44]/50 p-3 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                  <div><p className="font-medium">{effect.name}</p><p className="text-xs text-[#F2E9E4]/60">{effect.attribute} {effect.modifier > 0 ? `+${effect.modifier}` : effect.modifier}</p></div>
                   {!owned ? (
                     <button onClick={() => setSelectedEffects(prev => prev.includes(effect.id) ? prev.filter(id => id !== effect.id) : [...prev, effect.id])} className={`px-3 py-1 rounded-xl ${selectedEffects.includes(effect.id) ? 'bg-green-500 text-white' : 'bg-blue-100'}`}>{selectedEffects.includes(effect.id) ? '✓ Выбран' : 'Выбрать'}</button>
                   ) : <span className="text-green-600 text-sm">✓ Уже есть</span>}
@@ -212,7 +212,7 @@ export const PlayerEffectsManager = ({
           <span>Выбрано: {selectedEffects.length}</span>
           <button onClick={handleAddEffects} disabled={selectedEffects.length === 0 || loading} className="w-full sm:w-auto px-4 py-2 bg-green-500 text-white rounded-xl">Добавить выбранные</button>
         </div>
-        <button onClick={() => setEffectsSubTab('list')} className="mt-2 text-sm text-gray-500 hover:text-gray-700">← Назад к списку</button>
+        <button onClick={() => setEffectsSubTab('list')} className="mt-2 text-sm text-[#F2E9E4]/60 hover:text-[#F2E9E4]">← Назад к списку</button>
       </div>
     );
   };
