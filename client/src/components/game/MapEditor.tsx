@@ -138,31 +138,31 @@ const MapEditorInner: React.FC<MapEditorInnerProps> = ({ map, entities, onUpdate
       <canvas ref={canvasRef} className="w-full h-full cursor-grab" />
       {contextMenu && (
         <div
-          className="fixed z-50 bg-gray-800 border border-gray-600 rounded shadow-lg py-1 min-w-[150px]"
+          className="fixed z-50 bg-[#0A1F44] border border-[#F2E9E4]/30 rounded shadow-lg py-1 min-w-[150px]"
           style={{ top: contextMenu.y, left: contextMenu.x }}
           onClick={(e) => e.stopPropagation()}
         >
           <button
-            className="w-full text-left px-4 py-2 text-sm text-white hover:bg-gray-700"
+            className="w-full text-left px-4 py-2 text-sm text-[#F2E9E4] hover:bg-[#0A1F44]/80"
             onClick={increaseScale}
           >
             Увеличить (+)
           </button>
           <button
-            className="w-full text-left px-4 py-2 text-sm text-white hover:bg-gray-700"
+            className="w-full text-left px-4 py-2 text-sm text-[#F2E9E4] hover:bg-[#0A1F44]/80"
             onClick={decreaseScale}
           >
             Уменьшить (-)
           </button>
           <button
-            className="w-full text-left px-4 py-2 text-sm text-white hover:bg-gray-700"
+            className="w-full text-left px-4 py-2 text-sm text-[#F2E9E4] hover:bg-[#0A1F44]/80"
             onClick={toggleGrayscale}
           >
             {contextMenu.token.is_grayscale ? 'Цветной' : 'Ч/Б'}
           </button>
-          <hr className="my-1 border-gray-600" />
+          <hr className="my-1 border-[#F2E9E4]/30" />
           <button
-            className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-gray-700"
+            className="w-full text-left px-4 py-2 text-sm text-[#FF0026] hover:bg-[#0A1F44]/80"
             onClick={deleteTokenHandler}
           >
             Удалить
@@ -226,7 +226,7 @@ export const MapEditor: React.FC<{ mapId: number }> = ({ mapId }) => {
 
   if (!map) {
     return (
-      <div className="flex items-center justify-center h-full text-gray-500">
+      <div className="flex items-center justify-center h-full text-[#F2E9E4]/60">
         Загрузка карты...
       </div>
     );

@@ -5,7 +5,8 @@ node_modules/
 # Build outputs
 dist/
 build/
-target/
+*.js.map
+*.ts.map
 
 # Logs
 *.log
@@ -15,87 +16,42 @@ target/
 .env.local
 *.env.*
 
-# IDE files
+# Editor files
 .vscode/
 .idea/
 *.swp
 *.swo
 *.tmp
 
-# Python
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Coverage reports
+coverage/
+htmlcov/
+.coverage
+
+# Python specific
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 .Python
-env/
-venv/
-.venv/
-.ENV
-.python-version
-pip-log.txt
-pip-delete-this-directory.txt
-.tox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.log
-.git/modules/
-*.tmproj
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
-.DS_Store
-Thumbs.db
+*.so
+.Pytest_cache/
 
-# Node.js
+# Node.js specific
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-node_modules/
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-npm-shrinkwrap.json
-package-lock.json
-.next/
-.nuxt/
-.vercel/
-netlify/
-.svelte-kit/
-static-build/
-build/
-dist/
-public/build/
-!.gitkeep
-coverage/
-*.lcov
-.nyc_output/
-.jest/
-jest/
-.eslintcache
-.stylelintcache
-.pnp/
-.pnp.js
-.pnp.cjs
-.pnp.loader.mjs
-.yarn/
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/sdks
-!.yarn/versions
-```
 
-Wait, let me reconsider this. Looking at the modified files, they are all TypeScript React components (.tsx files), which are source code files. There are no build artifacts, dependency directories, or temporary files in the changes. According to rule #6, if the changes contain only source/config files and no build artifacts, dependencies, or temp files, I should output an empty .gitignore.
-
-Since all the modified files are .tsx component files (source code), there's nothing to ignore.
-
-```gitignore
-
+# Compiled files
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.a
+*.out
 ```

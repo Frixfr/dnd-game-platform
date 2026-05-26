@@ -152,54 +152,54 @@ export const EditRaceModal = ({ race, onClose, onRaceSaved }: EditRaceModalProps
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={onClose}>
       <div
-        className="modal-content w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden"
+        className="modal-content w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden bg-[#0A1F44] border border-[#F2E9E4]/20"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="modal-header px-6 py-4 flex justify-between items-center">
-          <h2 className="text-2xl font-bold modal-title">✏️ Редактирование расы</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl leading-none">
+        <div className="modal-header px-6 py-4 flex justify-between items-center border-b border-[#F2E9E4]/20">
+          <h2 className="text-2xl font-bold text-[#F2E9E4]">✏️ Редактирование расы</h2>
+          <button onClick={onClose} className="text-[#F2E9E4]/60 hover:text-[#F2E9E4] text-2xl leading-none">
             &times;
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6">
           {error && (
-            <div className="mb-4 p-3 rounded-xl border border-red-500/30 bg-red-500/10 text-red-400 text-sm">
+            <div className="mb-4 p-3 rounded-xl border border-[#FF0026]/30 bg-[#FF0026]/10 text-[#FF0026] text-sm">
               ⚠️ {error}
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label className="form-label block mb-2">Название расы *</label>
+              <label className="form-label block mb-2 text-[#F2E9E4]">Название расы *</label>
               <input
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="form-input w-full"
+                className="form-input w-full bg-[#0A1F44] border border-[#F2E9E4]/30 text-[#F2E9E4] focus:ring-2 focus:ring-[#FF0026]"
                 placeholder="Название расы"
                 disabled={loading}
               />
             </div>
 
             <div>
-              <label className="form-label block mb-2">Описание</label>
+              <label className="form-label block mb-2 text-[#F2E9E4]">Описание</label>
               <textarea
                 rows={3}
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                className="form-textarea w-full resize-none"
+                className="form-textarea w-full resize-none bg-[#0A1F44] border border-[#F2E9E4]/30 text-[#F2E9E4] focus:ring-2 focus:ring-[#FF0026]"
                 placeholder="Описание расы..."
                 disabled={loading}
               />
             </div>
 
-            <div className="card p-5 space-y-4">
-              <h3 className="font-semibold text-lg flex items-center gap-2">
+            <div className="card p-5 space-y-4 bg-[#0A1F44]/70 border border-[#F2E9E4]/20 rounded-xl">
+              <h3 className="font-semibold text-lg text-[#F2E9E4] flex items-center gap-2">
                 <span>✨</span> Пассивные эффекты расы
               </h3>
               {!effectsLoaded ? (
-                <div className="text-center py-4 text-gray-400">Загрузка эффектов...</div>
+                <div className="text-center py-4 text-[#F2E9E4]/60">Загрузка эффектов...</div>
               ) : (
                 <>
                   <SelectedEffectsList
@@ -213,13 +213,13 @@ export const EditRaceModal = ({ race, onClose, onRaceSaved }: EditRaceModalProps
                       placeholder="🔍 Поиск по названию или тегам..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="form-input w-full text-sm"
+                      className="form-input w-full text-sm bg-[#0A1F44] border border-[#F2E9E4]/30 text-[#F2E9E4] focus:ring-2 focus:ring-[#FF0026]"
                     />
                     <div className="flex gap-2">
                       <select
                         value={selectedEffectId}
                         onChange={(e) => setSelectedEffectId(e.target.value)}
-                        className="form-select flex-1 text-sm"
+                        className="form-select flex-1 text-sm bg-[#0A1F44] border border-[#F2E9E4]/30 text-[#F2E9E4] focus:ring-2 focus:ring-[#FF0026]"
                         size={Math.min(5, availableEffects.length + 1)}
                       >
                         <option value="">-- Выберите пассивный эффект --</option>
@@ -235,24 +235,24 @@ export const EditRaceModal = ({ race, onClose, onRaceSaved }: EditRaceModalProps
                         type="button"
                         onClick={handleAddEffect}
                         disabled={!selectedEffectId}
-                        className="btn-primary disabled:opacity-50"
+                        className="btn-primary disabled:opacity-50 bg-[#FF0026] hover:bg-[#FF0026]/90 text-white"
                       >
                         + Добавить
                       </button>
                     </div>
                     {availableEffects.length === 0 && searchTerm && (
-                      <p className="text-xs text-gray-400">Ничего не найдено</p>
+                      <p className="text-xs text-[#F2E9E4]/60">Ничего не найдено</p>
                     )}
                   </div>
                 </>
               )}
             </div>
 
-            <div className="flex justify-between items-center pt-4 border-t border-gray-700">
+            <div className="flex justify-between items-center pt-4 border-t border-[#F2E9E4]/20">
               <button
                 type="button"
                 onClick={handleDelete}
-                className="px-4 py-2 bg-red-500 text-white rounded-xl hover:bg-red-600 transition"
+                className="px-4 py-2 bg-[#FF0026] text-white rounded-xl hover:bg-[#FF0026]/90 transition"
               >
                 🗑️ Удалить расу
               </button>
@@ -260,7 +260,7 @@ export const EditRaceModal = ({ race, onClose, onRaceSaved }: EditRaceModalProps
                 <button
                   type="button"
                   onClick={onClose}
-                  className="btn-secondary"
+                  className="btn-secondary bg-[#0A1F44] text-[#F2E9E4] border border-[#F2E9E4]/30 hover:bg-[#0A1F44]/80"
                   disabled={loading}
                 >
                   Отмена
@@ -268,7 +268,7 @@ export const EditRaceModal = ({ race, onClose, onRaceSaved }: EditRaceModalProps
                 <button
                   type="submit"
                   disabled={loading}
-                  className="btn-primary"
+                  className="btn-primary bg-[#FF0026] hover:bg-[#FF0026]/90 text-white"
                 >
                   {loading ? 'Сохранение...' : 'Сохранить изменения'}
                 </button>

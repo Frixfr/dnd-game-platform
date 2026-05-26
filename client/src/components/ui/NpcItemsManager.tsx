@@ -102,22 +102,22 @@ export const NpcItemsManager = ({ npcId, items, onDataChanged, showError }: NpcI
   };
 
   const renderCurrentItems = () => {
-    if (!items.length) return <p className="text-center text-gray-500 py-8">📦 Нет предметов</p>;
+    if (!items.length) return <p className="text-center text-[#F2E9E4]/60 py-8">📦 Нет предметов</p>;
     return (
       <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
         {items.map(item => {
           const hasActiveEffect = item.active_effect !== null;
           return (
-            <div key={item.id} className="bg-gray-50 rounded-xl p-3 md:p-4 border">
+            <div key={item.id} className="bg-[#0A1F44]/70 rounded-xl p-3 md:p-4 border border-[#F2E9E4]/20">
               <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
                 <div>
-                  <h4 className="font-semibold">{item.name}</h4>
-                  <p className="text-sm text-gray-500">{item.description}</p>
+                  <h4 className="font-semibold text-[#F2E9E4]">{item.name}</h4>
+                  <p className="text-sm text-[#F2E9E4]/60">{item.description}</p>
                   <div className="flex flex-wrap gap-2 mt-2">
-                    <span className="text-xs bg-white px-2 py-0.5 rounded-full">{item.rarity}</span>
-                    <span className="text-xs bg-white px-2 py-0.5 rounded-full">×{item.quantity}</span>
+                    <span className="text-xs bg-[#0A1F44] text-[#F2E9E4] px-2 py-0.5 rounded-full border border-[#F2E9E4]/20">{item.rarity}</span>
+                    <span className="text-xs bg-[#0A1F44] text-[#F2E9E4] px-2 py-0.5 rounded-full border border-[#F2E9E4]/20">×{item.quantity}</span>
                     {hasActiveEffect && (
-                      <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">⚡ Активный</span>
+                      <span className="text-xs bg-[#FF0026]/20 text-[#FF0026] px-2 py-0.5 rounded-full border border-[#FF0026]/30">⚡ Активный</span>
                     )}
                   </div>
                 </div>
@@ -125,12 +125,12 @@ export const NpcItemsManager = ({ npcId, items, onDataChanged, showError }: NpcI
                   {hasActiveEffect && (
                     <button
                       onClick={() => handleUseItem(item.npc_item_id ?? item.id, item.name)}
-                      className="px-3 py-1 bg-blue-500 text-white rounded-xl text-sm hover:bg-blue-600"
+                      className="px-3 py-1 bg-[#FF0026] text-white rounded-xl text-sm hover:bg-[#FF0026]/90"
                     >
                       Использовать
                     </button>
                   )}
-                  <button onClick={() => handleRemoveItem(item.id)} className="text-red-500 text-sm">🗑️ Удалить</button>
+                  <button onClick={() => handleRemoveItem(item.id)} className="text-[#FF0026] text-sm">🗑️ Удалить</button>
                 </div>
               </div>
             </div>
@@ -154,10 +154,10 @@ export const NpcItemsManager = ({ npcId, items, onDataChanged, showError }: NpcI
           placeholder="🔍 Поиск предметов..."
           value={itemSearch}
           onChange={e => setItemSearch(e.target.value)}
-          className="w-full px-3 py-2 border rounded-xl"
+          className="w-full px-3 py-2 border border-[#F2E9E4]/30 rounded-xl bg-[#0A1F44] text-[#F2E9E4] focus:ring-2 focus:ring-[#FF0026]"
         />
         {itemsLoading ? (
-          <p>Загрузка...</p>
+          <p className="text-[#F2E9E4]/60">Загрузка...</p>
         ) : (
           <div className="space-y-2 max-h-[50vh] overflow-y-auto">
             {filtered.map(item => {
@@ -165,11 +165,11 @@ export const NpcItemsManager = ({ npcId, items, onDataChanged, showError }: NpcI
               const currentQty = currentQuantityMap[item.id] || 0;
               const qtyToAdd = selectedItems[item.id] || 1;
               return (
-                <div key={item.id} className="bg-gray-50 p-3 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <div key={item.id} className="bg-[#0A1F44]/70 p-3 rounded-xl border border-[#F2E9E4]/20 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                   <div>
-                    <p className="font-medium">{item.name}</p>
-                    <p className="text-xs text-gray-500">{item.rarity}</p>
-                    {owned && <p className="text-xs text-green-600">Уже есть: {currentQty} шт.</p>}
+                    <p className="font-medium text-[#F2E9E4]">{item.name}</p>
+                    <p className="text-xs text-[#F2E9E4]/60">{item.rarity}</p>
+                    {owned && <p className="text-xs text-[#FF0026]">Уже есть: {currentQty} шт.</p>}
                   </div>
                   <div className="flex items-center gap-2">
                     <input
@@ -177,11 +177,11 @@ export const NpcItemsManager = ({ npcId, items, onDataChanged, showError }: NpcI
                       min={1}
                       value={qtyToAdd}
                       onChange={e => setSelectedItems(prev => ({ ...prev, [item.id]: parseInt(e.target.value) || 1 }))}
-                      className="w-16 px-2 py-1 border rounded"
+                      className="w-16 px-2 py-1 border border-[#F2E9E4]/30 rounded bg-[#0A1F44] text-[#F2E9E4]"
                     />
                     <button
                       onClick={() => setSelectedItems(prev => ({ ...prev, [item.id]: (prev[item.id] || 1) }))}
-                      className="px-3 py-1 bg-blue-100 rounded-xl"
+                      className="px-3 py-1 bg-[#0A1F44] text-[#F2E9E4] rounded-xl border border-[#F2E9E4]/30 hover:bg-[#0A1F44]/80"
                     >
                       {owned ? '➕ Добавить ещё' : '➕ Добавить'}
                     </button>
@@ -191,17 +191,17 @@ export const NpcItemsManager = ({ npcId, items, onDataChanged, showError }: NpcI
             })}
           </div>
         )}
-        <div className="pt-2 flex flex-col sm:flex-row justify-between items-center gap-2 border-t">
-          <span>Выбрано: {Object.keys(selectedItems).length}</span>
+        <div className="pt-2 flex flex-col sm:flex-row justify-between items-center gap-2 border-t border-[#F2E9E4]/20">
+          <span className="text-[#F2E9E4]">Выбрано: {Object.keys(selectedItems).length}</span>
           <button
             onClick={handleAddItems}
             disabled={Object.keys(selectedItems).length === 0 || loading}
-            className="w-full sm:w-auto px-4 py-2 bg-green-500 text-white rounded-xl"
+            className="w-full sm:w-auto px-4 py-2 bg-[#FF0026] text-white rounded-xl hover:bg-[#FF0026]/90 disabled:opacity-50"
           >
             Добавить выбранные
           </button>
         </div>
-        <button onClick={() => setItemsSubTab('list')} className="mt-2 text-sm text-gray-500 hover:text-gray-700">
+        <button onClick={() => setItemsSubTab('list')} className="mt-2 text-sm text-[#F2E9E4]/60 hover:text-[#F2E9E4]">
           ← Назад к списку
         </button>
       </div>
@@ -213,13 +213,13 @@ export const NpcItemsManager = ({ npcId, items, onDataChanged, showError }: NpcI
       {itemsSubTab === 'list' ? (
         <div>
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold">📦 Предметы NPC</h3>
+            <h3 className="text-lg font-semibold text-[#F2E9E4]">📦 Предметы NPC</h3>
             <button
               onClick={() => {
                 setItemsSubTab('add');
                 setSelectedItems({});
               }}
-              className="px-3 py-1 bg-green-100 text-green-700 rounded-xl text-sm"
+              className="px-3 py-1 bg-[#0A1F44] text-[#FF0026] rounded-xl text-sm border border-[#FF0026]/30 hover:bg-[#0A1F44]/80"
             >
               ➕ Добавить предмет
             </button>
