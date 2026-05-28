@@ -37,13 +37,45 @@ export const npcEffectsService = {
     const effect = await db("effects").where("id", data.effect_id).first();
     if (!effect) throw new Error("Effect not found");
 
+    // Получаем все активные эффекты NPC (кроме текущего, который ещё не добавлен)
+    // и пассивные эффекты от предметов для расчёта итогового max_health
+    const allActiveEffects = await db("npc_active_effects")
+      .where({ npc_id: data.npc_id })
+      .join("effects", "npc_active_effects.effect_id", "effects.id")
+      .select("effects.*");
+    
+    const fullNpcData = await getFullNpcData(data.npc_id);
+    const passiveEffects = fullNpcData 
+      ? fullNpcData.items.flatMap((item) => item.passive_effects || [])
+      : [];
+    
+    // Считаем бонус к max_health от всех активных и пассивных эффектов
+    let maxHealthBonus = 0;
+    for (const e of allActiveEffects) {
+      if (e.attribute === "max_health" && typeof e.modifier === "number") {
+        maxHealthBonus += e.modifier;
+      }
+    }
+    for (const pe of passiveEffects) {
+      if (pe.attribute === "max_health" && typeof pe.modifier === "number") {
+        maxHealthBonus += pe.modifier;
+      }
+    }
+    
+    // Если текущий эффект тоже увеличивает max_health, добавляем его бонус
+    if (effect.attribute === "max_health" && typeof effect.modifier === "number") {
+      maxHealthBonus += effect.modifier;
+    }
+    
+    const effectiveMaxHealth = npc.max_health + maxHealthBonus;
+
     // Если эффект увеличивает max_health, то увеличиваем и текущее здоровье
     // Если эффект изменяет health (лечение/урон), применяем сразу
     let newHealth = npc.health;
     if (effect.attribute === "max_health" && typeof effect.modifier === "number") {
-      newHealth = Math.min(npc.health + effect.modifier, npc.max_health + effect.modifier);
+      newHealth = Math.min(npc.health + effect.modifier, effectiveMaxHealth);
     } else if (effect.attribute === "health" && typeof effect.modifier === "number") {
-      newHealth = Math.max(0, Math.min(npc.health + effect.modifier, npc.max_health));
+      newHealth = Math.max(0, Math.min(npc.health + effect.modifier, effectiveMaxHealth));
     }
 
     const [newEffect] = await db("npc_active_effects")

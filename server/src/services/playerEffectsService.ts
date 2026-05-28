@@ -41,13 +41,45 @@ export const playerEffectsService = {
     const effect = await db("effects").where("id", data.effect_id).first();
     if (!effect) throw new Error("Effect not found");
 
+    // Получаем все активные эффекты игрока (кроме текущего, который ещё не добавлен)
+    // и пассивные эффекты от предметов для расчёта итогового max_health
+    const allActiveEffects = await db("player_active_effects")
+      .where({ player_id: data.player_id })
+      .join("effects", "player_active_effects.effect_id", "effects.id")
+      .select("effects.*");
+    
+    const fullPlayerData = await getFullPlayerData(data.player_id);
+    const passiveEffects = fullPlayerData 
+      ? fullPlayerData.items.flatMap((item) => item.passive_effects || [])
+      : [];
+    
+    // Считаем бонус к max_health от всех активных и пассивных эффектов
+    let maxHealthBonus = 0;
+    for (const e of allActiveEffects) {
+      if (e.attribute === "max_health" && typeof e.modifier === "number") {
+        maxHealthBonus += e.modifier;
+      }
+    }
+    for (const pe of passiveEffects) {
+      if (pe.attribute === "max_health" && typeof pe.modifier === "number") {
+        maxHealthBonus += pe.modifier;
+      }
+    }
+    
+    // Если текущий эффект тоже увеличивает max_health, добавляем его бонус
+    if (effect.attribute === "max_health" && typeof effect.modifier === "number") {
+      maxHealthBonus += effect.modifier;
+    }
+    
+    const effectiveMaxHealth = player.max_health + maxHealthBonus;
+
     // Если эффект увеличивает max_health, то увеличиваем и текущее здоровье
     // Если эффект изменяет health (лечение/урон), применяем сразу
     let newHealth = player.health;
     if (effect.attribute === "max_health" && typeof effect.modifier === "number") {
-      newHealth = Math.min(player.health + effect.modifier, player.max_health + effect.modifier);
+      newHealth = Math.min(player.health + effect.modifier, effectiveMaxHealth);
     } else if (effect.attribute === "health" && typeof effect.modifier === "number") {
-      newHealth = Math.max(0, Math.min(player.health + effect.modifier, player.max_health));
+      newHealth = Math.max(0, Math.min(player.health + effect.modifier, effectiveMaxHealth));
     }
 
     const [newEffect] = await db("player_active_effects")
