@@ -42,9 +42,12 @@ export const playerEffectsService = {
     if (!effect) throw new Error("Effect not found");
 
     // Если эффект увеличивает max_health, то увеличиваем и текущее здоровье
+    // Если эффект изменяет health (лечение/урон), применяем сразу
     let newHealth = player.health;
     if (effect.attribute === "max_health" && typeof effect.modifier === "number") {
       newHealth = Math.min(player.health + effect.modifier, player.max_health + effect.modifier);
+    } else if (effect.attribute === "health" && typeof effect.modifier === "number") {
+      newHealth = Math.max(0, Math.min(player.health + effect.modifier, player.max_health));
     }
 
     const [newEffect] = await db("player_active_effects")

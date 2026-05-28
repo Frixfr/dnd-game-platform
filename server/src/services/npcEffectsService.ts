@@ -38,9 +38,12 @@ export const npcEffectsService = {
     if (!effect) throw new Error("Effect not found");
 
     // Если эффект увеличивает max_health, то увеличиваем и текущее здоровье
+    // Если эффект изменяет health (лечение/урон), применяем сразу
     let newHealth = npc.health;
     if (effect.attribute === "max_health" && typeof effect.modifier === "number") {
       newHealth = Math.min(npc.health + effect.modifier, npc.max_health + effect.modifier);
+    } else if (effect.attribute === "health" && typeof effect.modifier === "number") {
+      newHealth = Math.max(0, Math.min(npc.health + effect.modifier, npc.max_health));
     }
 
     const [newEffect] = await db("npc_active_effects")
