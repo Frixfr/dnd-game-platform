@@ -252,14 +252,24 @@ export const combatService = {
     if (entityType === "player") {
       const player = await db("players").where({ id: entityId }).first();
       if (!player) throw new Error("Игрок не найден");
-      const clampedHealth = Math.max(0, Math.min(newHealth, player.max_health));
+      
+      // Получаем финальное максимальное здоровье с учётом эффектов
+      const fullPlayerData = await getFullPlayerData(entityId);
+      const effectiveMaxHealth = fullPlayerData ? fullPlayerData.final_stats.max_health : player.max_health;
+      
+      const clampedHealth = Math.max(0, Math.min(newHealth, effectiveMaxHealth));
       await db("players")
         .where({ id: entityId })
         .update({ health: clampedHealth });
     } else {
       const npc = await db("npcs").where({ id: entityId }).first();
       if (!npc) throw new Error("NPC не найден");
-      const clampedHealth = Math.max(0, Math.min(newHealth, npc.max_health));
+      
+      // Получаем финальное максимальное здоровье с учётом эффектов
+      const fullNpcData = await getFullNpcData(entityId);
+      const effectiveMaxHealth = fullNpcData ? fullNpcData.final_stats.max_health : npc.max_health;
+      
+      const clampedHealth = Math.max(0, Math.min(newHealth, effectiveMaxHealth));
       await db("npcs")
         .where({ id: entityId })
         .update({ health: clampedHealth });
