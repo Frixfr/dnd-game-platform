@@ -53,7 +53,17 @@ export const playerEffectsService = {
       ? fullPlayerData.items.flatMap((item) => item.passive_effects || [])
       : [];
     
-    // Считаем бонус к max_health от всех активных и пассивных эффектов
+    // Получаем эффекты расы для учёта бонусов к max_health
+    let raceEffects: any[] = [];
+    if (player.race_id) {
+      const raceEffectsRaw = await db("race_effects")
+        .where("race_id", player.race_id)
+        .join("effects", "race_effects.effect_id", "effects.id")
+        .select("effects.*");
+      raceEffects = raceEffectsRaw;
+    }
+    
+    // Считаем бонус к max_health от всех активных и пассивных эффектов, включая расу
     let maxHealthBonus = 0;
     for (const e of allActiveEffects) {
       if (e.attribute === "max_health" && typeof e.modifier === "number") {
@@ -63,6 +73,11 @@ export const playerEffectsService = {
     for (const pe of passiveEffects) {
       if (pe.attribute === "max_health" && typeof pe.modifier === "number") {
         maxHealthBonus += pe.modifier;
+      }
+    }
+    for (const re of raceEffects) {
+      if (re.attribute === "max_health" && typeof re.modifier === "number") {
+        maxHealthBonus += re.modifier;
       }
     }
     
@@ -148,6 +163,16 @@ export const playerEffectsService = {
         .join("effects", "player_active_effects.effect_id", "effects.id")
         .select("effects.*");
       
+      // Получаем эффекты расы для учёта бонусов к max_health
+      let raceEffects: any[] = [];
+      if (player.race_id) {
+        const raceEffectsRaw = await db("race_effects")
+          .where("race_id", player.race_id)
+          .join("effects", "race_effects.effect_id", "effects.id")
+          .select("effects.*");
+        raceEffects = raceEffectsRaw;
+      }
+      
       // Считаем оставшийся бонус к max_health
       let remainingMaxHealthBonus = 0;
       for (const e of allActiveEffects) {
@@ -164,6 +189,13 @@ export const playerEffectsService = {
           if (pe.attribute === "max_health" && typeof pe.modifier === "number") {
             remainingMaxHealthBonus += pe.modifier;
           }
+        }
+      }
+      
+      // Добавляем бонусы от расы
+      for (const re of raceEffects) {
+        if (re.attribute === "max_health" && typeof re.modifier === "number") {
+          remainingMaxHealthBonus += re.modifier;
         }
       }
       

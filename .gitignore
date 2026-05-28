@@ -1,86 +1,52 @@
 ```
 # Dependencies
 node_modules/
-.pnpm-store/
-.npm/
-.yarn/
+server/node_modules/
 
-# Build outputs
-dist/
-build/
-.next/
-out/
-public/build/
-*.bundle.js
-*.chunk.js
+# Package lock files
+package-lock.json
+server/package-lock.json
+server/node_modules/.package-lock.json
 
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-venv/
-.env
-.venv/
-.python-version
+# Build artifacts
+server/dist/
+server/build/
+server/target/
+
+# TypeScript compiled files
+server/**/*.js
+server/**/*.js.map
+server/**/*.d.ts
 
 # Logs
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+server/*.log
 
-# OS generated files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
+# Environment
+.env
+.env.local
+.env.*
 
-# Editor
+# Editors
 .vscode/
 .idea/
 *.swp
 *.swo
 
-# Environment variables
-.env
-.env.local
-.env.*
-!.env.example
-
-# Testing
-coverage/
-.nyc_output/
-test-results/
-
-# Compiled and binary files
-*.o
-*.obj
-*.a
-*.lib
-*.so
-*.dll
-*.dylib
-*.exe
-*.out
-*.class
-
-# Temporary files
-*.tmp
-*.temp
-*~
+# OS
 .DS_Store
 Thumbs.db
 
-# Cache directories
-.cache/
-.mypy_cache/
-.pytest_cache/
-.hypothesis/
-target/
-.gradle/
+# Coverage
+coverage/
+htmlcov/
+.coverage
+
+# Python (if applicable)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
 ```
