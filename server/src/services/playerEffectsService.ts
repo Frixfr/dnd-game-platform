@@ -73,12 +73,14 @@ export const playerEffectsService = {
     
     const effectiveMaxHealth = player.max_health + maxHealthBonus;
 
-    // Если эффект увеличивает max_health, то увеличиваем и текущее здоровье
-    // Если эффект изменяет health (лечение/урон), применяем сразу
+    // Если эффект увеличивает max_health, то увеличиваем и текущее здоровье на величину бонуса
+    // Если эффект изменяет health (лечение/урон), применяем сразу, но ограничиваем эффективным max_health
     let newHealth = player.health;
     if (effect.attribute === "max_health" && typeof effect.modifier === "number") {
+      // При увеличении max_health, текущее здоровье увеличивается на ту же величину
       newHealth = Math.min(player.health + effect.modifier, effectiveMaxHealth);
     } else if (effect.attribute === "health" && typeof effect.modifier === "number") {
+      // Лечение/урон: применяем, но не превышаем эффективный максимум
       newHealth = Math.max(0, Math.min(player.health + effect.modifier, effectiveMaxHealth));
     }
 

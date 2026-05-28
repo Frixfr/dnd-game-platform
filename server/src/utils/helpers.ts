@@ -69,6 +69,9 @@ export function calculateFinalStatsGeneric<
   // Применяем модификатор к max_health
   finalStats.max_health = (entity.max_health + maxHealthModifier) as T["max_health"];
 
+  // health НЕ обрабатываем здесь - лечение/урон применяются сразу в момент создания эффекта
+  // и сохраняются в базе данных игрока/NPC. Здесь мы только рассчитываем max_health.
+
   // Теперь применяем остальные модификаторы (кроме health и max_health)
   activeEffects.forEach((effect) => {
     if (effect.attribute && typeof effect.modifier === "number") {

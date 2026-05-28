@@ -104,7 +104,7 @@ export const PlayerCard = ({ player, onClick, disabled = false, onDelete }: Play
           <div className="flex justify-between text-sm text-text-secondary mb-1.5">
             <span>❤️ Здоровье</span>
             <span className="font-medium text-text-primary">
-              {finalHealth}/{player.max_health}{player.final_stats?.max_health !== player.max_health && (
+              {finalHealth}/{finalMaxHealth}{player.final_stats?.max_health !== player.max_health && (
                 <span className="text-xs text-text-secondary ml-1">
                   ({player.final_stats!.max_health - player.max_health > 0 ? '+' : ''}{player.final_stats!.max_health - player.max_health})
                 </span>
