@@ -29,7 +29,7 @@ export const StatWithTooltip: React.FC<StatWithTooltipProps> = ({ label, baseVal
         <span className="font-medium">{label}</span>
       </div>
       <div className="flex items-baseline gap-2 flex-wrap">
-        <span className="text-2xl font-bold text-text-primary">{finalValue}</span>
+        <span className="text-2xl font-bold text-text-primary">{baseValue}</span>
         {hasBonus && (
           <span
             className="text-sm text-text-secondary cursor-help border-b border-dotted border-text-secondary"
@@ -39,9 +39,6 @@ export const StatWithTooltip: React.FC<StatWithTooltipProps> = ({ label, baseVal
           </span>
         )}
       </div>
-      {baseValue !== finalValue && (
-        <div className="text-xs text-text-secondary mt-1">база: {baseValue}</div>
-      )}
     </div>
   );
 };

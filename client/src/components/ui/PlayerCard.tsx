@@ -102,7 +102,11 @@ export const PlayerCard = ({ player, onClick, disabled = false, onDelete }: Play
           <div className="flex justify-between text-sm text-text-secondary mb-1.5">
             <span>❤️ Здоровье</span>
             <span className="font-medium text-text-primary">
-              {player.health}/{player.max_health}
+              {player.health}/{player.max_health}{player.final_stats?.max_health !== player.max_health && (
+                <span className="text-xs text-text-secondary ml-1">
+                  ({player.final_stats!.max_health - player.max_health > 0 ? '+' : ''}{player.final_stats!.max_health - player.max_health})
+                </span>
+              )}
             </span>
           </div>
           <div className="h-2 bg-bg-tertiary rounded-full overflow-hidden border border-border-color">
@@ -119,7 +123,13 @@ export const PlayerCard = ({ player, onClick, disabled = false, onDelete }: Play
             <span className="text-lg">🛡️</span>
             <span className="text-sm text-text-secondary">Класс брони</span>
           </div>
-          <span className="text-xl font-bold text-text-primary">{player.armor}</span>
+          <span className="text-xl font-bold text-text-primary">
+            {player.armor}{player.final_stats?.armor !== player.armor && (
+              <span className="text-xs text-text-secondary ml-1">
+                ({player.final_stats!.armor - player.armor > 0 ? '+' : ''}{player.final_stats!.armor - player.armor})
+              </span>
+            )}
+          </span>
         </div>
 
         {/* Характеристики */}
@@ -128,7 +138,7 @@ export const PlayerCard = ({ player, onClick, disabled = false, onDelete }: Play
             const baseValue = player[stat];
             const finalValue = player.final_stats?.[stat] ?? baseValue;
             const diff = finalValue - baseValue;
-            const diffText = diff !== 0 ? (diff > 0 ? `(+${diff})` : `(${diff})`) : '';
+            const modifierText = diff !== 0 ? (diff > 0 ? `+${diff}` : `${diff}`) : '';
             return (
               <div
                 key={stat}
@@ -137,7 +147,7 @@ export const PlayerCard = ({ player, onClick, disabled = false, onDelete }: Play
               >
                 <span className="text-xs font-mono font-medium text-text-secondary">{statLabels[stat]}</span>
                 <span className="font-mono font-semibold text-text-primary">
-                  {baseValue} <span className="text-xs text-text-secondary">{diffText}</span>
+                  {baseValue}{modifierText && <span className="text-xs text-text-secondary ml-0.5">({modifierText})</span>}
                 </span>
               </div>
             );

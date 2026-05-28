@@ -120,7 +120,11 @@ export const NpcCard = ({ npc, onClick, disabled = false, onDelete, onDuplicate 
           <div className="flex justify-between text-sm text-text-secondary mb-1">
             <span>❤️ Здоровье</span>
             <span className="font-medium text-text-primary">
-              {npc.health}/{npc.max_health}
+              {npc.health}/{npc.max_health}{npc.final_stats?.max_health !== npc.max_health && (
+                <span className="text-xs text-text-secondary ml-1">
+                  ({npc.final_stats!.max_health - npc.max_health > 0 ? '+' : ''}{npc.final_stats!.max_health - npc.max_health})
+                </span>
+              )}
             </span>
           </div>
           <div className="h-2 bg-bg-secondary rounded-full overflow-hidden">
@@ -137,13 +141,22 @@ export const NpcCard = ({ npc, onClick, disabled = false, onDelete, onDuplicate 
             <span className="text-lg">🛡️</span>
             <span className="text-sm text-text-secondary">Класс брони</span>
           </div>
-          <span className="text-xl font-bold text-text-primary">{npc.armor}</span>
+          <span className="text-xl font-bold text-text-primary">
+            {npc.armor}{npc.final_stats?.armor !== npc.armor && (
+              <span className="text-xs text-text-secondary ml-1">
+                ({npc.final_stats!.armor - npc.armor > 0 ? '+' : ''}{npc.final_stats!.armor - npc.armor})
+              </span>
+            )}
+          </span>
         </div>
 
         {/* Характеристики */}
         <div className="grid grid-cols-3 gap-2">
           {(['strength', 'agility', 'intelligence', 'physique', 'wisdom', 'charisma'] as StatType[]).map(stat => {
-            const value = npc[stat];
+            const baseValue = npc[stat];
+            const finalValue = npc.final_stats?.[stat] ?? baseValue;
+            const diff = finalValue - baseValue;
+            const modifierText = diff !== 0 ? (diff > 0 ? `+${diff}` : `${diff}`) : '';
             return (
               <div
                 key={stat}
@@ -151,7 +164,9 @@ export const NpcCard = ({ npc, onClick, disabled = false, onDelete, onDuplicate 
                 title={statLabels[stat]}
               >
                 <span className="text-sm font-mono font-medium text-text-secondary">{statLabels[stat]}</span>
-                <span className="font-mono font-semibold text-text-primary">{value}</span>
+                <span className="font-mono font-semibold text-text-primary">
+                  {baseValue}{modifierText && <span className="text-xs text-text-secondary ml-0.5">({modifierText})</span>}
+                </span>
               </div>
             );
           })}
