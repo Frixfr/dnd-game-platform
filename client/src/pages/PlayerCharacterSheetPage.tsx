@@ -270,34 +270,21 @@ export const PlayerCharacterSheetPage = () => {
                   <Heart size={20} fill="currentColor" />
                   <span className="font-semibold">Здоровье</span>
                 </div>
-                <div className="flex items-baseline gap-1">
+                <div className="flex items-baseline gap-1 flex-wrap">
                   <span className="text-2xl font-bold text-text-primary">{finalStats.health}</span>
                   <span className="text-text-secondary">/</span>
-                  <span className="text-xl text-text-secondary">{finalStats.max_health}</span>
+                  <span className="text-xl text-text-secondary">{baseStats.max_health}</span>
                   {healthDiff !== 0 && (
                     <span
-                      className="text-sm text-text-secondary ml-1 cursor-help border-b border-dotted border-text-secondary"
+                      className="text-sm text-text-secondary cursor-help border-b border-dotted border-text-secondary"
                       title={formatBonusesTooltip(healthBonuses)}
                     >
                       ({healthDiff > 0 ? '+' : ''}{healthDiff})
                     </span>
                   )}
-                  {currentHealthDiff !== 0 && currentHealthDiff !== healthDiff && (
-                    <span
-                      className="text-sm text-text-secondary ml-1 cursor-help border-b border-dotted border-text-secondary"
-                      title="Текущее здоровье изменено отдельно (не от эффектов)"
-                    >
-                      (тек: {currentHealthDiff > 0 ? '+' : ''}{currentHealthDiff})
-                    </span>
-                  )}
                 </div>
                 <div className="mt-2 h-1.5 bg-bg-tertiary rounded-full overflow-hidden">
                   <div className="h-full bg-gradient-to-r from-accent-red to-red-400 rounded-full transition-all" style={{ width: `${healthPercent}%` }} />
-                </div>
-                {/* База максимального здоровья */}
-                <div className="text-xs text-text-secondary mt-2">
-                  база макс. здоровья: {baseStats.max_health}
-                  {healthDiff !== 0 && ` + ${healthDiff}`}
                 </div>
               </div>
 
@@ -308,7 +295,7 @@ export const PlayerCharacterSheetPage = () => {
                   <span className="font-semibold">Класс брони</span>
                 </div>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold text-text-primary">{finalStats.armor}</span>
+                  <span className="text-3xl font-bold text-text-primary">{baseStats.armor}</span>
                   {armorDiff !== 0 && (
                     <span
                       className="text-sm text-text-secondary cursor-help border-b border-dotted border-text-secondary"
@@ -317,11 +304,6 @@ export const PlayerCharacterSheetPage = () => {
                       ({armorDiff > 0 ? '+' : ''}{armorDiff})
                     </span>
                   )}
-                </div>
-                {/* База брони */}
-                <div className="text-xs text-text-secondary mt-2">
-                  база: {baseStats.armor}
-                  {armorDiff !== 0 && ` + ${armorDiff}`}
                 </div>
               </div>
             </div>
