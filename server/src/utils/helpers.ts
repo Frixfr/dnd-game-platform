@@ -51,9 +51,32 @@ export function calculateFinalStatsGeneric<
 > {
   const finalStats = { ...entity };
 
+  // Сначала считаем все модификаторы для max_health
+  let maxHealthModifier = 0;
+  
+  activeEffects.forEach((effect) => {
+    if (effect.attribute === "max_health" && typeof effect.modifier === "number") {
+      maxHealthModifier += effect.modifier;
+    }
+  });
+
+  passiveEffectsFromItems.forEach((effect) => {
+    if (effect.attribute === "max_health" && typeof effect.modifier === "number") {
+      maxHealthModifier += effect.modifier;
+    }
+  });
+
+  // Применяем модификатор к max_health
+  finalStats.max_health = (entity.max_health + maxHealthModifier) as T["max_health"];
+
+  // Теперь применяем остальные модификаторы (кроме health и max_health)
   activeEffects.forEach((effect) => {
     if (effect.attribute && typeof effect.modifier === "number") {
       const attr = effect.attribute as keyof typeof finalStats;
+      // Пропускаем health и max_health - они обрабатываются отдельно
+      if (attr === "health" || attr === "max_health") {
+        return;
+      }
       const current = finalStats[attr];
       // Убеждаемся, что текущее значение - число
       if (typeof current === "number") {
@@ -65,6 +88,9 @@ export function calculateFinalStatsGeneric<
   passiveEffectsFromItems.forEach((effect) => {
     if (effect.attribute && typeof effect.modifier === "number") {
       const attr = effect.attribute as keyof typeof finalStats;
+      if (attr === "health" || attr === "max_health") {
+        return;
+      }
       const current = finalStats[attr];
       if (typeof current === "number") {
         finalStats[attr] = (current + effect.modifier) as T[keyof T];

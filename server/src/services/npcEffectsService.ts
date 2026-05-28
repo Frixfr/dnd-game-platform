@@ -1,4 +1,5 @@
 import { db } from "../db/index.js";
+import { getFullNpcData } from "../utils/helpers.js";
 
 export const npcEffectsService = {
   async getAll(filters: {
@@ -36,6 +37,12 @@ export const npcEffectsService = {
     const effect = await db("effects").where("id", data.effect_id).first();
     if (!effect) throw new Error("Effect not found");
 
+    // Если эффект увеличивает max_health, то увеличиваем и текущее здоровье
+    let newHealth = npc.health;
+    if (effect.attribute === "max_health" && typeof effect.modifier === "number") {
+      newHealth = Math.min(npc.health + effect.modifier, npc.max_health + effect.modifier);
+    }
+
     const [newEffect] = await db("npc_active_effects")
       .insert({
         npc_id: data.npc_id,
@@ -47,20 +54,87 @@ export const npcEffectsService = {
         applied_at: db.fn.now(),
       })
       .returning("*");
+
+    // Применяем увеличение здоровья если нужно
+    if (newHealth !== npc.health) {
+      await db("npcs")
+        .where("id", data.npc_id)
+        .update({ health: newHealth });
+    }
+
     return newEffect;
   },
 
   async delete(npc_id: number, effect_id: number) {
+    const npc = await db("npcs").where("id", npc_id).first();
+    if (!npc) throw new Error("NPC not found");
+
+    const activeEffect = await db("npc_active_effects")
+      .where({ npc_id, effect_id })
+      .first();
+
+    if (!activeEffect) throw new Error("Not found");
+
+    const effect = await db("effects").where("id", effect_id).first();
+
+    // Если это временный эффект с модификатором max_health,
+    // и текущее здоровье больше базового max_health, уменьшаем до базового max_health
+    let newHealth = npc.health;
+    if (
+      effect &&
+      effect.attribute === "max_health" &&
+      typeof effect.modifier === "number" &&
+      !effect.is_permanent
+    ) {
+      // Получаем все активные эффекты NPC, чтобы посчитать итоговый max_health после удаления
+      const allActiveEffects = await db("npc_active_effects")
+        .where({ npc_id })
+        .whereNot({ effect_id })
+        .join("effects", "npc_active_effects.effect_id", "effects.id")
+        .select("effects.*");
+
+      // Считаем оставшийся бонус к max_health
+      let remainingMaxHealthBonus = 0;
+      for (const e of allActiveEffects) {
+        if (e.attribute === "max_health" && typeof e.modifier === "number") {
+          remainingMaxHealthBonus += e.modifier;
+        }
+      }
+
+      // Также учитываем пассивные эффекты от предметов
+      const fullNpcData = await getFullNpcData(npc_id);
+      if (fullNpcData) {
+        const passiveEffects = fullNpcData.items.flatMap((item) => item.passive_effects || []);
+        for (const pe of passiveEffects) {
+          if (pe.attribute === "max_health" && typeof pe.modifier === "number") {
+            remainingMaxHealthBonus += pe.modifier;
+          }
+        }
+      }
+
+      const newMaxHealth = npc.max_health + remainingMaxHealthBonus;
+
+      // Если текущее здоровье больше нового максимального, уменьшаем
+      if (npc.health > newMaxHealth) {
+        newHealth = newMaxHealth;
+      }
+    }
+
     const deleted = await db("npc_active_effects")
       .where({ npc_id, effect_id, source_type: "admin" })
       .delete();
     if (deleted === 0) {
-      const exists = await db("npc_active_effects")
-        .where({ npc_id, effect_id })
-        .first();
-      if (!exists) throw new Error("Not found");
+      if (!activeEffect) throw new Error("Not found");
       throw new Error("Cannot delete non-admin effect");
     }
+
+    // Применяем уменьшение здоровья если нужно
+    if (newHealth !== npc.health) {
+      await db("npcs")
+        .where("id", npc_id)
+        .update({ health: newHealth });
+    }
+
     return true;
   },
 };
