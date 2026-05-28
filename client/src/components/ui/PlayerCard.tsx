@@ -19,7 +19,9 @@ const statLabels: Record<StatType, string> = {
 };
 
 export const PlayerCard = ({ player, onClick, disabled = false, onDelete }: PlayerCardProps) => {
-  const healthPercent = (player.health / player.max_health) * 100;
+  const finalMaxHealth = player.final_stats?.max_health ?? player.max_health;
+  const finalHealth = player.final_stats?.health ?? player.health;
+  const healthPercent = (finalHealth / finalMaxHealth) * 100;
   const initials = player.name
     .split(' ')
     .map(n => n[0])
@@ -102,7 +104,7 @@ export const PlayerCard = ({ player, onClick, disabled = false, onDelete }: Play
           <div className="flex justify-between text-sm text-text-secondary mb-1.5">
             <span>❤️ Здоровье</span>
             <span className="font-medium text-text-primary">
-              {player.health}/{player.max_health}{player.final_stats?.max_health !== player.max_health && (
+              {finalHealth}/{player.max_health}{player.final_stats?.max_health !== player.max_health && (
                 <span className="text-xs text-text-secondary ml-1">
                   ({player.final_stats!.max_health - player.max_health > 0 ? '+' : ''}{player.final_stats!.max_health - player.max_health})
                 </span>
