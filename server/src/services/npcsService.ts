@@ -46,6 +46,26 @@ export const npcsService = {
   },
 
   async update(id: string, data: Partial<NPC>): Promise<NPC | null> {
+    // Если обновляется здоровье, проверить его относительно эффективного максимума
+    if (data.health !== undefined && typeof data.health === "number") {
+      let newHealth = data.health;
+      const fullData = await getFullNpcData(id);
+      if (fullData) {
+        const effectiveMaxHealth = fullData.final_stats.max_health;
+        if (newHealth > effectiveMaxHealth) {
+          newHealth = effectiveMaxHealth;
+        }
+      } else {
+        // fallback: использовать базовое max_health из БД
+        const npc = await db("npcs").where({ id }).first();
+        if (npc && newHealth > npc.max_health) {
+          newHealth = npc.max_health;
+        }
+      }
+      if (newHealth < 0) newHealth = 0;
+      data.health = newHealth;
+    }
+
     const [updated] = await db("npcs")
       .where({ id })
       .update(data)

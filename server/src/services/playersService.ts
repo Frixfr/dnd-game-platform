@@ -598,6 +598,28 @@ export const playersService = {
         throw new Error("Этот пароль уже используется другим игроком");
       }
     }
+
+    // Если обновляется здоровье, проверить его относительно эффективного максимума
+    if (data.health !== undefined && typeof data.health === "number") {
+      let newHealth = data.health;
+      const fullData = await getFullPlayerData(String(id));
+      if (fullData) {
+        const effectiveMaxHealth = fullData.final_stats.max_health;
+        if (newHealth > effectiveMaxHealth) {
+          newHealth = effectiveMaxHealth;
+        }
+      } else {
+        // fallback: использовать базовое max_health из БД
+        const player = await db("players").where({ id }).first();
+        if (player && newHealth > player.max_health) {
+          newHealth = player.max_health;
+        }
+      }
+      // здоровье не может быть отрицательным
+      if (newHealth < 0) newHealth = 0;
+      data.health = newHealth;
+    }
+
     const [updated] = await db("players")
       .where({ id })
       .update(data)

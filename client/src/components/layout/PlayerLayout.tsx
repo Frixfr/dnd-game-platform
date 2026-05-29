@@ -121,7 +121,12 @@ const PlayerLayout: React.FC = () => {
           playerName={selectedPlayer.name}
         />
         {isMobile && showStickyBar && (
-          <StickyHealthBar health={finalStats.health} maxHealth={finalStats.max_health} armor={finalStats.armor} />
+          <StickyHealthBar 
+            health={finalStats.health}
+            baseMaxHealth={selectedPlayer.max_health}
+            finalMaxHealth={finalStats.max_health}
+            armor={finalStats.armor}
+          />
         )}
         <main className="flex-1 overflow-y-auto custom-scrollbar pb-20 md:pb-0">
           <Outlet />

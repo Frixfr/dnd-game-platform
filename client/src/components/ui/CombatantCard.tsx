@@ -10,7 +10,10 @@ interface CombatantCardProps {
 
 export const CombatantCard = ({ participant, isCurrentTurn, onRemove, onEdit }: CombatantCardProps) => {
   const entity = participant.entity;
-  const healthPercent = (entity.health / entity.max_health) * 100;
+  const baseMaxHealth = entity.max_health;           // базовое из таблицы
+  const finalMaxHealth = entity.final_stats?.max_health ?? baseMaxHealth;
+  const bonus = finalMaxHealth - baseMaxHealth;
+  const healthPercent = (entity.health / finalMaxHealth) * 100;
   const isDead = entity.health <= 0;
   const entityName = entity.name;
   const entityTypeLabel = participant.entity_type === "player" ? "Игрок" : "NPC";
@@ -78,7 +81,8 @@ export const CombatantCard = ({ participant, isCurrentTurn, onRemove, onEdit }: 
             <div className="flex justify-between text-sm text-text-secondary">
               <span>❤️ Здоровье</span>
               <span className="text-text-primary">
-                {entity.health}/{entity.max_health}
+                {entity.health}/{baseMaxHealth}
+                {bonus !== 0 && <span className="text-xs text-text-secondary ml-1">(+{bonus})</span>}
               </span>
             </div>
             <div className="h-2 bg-bg-secondary rounded-full overflow-hidden mt-1 border border-border-color">

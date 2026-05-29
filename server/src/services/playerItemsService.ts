@@ -141,9 +141,40 @@ export const playerItemsService = {
     if (!item.infinite_uses && playerItem.quantity < 1)
       throw new Error("Недостаточно предметов");
 
+    // Получаем текущее состояние игрока для проверки здоровья
+    const fullPlayer = await getFullPlayerData(playerId);
+    if (!fullPlayer) throw new Error("Не удалось загрузить данные игрока");
+
+    const currentHealth = fullPlayer.final_stats.health;
+    const currentMaxHealth = fullPlayer.final_stats.max_health;
+
     const activeEffects = (item.effects || []).filter(
       (e) => e.effect_type === "active",
     );
+
+    // Определяем, есть ли у предмета лечебные эффекты и эффекты, повышающие max_health
+    const hasHealEffect = activeEffects.some(
+      (e) =>
+        e.attribute === "health" &&
+        typeof e.modifier === "number" &&
+        e.modifier > 0,
+    );
+    const hasIncreaseMaxHealthEffect = activeEffects.some(
+      (e) =>
+        e.attribute === "max_health" &&
+        typeof e.modifier === "number" &&
+        e.modifier > 0,
+    );
+
+    // Если есть лечение, но нет увеличения максимума, и здоровье уже максимально – запретить
+    if (
+      hasHealEffect &&
+      !hasIncreaseMaxHealthEffect &&
+      currentHealth >= currentMaxHealth
+    ) {
+      throw new Error("Невозможно использовать: здоровье уже максимально");
+    }
+
     for (const effect of activeEffects) {
       await playerEffectsService.create({
         player_id: playerId,

@@ -4,6 +4,10 @@ import { db } from "./index.js";
 
 export async function initializeDatabase() {
   try {
+    // Удаляем старые триггеры, если они существуют (больше не нужны)
+    await db.raw(`DROP TRIGGER IF EXISTS check_health_limit`);
+    await db.raw(`DROP TRIGGER IF EXISTS check_npc_health_limit`);
+
     // Таблица effects (нужна для рас, способностей, предметов)
     if (!(await db.schema.hasTable("effects"))) {
       await db.schema.createTable("effects", (table) => {
@@ -504,20 +508,20 @@ export async function initializeDatabase() {
       )
       .catch((err) => console.log("Ошибка создания индексов:", err));
 
-    // Триггер для проверки здоровья
-    await db
-      .raw(
-        `
-      CREATE TRIGGER IF NOT EXISTS check_health_limit 
-      BEFORE UPDATE ON players
-      FOR EACH ROW
-      WHEN NEW.health > NEW.max_health
-      BEGIN
-        SELECT RAISE(ABORT, 'Health cannot exceed max health');
-      END;
-    `,
-      )
-      .catch((err) => console.log("Ошибка создания триггера:", err));
+    // // Триггер для проверки здоровья
+    // await db
+    //   .raw(
+    //     `
+    //   CREATE TRIGGER IF NOT EXISTS check_health_limit
+    //   BEFORE UPDATE ON players
+    //   FOR EACH ROW
+    //   WHEN NEW.health > NEW.max_health
+    //   BEGIN
+    //     SELECT RAISE(ABORT, 'Health cannot exceed max health');
+    //   END;
+    // `,
+    //   )
+    //   .catch((err) => console.log("Ошибка создания триггера:", err));
 
     console.log("Инициализация базы данных завершена");
   } catch (error) {
