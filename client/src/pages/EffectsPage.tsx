@@ -76,25 +76,25 @@ export const EffectsPage = () => {
   const totalPages = Math.ceil(effectsTotal / limit);
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
+    <div className="p-4 md:p-6 max-w-6xl mx-auto">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-text-primary">Панель эффектов</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-text-primary">Панель эффектов</h1>
           <p className="text-text-secondary mt-1">
             Всего эффектов: <span className="font-semibold">{effectsTotal}</span>
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           <input
             type="text"
             placeholder="Поиск по названию, описанию или тегу..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-64 px-4 py-2 form-input"
+            className="w-full sm:w-64 px-4 py-2 form-input"
           />
           <button
             onClick={() => setIsCreateModalOpen(true)}
-            className="px-4 py-2 btn-primary"
+            className="px-4 py-2 btn-primary w-full sm:w-auto"
           >
             + Создать эффект
           </button>

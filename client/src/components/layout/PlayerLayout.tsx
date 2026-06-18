@@ -15,8 +15,6 @@ const PlayerLayout: React.FC = () => {
   const { playerId } = useParams();
   const navigate = useNavigate();
   const { selectedPlayer, clearSession } = usePlayerSessionStore();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [hydrated, setHydrated] = useState(false);
   const [showStickyBar, setShowStickyBar] = useState(false);
 
@@ -37,12 +35,11 @@ const PlayerLayout: React.FC = () => {
       if (playerId) {
         socket.emit('leave', `player:${playerId}`);
       }
-      // Не отключаем обработчики при размонтировании, 
+      // Не отключаем обработчики при размонтировании,
       // они будут отключены при логауте через disconnectAllSocketHandlers
     };
   }, [playerId]);
 
-  // Остальной код без изменений (hydration, resize, scroll, logout и т.д.)
   useEffect(() => {
     const unsubHydrate = usePlayerSessionStore.persist.onHydrate?.(() => setHydrated(false));
     const unsubFinish = usePlayerSessionStore.persist.onFinishHydration?.(() => setHydrated(true));
@@ -61,20 +58,9 @@ const PlayerLayout: React.FC = () => {
     }
   }, [selectedPlayer, playerId, navigate, hydrated]);
 
+  // Липкая полоса здоровья показывается при прокрутке вниз.
+  // Само переключение мобильный/десктоп — на CSS (md:), поэтому не привязываемся к JS isMobile.
   useEffect(() => {
-    const handleResize = () => {
-      const mobile = window.innerWidth < 768;
-      setIsMobile(mobile);
-      if (!mobile) setIsSidebarOpen(true);
-      else setIsSidebarOpen(false);
-    };
-    window.addEventListener('resize', handleResize);
-    handleResize();
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  useEffect(() => {
-    if (!isMobile) return;
     const main = document.querySelector('main');
     if (!main) return;
     const handleScroll = () => {
@@ -82,10 +68,7 @@ const PlayerLayout: React.FC = () => {
     };
     main.addEventListener('scroll', handleScroll);
     return () => main.removeEventListener('scroll', handleScroll);
-  }, [isMobile]);
-
-  const toggleSidebar = () => setIsSidebarOpen((prev) => !prev);
-  const closeSidebar = () => setIsSidebarOpen(false);
+  }, []);
 
   const handleLogout = () => {
     clearSession();
@@ -103,35 +86,25 @@ const PlayerLayout: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-gradient-to-br from-[#0A1F44] to-[#0d2552] relative">
-      {isMobile && isSidebarOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30" onClick={closeSidebar} />
-      )}
-      <div
-        className={`fixed md:relative z-40 transition-transform duration-300 ease-in-out ${
-          isMobile && !isSidebarOpen ? '-translate-x-full' : 'translate-x-0'
-        }`}
-      >
-        <PlayerSidebar onClose={closeSidebar} isMobile={isMobile} playerId={selectedPlayer.id} />
-      </div>
+      {/* Боковой сайдбар — только десктоп (md+). Видимость управляется CSS. */}
+      <PlayerSidebar playerId={selectedPlayer.id} className="hidden md:flex" />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <PlayerHeader
-          toggleSidebar={toggleSidebar}
-          isMobile={isMobile}
-          onLogout={handleLogout}
-          playerName={selectedPlayer.name}
-        />
-        {isMobile && showStickyBar && (
-          <StickyHealthBar 
+        <PlayerHeader onLogout={handleLogout} playerName={selectedPlayer.name} />
+        {/* Липкая полоса здоровья — только на мобиле (md:hidden) */}
+        <div className={`${showStickyBar ? 'block' : 'hidden'} md:hidden`}>
+          <StickyHealthBar
             health={finalStats.health}
             baseMaxHealth={selectedPlayer.max_health}
             finalMaxHealth={finalStats.max_health}
             armor={finalStats.armor}
           />
-        )}
+        </div>
+        {/* pb-20 снизу — отступ под нижнюю панель на мобиле */}
         <main className="flex-1 overflow-y-auto custom-scrollbar pb-20 md:pb-0">
           <Outlet />
         </main>
-        {isMobile && <MobileTabBar playerId={selectedPlayer.id} />}
+        {/* Нижняя панель навигации — только на мобиле (md:hidden) */}
+        <MobileTabBar playerId={selectedPlayer.id} />
       </div>
     </div>
   );

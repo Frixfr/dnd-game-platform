@@ -21,20 +21,20 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, isMobile, onLogout }) =>
 
   return (
     <header className="bg-bg-secondary/90 backdrop-blur-md border-b border-border-color shadow-md">
-      <div className="flex items-center justify-between h-16 px-6">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between h-16 px-4 md:px-6">
+        <div className="flex items-center gap-3 min-w-0">
           {isMobile && (
             <button
               onClick={toggleSidebar}
-              className="p-2 rounded-lg hover:bg-bg-card-hover focus:outline-none text-accent-red"
+              className="p-2 rounded-lg hover:bg-bg-card-hover focus:outline-none text-accent-red flex-shrink-0"
               aria-label="Меню"
             >
               <Menu size={24} />
             </button>
           )}
-          <div className="flex items-center gap-2">
-            <Shield size={20} className="text-accent-red" />
-            <h1 className="text-xl font-semibold text-text-primary">
+          <div className="flex items-center gap-2 min-w-0">
+            <Shield size={20} className="text-accent-red flex-shrink-0" />
+            <h1 className="text-lg md:text-xl font-semibold text-text-primary truncate">
               Панель мастера
             </h1>
           </div>

@@ -8,20 +8,15 @@ import {
   Sparkles,
   Map,
   FileText,
-  X,
 } from 'lucide-react';
 
 interface PlayerSidebarProps {
-  onClose: () => void;
-  isMobile: boolean;
   playerId: number;
+  /** Дополнительные классы для управления видимостью (например, hidden md:flex) */
+  className?: string;
 }
 
-const PlayerSidebar: React.FC<PlayerSidebarProps> = ({ onClose, isMobile, playerId }) => {
-  const handleLinkClick = () => {
-    if (isMobile) onClose();
-  };
-
+const PlayerSidebar: React.FC<PlayerSidebarProps> = ({ playerId, className = '' }) => {
   const navItems = [
     { to: `/player/${playerId}`, icon: ScrollText, label: 'Лист персонажа', end: true },
     { to: `/player/${playerId}/inventory`, icon: Backpack, label: 'Инвентарь' },
@@ -32,19 +27,11 @@ const PlayerSidebar: React.FC<PlayerSidebarProps> = ({ onClose, isMobile, player
   ];
 
   return (
-    <aside className="w-72 h-full bg-[#0A1F44]/90 backdrop-blur-md border-r border-[#FF0026]/20 flex flex-col shadow-2xl">
+    <aside className={`w-72 h-full bg-[#0A1F44]/90 backdrop-blur-md border-r border-[#FF0026]/20 flex-col shadow-2xl ${className}`}>
       <div className="p-6 flex items-center justify-between border-b border-[#FF0026]/20">
         <h2 className="text-xl font-bold bg-gradient-to-r from-[#F2E9E4] to-[#d4c9c3] bg-clip-text text-transparent">
           Игровой режим
         </h2>
-        {isMobile && (
-          <button
-            onClick={onClose}
-            className="p-1 rounded-lg hover:bg-[#0d2552] transition-colors text-[#F2E9E4] hover:text-[#FF0026]"
-          >
-            <X size={24} />
-          </button>
-        )}
       </div>
       <nav className="mt-8 flex-1 px-4">
         <ul className="space-y-2">
@@ -53,7 +40,6 @@ const PlayerSidebar: React.FC<PlayerSidebarProps> = ({ onClose, isMobile, player
               <NavLink
                 to={item.to}
                 end={item.end}
-                onClick={handleLinkClick}
                 className={({ isActive }) =>
                   `flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 ${
                     isActive

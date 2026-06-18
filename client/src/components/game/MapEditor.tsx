@@ -138,8 +138,11 @@ const MapEditorInner: React.FC<MapEditorInnerProps> = ({ map, entities, onUpdate
       <canvas ref={canvasRef} className="w-full h-full cursor-grab" />
       {contextMenu && (
         <div
-          className="fixed z-50 bg-[#0A1F44] border border-[#F2E9E4]/30 rounded shadow-lg py-1 min-w-[150px]"
-          style={{ top: contextMenu.y, left: contextMenu.x }}
+          className="fixed z-50 bg-[#0A1F44] border border-[#F2E9E4]/30 rounded shadow-lg py-1 min-w-[150px] max-w-[calc(100vw-1rem)]"
+          style={{
+            top: Math.min(contextMenu.y, window.innerHeight - 200),
+            left: Math.min(contextMenu.x, window.innerWidth - 170),
+          }}
           onClick={(e) => e.stopPropagation()}
         >
           <button

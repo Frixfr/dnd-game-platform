@@ -60,30 +60,30 @@ export const MapsPage = () => {
   };
 
   return (
-    <div className="p-6 h-full flex flex-col">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold text-text-primary">Карты</h1>
+    <div className="p-4 md:p-6 h-full flex flex-col">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
+        <h1 className="text-xl md:text-2xl font-bold text-text-primary">Карты</h1>
         <button
           onClick={() => setShowCreateModal(true)}
-          className="btn-primary"
+          className="btn-primary w-full sm:w-auto"
         >
           + Загрузить карту
         </button>
       </div>
 
-      <div className="flex gap-6 flex-1 min-h-0">
-        {/* Список карт */}
-        <div className="w-64 bg-card rounded-lg border border-border-color shadow p-4 overflow-y-auto">
-          <h2 className="font-semibold mb-2 text-text-primary">Список карт</h2>
+      <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 flex-1 min-h-0">
+        {/* Список карт: горизонтальная лента на мобиле, колонка на десктопе */}
+        <div className="bg-card rounded-lg border border-border-color shadow p-3 lg:p-4 lg:w-64 lg:overflow-y-auto flex lg:block gap-3 overflow-x-auto scrollbar-thin pb-2 lg:pb-0">
+          <h2 className="font-semibold mb-2 text-text-primary hidden lg:block">Список карт</h2>
           {loading && <p className="text-text-secondary">Загрузка...</p>}
           {maps.map((map) => (
             <div
               key={map.id}
-              className={`p-2 mb-2 rounded cursor-pointer flex justify-between items-center ${currentMap?.id === map.id ? "bg-bg-secondary border-l-4 border-accent-red" : "hover:bg-bg-secondary"}`}
+              className={`p-2 lg:mb-2 rounded cursor-pointer flex justify-between items-center gap-2 flex-shrink-0 lg:w-auto min-w-[200px] lg:min-w-0 ${currentMap?.id === map.id ? "bg-bg-secondary border-l-4 border-accent-red" : "hover:bg-bg-secondary"}`}
               onClick={() => handleSelectMap(map.id)}
             >
               <span className="truncate text-text-primary">{map.name}</span>
-              <div className="flex gap-1">
+              <div className="flex gap-1 flex-shrink-0">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -109,11 +109,11 @@ export const MapsPage = () => {
         </div>
 
         {/* Редактор карты */}
-        <div className="flex-1 bg-bg-secondary rounded-lg border border-border-color shadow overflow-hidden">
+        <div className="flex-1 min-h-[50vh] lg:min-h-0 bg-bg-secondary rounded-lg border border-border-color shadow overflow-hidden">
           {currentMap ? (
             <MapEditor mapId={currentMap.id} />
           ) : (
-            <div className="flex items-center justify-center h-full text-text-secondary">
+            <div className="flex items-center justify-center h-full text-text-secondary p-4 text-center">
               Выберите карту для редактирования
             </div>
           )}
@@ -122,8 +122,8 @@ export const MapsPage = () => {
 
       {/* Модалка создания */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="modal-content w-96">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="modal-content w-full max-w-md max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl mb-4 text-text-primary">Новая карта</h2>
             <input
               type="text"

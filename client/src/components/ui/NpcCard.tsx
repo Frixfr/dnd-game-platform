@@ -120,9 +120,9 @@ export const NpcCard = ({ npc, onClick, disabled = false, onDelete, onDuplicate 
           <div className="flex justify-between text-sm text-text-secondary mb-1">
             <span>❤️ Здоровье</span>
             <span className="font-medium text-text-primary">
-              {npc.health}/{npc.max_health}{npc.final_stats?.max_health !== npc.max_health && (
+              {npc.health}/{npc.max_health}{npc.final_stats && npc.final_stats.max_health !== npc.max_health && (
                 <span className="text-xs text-text-secondary ml-1">
-                  ({npc.final_stats!.max_health - npc.max_health > 0 ? '+' : ''}{npc.final_stats!.max_health - npc.max_health})
+                  ({npc.final_stats.max_health - npc.max_health > 0 ? '+' : ''}{npc.final_stats.max_health - npc.max_health})
                 </span>
               )}
             </span>
@@ -142,9 +142,9 @@ export const NpcCard = ({ npc, onClick, disabled = false, onDelete, onDuplicate 
             <span className="text-sm text-text-secondary">Класс брони</span>
           </div>
           <span className="text-xl font-bold text-text-primary">
-            {npc.armor}{npc.final_stats?.armor !== npc.armor && (
+            {npc.armor}{npc.final_stats && npc.final_stats.armor !== npc.armor && (
               <span className="text-xs text-text-secondary ml-1">
-                ({npc.final_stats!.armor - npc.armor > 0 ? '+' : ''}{npc.final_stats!.armor - npc.armor})
+                ({npc.final_stats.armor - npc.armor > 0 ? '+' : ''}{npc.final_stats.armor - npc.armor})
               </span>
             )}
           </span>

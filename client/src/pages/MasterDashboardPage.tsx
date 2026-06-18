@@ -103,7 +103,7 @@ export const MasterDashboardPage = () => {
         </div>
         <button
           onClick={() => setIsCreateModalOpen(true)}
-          className="flex items-center gap-2 px-5 py-2.5 btn-primary"
+          className="flex items-center justify-center gap-2 px-5 py-2.5 btn-primary w-full sm:w-auto"
         >
           <Plus size={20} />
           <span>Создать игрока</span>
