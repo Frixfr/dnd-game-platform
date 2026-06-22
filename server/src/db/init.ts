@@ -31,6 +31,7 @@ export async function initializeDatabase() {
         table.integer("duration_turns").nullable();
         table.integer("duration_days").nullable();
         table.boolean("is_permanent").defaultTo(false);
+        table.boolean("is_instant").defaultTo(false);
         table.text("tags").defaultTo("[]");
       });
       console.log("Таблица effects создана");
@@ -489,6 +490,15 @@ export async function initializeDatabase() {
         table.text("notes").nullable();
       });
       console.log("Добавлена колонка notes в таблицу players");
+    }
+
+    // Добавление колонки is_instant в таблицу effects (мгновенные эффекты — применяются один раз, не оставляют запись)
+    const hasIsInstant = await db.schema.hasColumn("effects", "is_instant");
+    if (!hasIsInstant) {
+      await db.schema.alterTable("effects", (table) => {
+        table.boolean("is_instant").defaultTo(false);
+      });
+      console.log("Добавлена колонка is_instant в таблицу effects");
     }
 
     // Индексы

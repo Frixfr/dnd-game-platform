@@ -99,6 +99,31 @@ export const playerEffectsService = {
       newHealth = Math.max(0, Math.min(player.health + effect.modifier, effectiveMaxHealth));
     }
 
+    // Мгновенные эффекты: применяем health-изменение, но НЕ создаём запись в active_effects
+    if (effect.is_instant) {
+      if (newHealth !== player.health) {
+        await db("players")
+          .where("id", data.player_id)
+          .update({ health: newHealth });
+      }
+      if (player && effect) {
+        await logsService.create({
+          action_type: "effect_gain",
+          player_id: data.player_id,
+          npc_id: null,
+          entity_name: player.name,
+          action_name: effect.name,
+          details: JSON.stringify({
+            source_type: data.source_type,
+            source_id: data.source_id,
+            instant: true,
+          }),
+        });
+      }
+      await emitPlayerUpdate(data.player_id);
+      return { ...effect, remaining_turns: null, remaining_days: null, applied_at: new Date().toISOString() };
+    }
+
     const [newEffect] = await db("player_active_effects")
       .insert({
         player_id: data.player_id,
@@ -118,6 +143,7 @@ export const playerEffectsService = {
         .update({ health: newHealth });
     }
 
+    // Логирование и эмит для всех эффектов (включая мгновенные)
     if (player && effect) {
       await logsService.create({
         action_type: "effect_gain",

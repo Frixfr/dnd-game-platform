@@ -1,7 +1,7 @@
 import { db } from "../db/index.js";
 import { logsService } from "./logsService.js";
 import { itemsService } from "./itemsService.js";
-import { getFullNpcData } from "../utils/helpers.js";
+import { getFullNpcData, applyInstantHealthChange } from "../utils/helpers.js";
 
 export const npcItemsService = {
   async getAll(filters: {
@@ -133,7 +133,45 @@ export const npcItemsService = {
     const activeEffects = (item.effects || []).filter(
       (e) => e.effect_type === "active",
     );
+
+    // Получаем NPC для heal-math
+    const npc = await db("npcs").where("id", npcId).first();
+
     for (const effect of activeEffects) {
+      // Мгновенные эффекты: применяем health-изменение, не создаём запись
+      if (effect.is_instant) {
+        if (effect.attribute === "health" || effect.attribute === "max_health") {
+          // Вычисляем effectiveMaxHealth
+          const allActive = await db("npc_active_effects").where("npc_id", npcId);
+          const allItems = await db("npc_items").where({ npc_id: npcId, is_equipped: true });
+          let maxHealthBonus = 0;
+          for (const ae of allActive) {
+            if (ae.attribute === "max_health" && typeof ae.modifier === "number") {
+              maxHealthBonus += ae.modifier;
+            }
+          }
+          for (const ni of allItems) {
+            const i = await itemsService.getById(ni.item_id);
+            if (i) {
+              for (const pe of (i.effects || []).filter(e => e.effect_type === "passive")) {
+                if (pe.attribute === "max_health" && typeof pe.modifier === "number") {
+                  maxHealthBonus += pe.modifier;
+                }
+              }
+            }
+          }
+          if (effect.attribute === "max_health" && typeof effect.modifier === "number") {
+            maxHealthBonus += effect.modifier;
+          }
+          const effectiveMaxHealth = (npc?.max_health ?? 0) + maxHealthBonus;
+          const newHealth = applyInstantHealthChange(npc?.health ?? 0, effect, effectiveMaxHealth);
+          if (newHealth !== null && newHealth !== npc?.health) {
+            await db("npcs").where("id", npcId).update({ health: newHealth });
+          }
+        }
+        continue;
+      }
+
       await db("npc_active_effects").insert({
         npc_id: npcId,
         effect_id: effect.id,
@@ -155,12 +193,11 @@ export const npcItemsService = {
       }
     }
 
-    const npc = await db("npcs").where("id", npcId).first();
     await logsService.create({
       action_type: "item_use",
       player_id: null,
       npc_id: npcId,
-      entity_name: npc.name,
+      entity_name: npc?.name || "NPC",
       action_name: item.name,
       details: JSON.stringify({
         item_id: item.id,

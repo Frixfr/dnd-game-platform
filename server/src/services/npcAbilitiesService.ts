@@ -1,4 +1,5 @@
 import { db } from "../db/index.js";
+import { applyInstantHealthChange } from "../utils/helpers.js";
 
 export const npcAbilitiesService = {
   async getAll(filters: {
@@ -164,7 +165,6 @@ export const npcAbilitiesService = {
     if (ability.ability_type !== "active")
       throw new Error("Можно использовать только активные способности");
 
-    // Проверка кулдауна
     const remainingCooldown = npcAbility.remaining_cooldown_turns || 0;
     if (remainingCooldown > 0) {
       throw new Error(
@@ -172,23 +172,97 @@ export const npcAbilitiesService = {
       );
     }
 
-    // Применяем эффект способности (если есть)
     let effectResult = null;
+    let isInstant = false;
     if (ability.effect_id) {
       const effect = await db("effects")
         .where({ id: ability.effect_id })
         .first();
       if (effect) {
-        // Добавляем эффект NPC
-        await db("npc_active_effects").insert({
-          npc_id: npcId,
-          effect_id: ability.effect_id,
-          source_type: "ability",
-          source_id: abilityId,
-          remaining_turns: effect.duration_turns,
-          remaining_days: effect.duration_days,
-        });
         effectResult = effect;
+        isInstant = effect.is_instant || false;
+
+        if (isInstant) {
+          // ---- Мгновенный эффект: применяем изменение здоровья ----
+          const npc = await db("npcs").where("id", npcId).first();
+          if (!npc) throw new Error("NPC не найден");
+
+          // Получаем все активные эффекты NPC (кроме текущего)
+          const allActiveEffects = await db("npc_active_effects")
+            .where({ npc_id: npcId })
+            .join("effects", "npc_active_effects.effect_id", "effects.id")
+            .select("effects.*");
+
+          // Получаем пассивные эффекты от предметов
+          const npcItems = await db("npc_items")
+            .where({ npc_id: npcId })
+            .join("items", "npc_items.item_id", "items.id")
+            .select("items.id");
+          const itemIds = npcItems.map((row) => row.id);
+          let passiveEffects: any[] = [];
+          if (itemIds.length > 0) {
+            passiveEffects = await db("item_effects")
+              .whereIn("item_id", itemIds)
+              .where({ effect_type: "passive" })
+              .join("effects", "item_effects.effect_id", "effects.id")
+              .select("effects.*");
+          }
+
+          // Получаем эффекты расы
+          let raceEffects: any[] = [];
+          if (npc.race_id) {
+            const raceEffectsRaw = await db("race_effects")
+              .where("race_id", npc.race_id)
+              .join("effects", "race_effects.effect_id", "effects.id")
+              .select("effects.*");
+            raceEffects = raceEffectsRaw;
+          }
+
+          // Считаем бонус к max_health
+          let maxHealthBonus = 0;
+          const allEffects = [
+            ...allActiveEffects,
+            ...passiveEffects,
+            ...raceEffects,
+          ];
+          for (const e of allEffects) {
+            if (
+              e.attribute === "max_health" &&
+              typeof e.modifier === "number"
+            ) {
+              maxHealthBonus += e.modifier;
+            }
+          }
+          if (
+            effect.attribute === "max_health" &&
+            typeof effect.modifier === "number"
+          ) {
+            maxHealthBonus += effect.modifier;
+          }
+          const effectiveMaxHealth = npc.max_health + maxHealthBonus;
+
+          // Применяем изменение здоровья
+          const newHealth = applyInstantHealthChange(
+            npc.health,
+            { attribute: effect.attribute, modifier: effect.modifier },
+            effectiveMaxHealth,
+          );
+          if (newHealth !== null && newHealth !== npc.health) {
+            await db("npcs").where("id", npcId).update({ health: newHealth });
+          }
+
+          // Не создаём запись в active_effects
+        } else {
+          // ---- Обычный эффект: создаём запись ----
+          await db("npc_active_effects").insert({
+            npc_id: npcId,
+            effect_id: ability.effect_id,
+            source_type: "ability",
+            source_id: abilityId,
+            remaining_turns: effect.duration_turns,
+            remaining_days: effect.duration_days,
+          });
+        }
       }
     }
 

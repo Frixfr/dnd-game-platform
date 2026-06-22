@@ -47,7 +47,9 @@ export const EffectCard = ({ effect, onClick, showDescription = true, compact = 
   const tags = normalizeTags(effect.tags);
 
   const formatDuration = () => {
-    if (effect.is_permanent) return 'Постоянный';
+    // Мгновенный эффект
+    if (effect.is_instant) return '⚡ Мгновенный';
+    if (effect.is_permanent) return '∞ Постоянный';
     
     if (effect.remaining_turns !== undefined && effect.remaining_turns !== null && effect.remaining_turns > 0) {
       return `${effect.remaining_turns} ход${effect.remaining_turns === 1 ? '' : effect.remaining_turns < 5 ? 'а' : 'ов'}`;
@@ -65,9 +67,13 @@ export const EffectCard = ({ effect, onClick, showDescription = true, compact = 
     return parts.length ? parts.join(' / ') : 'Без длительности';
   };
 
+  // Определяем цвет верхней полосы: для мгновенных — оранжевый
   let topBarGradient = 'from-gray-400 to-gray-500';
   let modifierColor = 'text-text-primary';
-  if (effect.modifier > 0) {
+  if (effect.is_instant) {
+    topBarGradient = 'from-orange-400 to-amber-500';
+    modifierColor = 'text-amber-400';
+  } else if (effect.modifier > 0) {
     topBarGradient = 'from-green-400 to-emerald-500';
     modifierColor = 'text-green-400';
   } else if (effect.modifier < 0) {
@@ -159,8 +165,10 @@ export const EffectCard = ({ effect, onClick, showDescription = true, compact = 
 
         <div className="flex items-center justify-between bg-bg-secondary rounded-lg px-3 py-2">
           <div className="flex items-center gap-2">
-            <span className="text-lg">{effect.is_permanent ? '∞' : '⏳'}</span>
-            <span className="text-sm text-text-secondary">{effect.is_permanent ? 'Постоянный' : 'Осталось'}</span>
+            <span className="text-lg">{effect.is_instant ? '⚡' : effect.is_permanent ? '∞' : '⏳'}</span>
+            <span className="text-sm text-text-secondary">
+              {effect.is_instant ? 'Мгновенный' : effect.is_permanent ? 'Постоянный' : 'Осталось'}
+            </span>
           </div>
           <span className="text-sm font-medium text-text-primary">{formatDuration()}</span>
         </div>

@@ -93,6 +93,16 @@ export const npcEffectsService = {
       newHealth = Math.max(0, Math.min(npc.health + effect.modifier, effectiveMaxHealth));
     }
 
+    // Мгновенные эффекты: применяем health-изменение, но НЕ создаём запись в active_effects
+    if (effect.is_instant) {
+      if (newHealth !== npc.health) {
+        await db("npcs")
+          .where("id", data.npc_id)
+          .update({ health: newHealth });
+      }
+      return { ...effect, remaining_turns: null, remaining_days: null, applied_at: new Date().toISOString() };
+    }
+
     const [newEffect] = await db("npc_active_effects")
       .insert({
         npc_id: data.npc_id,

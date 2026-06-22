@@ -3,6 +3,7 @@
 import { db } from "../db/index.js";
 import { logsService } from "./logsService.js";
 import { emitPlayerUpdate } from "../socket/index.js";
+import { applyInstantHealthChange } from "../utils/helpers.js";
 
 export const playerAbilitiesService = {
   async getAll(filters: {
@@ -73,7 +74,7 @@ export const playerAbilitiesService = {
               remaining_days,
               applied_at: db.fn.now(),
             });
-        } else {
+        } else if (!effect.is_instant) {
           await db("player_active_effects").insert({
             player_id,
             effect_id: ability.effect_id,
@@ -181,23 +182,120 @@ export const playerAbilitiesService = {
     }
 
     let effectResult = null;
+    let isInstant = false;
     if (ability.effect_id) {
       const effect = await db("effects")
         .where({ id: ability.effect_id })
         .first();
       if (effect) {
-        await db("player_active_effects").insert({
-          player_id: playerId,
-          effect_id: ability.effect_id,
-          source_type: "ability",
-          source_id: abilityId,
-          remaining_turns: effect.duration_turns,
-          remaining_days: effect.duration_days,
-        });
         effectResult = effect;
+        isInstant = effect.is_instant || false;
+
+        if (isInstant) {
+          // ---- Мгновенный эффект: применяем изменение здоровья ----
+          const player = await db("players").where("id", playerId).first();
+          if (!player) throw new Error("Игрок не найден");
+
+          // Получаем все активные эффекты игрока (кроме текущего, который ещё не добавлен)
+          const allActiveEffects = await db("player_active_effects")
+            .where({ player_id: playerId })
+            .join("effects", "player_active_effects.effect_id", "effects.id")
+            .select("effects.*");
+
+          // Получаем пассивные эффекты от предметов
+          const playerItems = await db("player_items")
+            .where({ player_id: playerId })
+            .join("items", "player_items.item_id", "items.id")
+            .select("items.id");
+          const itemIds = playerItems.map((row) => row.id);
+          let passiveEffects: any[] = [];
+          if (itemIds.length > 0) {
+            passiveEffects = await db("item_effects")
+              .whereIn("item_id", itemIds)
+              .where({ effect_type: "passive" })
+              .join("effects", "item_effects.effect_id", "effects.id")
+              .select("effects.*");
+          }
+
+          // Получаем эффекты расы
+          let raceEffects: any[] = [];
+          if (player.race_id) {
+            const raceEffectsRaw = await db("race_effects")
+              .where("race_id", player.race_id)
+              .join("effects", "race_effects.effect_id", "effects.id")
+              .select("effects.*");
+            raceEffects = raceEffectsRaw;
+          }
+
+          // Считаем бонус к max_health от всех эффектов (включая текущий, если он влияет на max_health)
+          let maxHealthBonus = 0;
+          const allEffects = [
+            ...allActiveEffects,
+            ...passiveEffects,
+            ...raceEffects,
+          ];
+          for (const e of allEffects) {
+            if (
+              e.attribute === "max_health" &&
+              typeof e.modifier === "number"
+            ) {
+              maxHealthBonus += e.modifier;
+            }
+          }
+          // Добавляем бонус от самого эффекта, если он на max_health
+          if (
+            effect.attribute === "max_health" &&
+            typeof effect.modifier === "number"
+          ) {
+            maxHealthBonus += effect.modifier;
+          }
+          const effectiveMaxHealth = player.max_health + maxHealthBonus;
+
+          // Применяем изменение здоровья
+          const newHealth = applyInstantHealthChange(
+            player.health,
+            { attribute: effect.attribute, modifier: effect.modifier },
+            effectiveMaxHealth,
+          );
+          if (newHealth !== null && newHealth !== player.health) {
+            await db("players")
+              .where("id", playerId)
+              .update({ health: newHealth });
+          }
+
+          // Логируем мгновенное применение (с пометкой instant)
+          const playerData = await db("players").where("id", playerId).first();
+          if (playerData) {
+            await logsService.create({
+              action_type: "effect_gain",
+              player_id: playerId,
+              npc_id: null,
+              entity_name: playerData.name,
+              action_name: effect.name,
+              details: JSON.stringify({
+                source_type: "ability",
+                source_id: abilityId,
+                instant: true,
+              }),
+            });
+          }
+
+          // Не создаём запись в active_effects
+        } else {
+          // ---- Обычный (не мгновенный) эффект: создаём запись ----
+          await db("player_active_effects").insert({
+            player_id: playerId,
+            effect_id: ability.effect_id,
+            source_type: "ability",
+            source_id: abilityId,
+            remaining_turns: effect.duration_turns,
+            remaining_days: effect.duration_days,
+          });
+        }
       }
     }
 
+    // Устанавливаем кулдаун
     await db("player_abilities")
       .where({ player_id: playerId, ability_id: abilityId })
       .update({
@@ -205,6 +303,7 @@ export const playerAbilitiesService = {
         remaining_cooldown_days: ability.cooldown_days,
       });
 
+    // Логируем использование способности (всегда)
     const player = await db("players").where({ id: playerId }).first();
     if (player) {
       await logsService.create({
@@ -216,6 +315,7 @@ export const playerAbilitiesService = {
         details: JSON.stringify({
           ability_id: abilityId,
           cooldown: ability.cooldown_turns,
+          instant_effect: isInstant,
         }),
       });
     }

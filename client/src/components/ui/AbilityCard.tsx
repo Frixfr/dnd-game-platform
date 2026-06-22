@@ -19,6 +19,15 @@ export const AbilityCard = ({ ability, effect, onClick, disabled = false, onDele
     return parts.length ? parts.join(' / ') : 'Нет отката';
   };
 
+  const formatEffectDuration = (effect: EffectType): string => {
+    if (effect.is_instant) return '⚡ Мгновенный';
+    if (effect.is_permanent) return 'Постоянный';
+    const parts = [];
+    if (effect.duration_turns) parts.push(`${effect.duration_turns} ходов`);
+    if (effect.duration_days) parts.push(`${effect.duration_days} дней`);
+    return parts.length ? parts.join(' / ') : 'Без длительности';
+  };
+
   const isActive = ability.ability_type === 'active';
   const topBarColor = isActive ? 'from-blue-400 to-indigo-500' : 'from-emerald-400 to-teal-500';
 
@@ -77,8 +86,12 @@ export const AbilityCard = ({ ability, effect, onClick, disabled = false, onDele
                   <span className="text-lg">✨</span>
                   <span className="text-sm font-semibold text-text-primary">Эффект:</span>
                   <span className="text-sm font-medium text-text-primary">{effect.name}</span>
+                  {effect.is_instant && (
+                    <span className="text-xs bg-amber-400/20 text-amber-400 px-1.5 py-0.5 rounded-full">⚡</span>
+                  )}
                 </div>
                 <div className={`text-sm font-bold px-2 py-0.5 rounded-full ${
+                  effect.is_instant ? 'bg-amber-400/20 text-amber-400' :
                   effect.modifier > 0 ? 'bg-green-500/20 text-green-400' :
                   effect.modifier < 0 ? 'bg-red-500/20 text-red-400' :
                   'bg-bg-tertiary text-text-secondary'
@@ -94,12 +107,8 @@ export const AbilityCard = ({ ability, effect, onClick, disabled = false, onDele
                   </div>
                 )}
                 <div className="flex items-center gap-1">
-                  <span>⏳</span>
-                  <span>
-                    {effect.is_permanent
-                      ? 'Постоянный'
-                      : `${effect.duration_turns ? `${effect.duration_turns} ходов` : ''} ${effect.duration_days ? `${effect.duration_days} дней` : ''}`.trim() || 'Без длительности'}
-                  </span>
+                  <span>{effect.is_instant ? '⚡' : '⏳'}</span>
+                  <span>{formatEffectDuration(effect)}</span>
                 </div>
               </div>
             </div>

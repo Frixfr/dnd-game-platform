@@ -7,7 +7,11 @@ import { playersService } from "./playersService.js";
 import { npcsService } from "./npcsService.js";
 import { playerAbilitiesService } from "./playerAbilitiesService.js";
 import { npcAbilitiesService } from "./npcAbilitiesService.js";
-import { getFullPlayerData, getFullNpcData } from "../utils/helpers.js";
+import {
+  applyInstantHealthChange,
+  getFullPlayerData,
+  getFullNpcData,
+} from "../utils/helpers.js";
 
 export const combatService = {
   async getActiveSession(): Promise<CombatSession | null> {
@@ -252,24 +256,34 @@ export const combatService = {
     if (entityType === "player") {
       const player = await db("players").where({ id: entityId }).first();
       if (!player) throw new Error("Игрок не найден");
-      
+
       // Получаем финальное максимальное здоровье с учётом эффектов
       const fullPlayerData = await getFullPlayerData(entityId);
-      const effectiveMaxHealth = fullPlayerData ? fullPlayerData.final_stats.max_health : player.max_health;
-      
-      const clampedHealth = Math.max(0, Math.min(newHealth, effectiveMaxHealth));
+      const effectiveMaxHealth = fullPlayerData
+        ? fullPlayerData.final_stats.max_health
+        : player.max_health;
+
+      const clampedHealth = Math.max(
+        0,
+        Math.min(newHealth, effectiveMaxHealth),
+      );
       await db("players")
         .where({ id: entityId })
         .update({ health: clampedHealth });
     } else {
       const npc = await db("npcs").where({ id: entityId }).first();
       if (!npc) throw new Error("NPC не найден");
-      
+
       // Получаем финальное максимальное здоровье с учётом эффектов
       const fullNpcData = await getFullNpcData(entityId);
-      const effectiveMaxHealth = fullNpcData ? fullNpcData.final_stats.max_health : npc.max_health;
-      
-      const clampedHealth = Math.max(0, Math.min(newHealth, effectiveMaxHealth));
+      const effectiveMaxHealth = fullNpcData
+        ? fullNpcData.final_stats.max_health
+        : npc.max_health;
+
+      const clampedHealth = Math.max(
+        0,
+        Math.min(newHealth, effectiveMaxHealth),
+      );
       await db("npcs")
         .where({ id: entityId })
         .update({ health: clampedHealth });
@@ -287,6 +301,149 @@ export const combatService = {
     const effect = await db("effects").where({ id: effectId }).first();
     if (!effect) throw new Error("Эффект не найден");
 
+    // Обработка мгновенных эффектов
+    if (effect.is_instant) {
+      // Получаем сущность
+      let entity: any;
+      if (entityType === "player") {
+        entity = await db("players").where("id", entityId).first();
+        if (!entity) throw new Error("Игрок не найден");
+
+        // Собираем все активные эффекты игрока (кроме добавляемого)
+        const allActiveEffects = await db("player_active_effects")
+          .where({ player_id: entityId })
+          .join("effects", "player_active_effects.effect_id", "effects.id")
+          .select("effects.*");
+
+        // Пассивные эффекты от предметов
+        const playerItems = await db("player_items")
+          .where({ player_id: entityId })
+          .join("items", "player_items.item_id", "items.id")
+          .select("items.id");
+        const itemIds = playerItems.map((row) => row.id);
+        let passiveEffects: any[] = [];
+        if (itemIds.length > 0) {
+          passiveEffects = await db("item_effects")
+            .whereIn("item_id", itemIds)
+            .where({ effect_type: "passive" })
+            .join("effects", "item_effects.effect_id", "effects.id")
+            .select("effects.*");
+        }
+
+        // Эффекты расы
+        let raceEffects: any[] = [];
+        if (entity.race_id) {
+          const raceEffectsRaw = await db("race_effects")
+            .where("race_id", entity.race_id)
+            .join("effects", "race_effects.effect_id", "effects.id")
+            .select("effects.*");
+          raceEffects = raceEffectsRaw;
+        }
+
+        // Считаем бонус к max_health
+        let maxHealthBonus = 0;
+        const allEffects = [
+          ...allActiveEffects,
+          ...passiveEffects,
+          ...raceEffects,
+        ];
+        for (const e of allEffects) {
+          if (e.attribute === "max_health" && typeof e.modifier === "number") {
+            maxHealthBonus += e.modifier;
+          }
+        }
+        if (
+          effect.attribute === "max_health" &&
+          typeof effect.modifier === "number"
+        ) {
+          maxHealthBonus += effect.modifier;
+        }
+        const effectiveMaxHealth = entity.max_health + maxHealthBonus;
+
+        const newHealth = applyInstantHealthChange(
+          entity.health,
+          { attribute: effect.attribute, modifier: effect.modifier },
+          effectiveMaxHealth,
+        );
+        if (newHealth !== null && newHealth !== entity.health) {
+          await db("players")
+            .where("id", entityId)
+            .update({ health: newHealth });
+          // После обновления здоровья эмитим обновление игрока
+          const full = await getFullPlayerData(entityId);
+          if (full) getIO().emit("player:updated", full);
+        }
+        // Для мгновенных эффектов не создаём запись в active_effects
+        await this.emitCombatUpdate(sessionId);
+        return;
+      } else {
+        // NPC
+        entity = await db("npcs").where("id", entityId).first();
+        if (!entity) throw new Error("NPC не найден");
+
+        const allActiveEffects = await db("npc_active_effects")
+          .where({ npc_id: entityId })
+          .join("effects", "npc_active_effects.effect_id", "effects.id")
+          .select("effects.*");
+
+        const npcItems = await db("npc_items")
+          .where({ npc_id: entityId })
+          .join("items", "npc_items.item_id", "items.id")
+          .select("items.id");
+        const itemIds = npcItems.map((row) => row.id);
+        let passiveEffects: any[] = [];
+        if (itemIds.length > 0) {
+          passiveEffects = await db("item_effects")
+            .whereIn("item_id", itemIds)
+            .where({ effect_type: "passive" })
+            .join("effects", "item_effects.effect_id", "effects.id")
+            .select("effects.*");
+        }
+
+        let raceEffects: any[] = [];
+        if (entity.race_id) {
+          const raceEffectsRaw = await db("race_effects")
+            .where("race_id", entity.race_id)
+            .join("effects", "race_effects.effect_id", "effects.id")
+            .select("effects.*");
+          raceEffects = raceEffectsRaw;
+        }
+
+        let maxHealthBonus = 0;
+        const allEffects = [
+          ...allActiveEffects,
+          ...passiveEffects,
+          ...raceEffects,
+        ];
+        for (const e of allEffects) {
+          if (e.attribute === "max_health" && typeof e.modifier === "number") {
+            maxHealthBonus += e.modifier;
+          }
+        }
+        if (
+          effect.attribute === "max_health" &&
+          typeof effect.modifier === "number"
+        ) {
+          maxHealthBonus += effect.modifier;
+        }
+        const effectiveMaxHealth = entity.max_health + maxHealthBonus;
+
+        const newHealth = applyInstantHealthChange(
+          entity.health,
+          { attribute: effect.attribute, modifier: effect.modifier },
+          effectiveMaxHealth,
+        );
+        if (newHealth !== null && newHealth !== entity.health) {
+          await db("npcs").where("id", entityId).update({ health: newHealth });
+          const full = await getFullNpcData(entityId);
+          if (full) getIO().emit("npc:updated", full);
+        }
+        await this.emitCombatUpdate(sessionId);
+        return;
+      }
+    }
+
+    // ---- Не мгновенный эффект: создаём запись (существующая логика) ----
     if (entityType === "player") {
       const existing = await db("player_active_effects")
         .where({ player_id: entityId, effect_id: effectId })
@@ -299,6 +456,9 @@ export const combatService = {
           remaining_turns: durationTurns ?? effect.duration_turns,
           remaining_days: effect.duration_days,
         });
+        // Эмитим обновление игрока, чтобы пересчитались статы
+        const full = await getFullPlayerData(entityId);
+        if (full) getIO().emit("player:updated", full);
       }
     } else {
       const existing = await db("npc_active_effects")
@@ -312,6 +472,8 @@ export const combatService = {
           remaining_turns: durationTurns ?? effect.duration_turns,
           remaining_days: effect.duration_days,
         });
+        const full = await getFullNpcData(entityId);
+        if (full) getIO().emit("npc:updated", full);
       }
     }
     await this.emitCombatUpdate(sessionId);
