@@ -16,7 +16,7 @@ export const logsService = {
         created_at: db.fn.now(),
       })
       .returning("*");
-    getIO().emit("log:new", log);
+    getIO().to(`room:${data.room_id}`).emit("log:new", log);
     return log;
   },
 

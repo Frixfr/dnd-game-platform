@@ -99,8 +99,8 @@ export const npcsService = {
 
   // ADDED roomId support
   async delete(roomId: number, id: string): Promise<boolean> {
-    const deleted = await db("npcs").where({ id, room_id: roomId }).delete(); // ADDED room_id check
-    if (deleted) getIO().emit("npc:deleted", Number(id));
+    const deleted = await db("npcs").where({ id, room_id: roomId }).delete();
+    if (deleted) getIO().to(`room:${roomId}`).emit("npc:deleted", Number(id));
     return deleted > 0;
   },
 

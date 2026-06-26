@@ -110,7 +110,7 @@ export const abilitiesService = {
         // Отправляем обновлённые данные игрока через сокет
         const fullPlayer = await getFullPlayerData(player_id);
         if (fullPlayer) {
-          getIO().emit("player:updated", fullPlayer);
+          getIO().to(`room:${roomId}`).emit("player:updated", fullPlayer);
         }
       }
 
@@ -147,7 +147,7 @@ export const abilitiesService = {
 
         const fullNpc = await getFullNpcData(npc_id);
         if (fullNpc) {
-          getIO().emit("npc:updated", fullNpc);
+          getIO().to(`room:${roomId}`).emit("npc:updated", fullNpc);
         }
       }
     }

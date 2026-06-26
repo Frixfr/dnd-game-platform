@@ -652,7 +652,7 @@ export const playersService = {
 
   async delete(roomId: number, id: number): Promise<boolean> {
     const deleted = await db("players").where({ id, room_id: roomId }).delete();
-    if (deleted) getIO().emit("player:deleted", id);
+    if (deleted) getIO().to(`room:${roomId}`).emit("player:deleted", id);
     return deleted > 0;
   },
 
