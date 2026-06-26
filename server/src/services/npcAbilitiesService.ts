@@ -1,15 +1,26 @@
+// server/src/services/npcAbilitiesService.ts
 import { db } from "../db/index.js";
 import { applyInstantHealthChange } from "../utils/helpers.js";
 
 export const npcAbilitiesService = {
-  async getAll(filters: {
-    npc_id?: number;
-    ability_id?: number;
-    is_active?: boolean;
-    with_details?: boolean;
-  }) {
+  async getAll(
+    roomId: number,
+    filters: {
+      npc_id?: number;
+      ability_id?: number;
+      is_active?: boolean;
+      with_details?: boolean;
+    },
+  ) {
     let query = db("npc_abilities").select("*");
-    if (filters.npc_id) query = query.where("npc_id", filters.npc_id);
+    if (filters.npc_id) {
+      // Проверяем, что NPC принадлежит комнате
+      const npc = await db("npcs")
+        .where({ id: filters.npc_id, room_id: roomId })
+        .first();
+      if (!npc) throw new Error("NPC не найден в этой комнате");
+      query = query.where("npc_id", filters.npc_id);
+    }
     if (filters.ability_id)
       query = query.where("ability_id", filters.ability_id);
     if (filters.is_active !== undefined)
@@ -25,11 +36,18 @@ export const npcAbilitiesService = {
     return rows;
   },
 
-  async create(npc_id: number, ability_id: number, is_active: boolean) {
-    const npc = await db("npcs").where("id", npc_id).first();
-    if (!npc) throw new Error("NPC not found");
-    const ability = await db("abilities").where("id", ability_id).first();
-    if (!ability) throw new Error("Ability not found");
+  async create(
+    roomId: number,
+    npc_id: number,
+    ability_id: number,
+    is_active: boolean,
+  ) {
+    const npc = await db("npcs").where({ id: npc_id, room_id: roomId }).first();
+    if (!npc) throw new Error("NPC не найден в этой комнате");
+    const ability = await db("abilities")
+      .where({ id: ability_id, room_id: roomId })
+      .first();
+    if (!ability) throw new Error("Способность не найдена в этой комнате");
 
     const existing = await db("npc_abilities")
       .where({ npc_id, ability_id })
@@ -92,7 +110,9 @@ export const npcAbilitiesService = {
     return result;
   },
 
-  async delete(npc_id: number, ability_id: number) {
+  async delete(roomId: number, npc_id: number, ability_id: number) {
+    const npc = await db("npcs").where({ id: npc_id, room_id: roomId }).first();
+    if (!npc) throw new Error("NPC не найден в этой комнате");
     const ability = await db("abilities").where("id", ability_id).first();
     const deleted = await db("npc_abilities")
       .where({ npc_id, ability_id })
@@ -106,7 +126,14 @@ export const npcAbilitiesService = {
     return true;
   },
 
-  async toggleActive(npc_id: number, ability_id: number, is_active: boolean) {
+  async toggleActive(
+    roomId: number,
+    npc_id: number,
+    ability_id: number,
+    is_active: boolean,
+  ) {
+    const npc = await db("npcs").where({ id: npc_id, room_id: roomId }).first();
+    if (!npc) throw new Error("NPC не найден в этой комнате");
     const ability = await db("abilities").where("id", ability_id).first();
     if (!ability) throw new Error("Ability not found");
     const [updated] = await db("npc_abilities")
@@ -151,9 +178,12 @@ export const npcAbilitiesService = {
   },
 
   async useAbility(
+    roomId: number,
     npcId: number,
     abilityId: number,
   ): Promise<{ success: boolean; message: string; effect?: any }> {
+    const npc = await db("npcs").where({ id: npcId, room_id: roomId }).first();
+    if (!npc) throw new Error("NPC не найден в этой комнате");
     const npcAbility = await db("npc_abilities")
       .where({ npc_id: npcId, ability_id: abilityId })
       .first();
@@ -184,9 +214,6 @@ export const npcAbilitiesService = {
 
         if (isInstant) {
           // ---- Мгновенный эффект: применяем изменение здоровья ----
-          const npc = await db("npcs").where("id", npcId).first();
-          if (!npc) throw new Error("NPC не найден");
-
           // Получаем все активные эффекты NPC (кроме текущего)
           const allActiveEffects = await db("npc_active_effects")
             .where({ npc_id: npcId })

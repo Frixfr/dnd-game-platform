@@ -1,17 +1,27 @@
+// server/src/services/npcItemsService.ts
 import { db } from "../db/index.js";
 import { logsService } from "./logsService.js";
 import { itemsService } from "./itemsService.js";
 import { getFullNpcData, applyInstantHealthChange } from "../utils/helpers.js";
 
 export const npcItemsService = {
-  async getAll(filters: {
-    npc_id?: number;
-    item_id?: number;
-    is_equipped?: boolean;
-    with_details?: boolean;
-  }) {
+  async getAll(
+    roomId: number,
+    filters: {
+      npc_id?: number;
+      item_id?: number;
+      is_equipped?: boolean;
+      with_details?: boolean;
+    },
+  ) {
     let query = db("npc_items").select("*");
-    if (filters.npc_id) query = query.where("npc_id", filters.npc_id);
+    if (filters.npc_id) {
+      const npc = await db("npcs")
+        .where({ id: filters.npc_id, room_id: roomId })
+        .first();
+      if (!npc) throw new Error("NPC не найден в этой комнате");
+      query = query.where("npc_id", filters.npc_id);
+    }
     if (filters.item_id) query = query.where("item_id", filters.item_id);
     if (filters.is_equipped !== undefined)
       query = query.where("is_equipped", filters.is_equipped);
@@ -27,14 +37,15 @@ export const npcItemsService = {
   },
 
   async create(
+    roomId: number,
     npc_id: number,
     item_id: number,
     quantity: number,
     is_equipped: boolean,
   ) {
-    const npc = await db("npcs").where("id", npc_id).first();
-    if (!npc) throw new Error("NPC not found");
-    const item = await itemsService.getById(item_id);
+    const npc = await db("npcs").where({ id: npc_id, room_id: roomId }).first();
+    if (!npc) throw new Error("NPC не найден в этой комнате");
+    const item = await itemsService.getById(roomId, item_id);
     if (!item) throw new Error("Item not found");
 
     const existing = await db("npc_items").where({ npc_id, item_id }).first();
@@ -62,17 +73,23 @@ export const npcItemsService = {
     return newItem;
   },
 
-  async delete(npc_id: number, item_id: number) {
+  async delete(roomId: number, npc_id: number, item_id: number) {
+    const npc = await db("npcs").where({ id: npc_id, room_id: roomId }).first();
+    if (!npc) throw new Error("NPC не найден в этой комнате");
     const deleted = await db("npc_items").where({ npc_id, item_id }).delete();
     if (deleted === 0) throw new Error("Not found");
     return true;
   },
 
-  async toggleEquip(id: number, is_equipped: boolean) {
+  async toggleEquip(roomId: number, id: number, is_equipped: boolean) {
     const [npcItem] = await db("npc_items").where({ id }).returning("*");
     if (!npcItem) throw new Error("Not found");
+    const npc = await db("npcs")
+      .where({ id: npcItem.npc_id, room_id: roomId })
+      .first();
+    if (!npc) throw new Error("NPC не найден в этой комнате");
 
-    const item = await itemsService.getById(npcItem.item_id);
+    const item = await itemsService.getById(roomId, npcItem.item_id);
     if (!item) throw new Error("Item not found");
 
     if (is_equipped) {
@@ -117,13 +134,15 @@ export const npcItemsService = {
     return updated;
   },
 
-  async useItem(npcId: number, npcItemId: number) {
+  async useItem(roomId: number, npcId: number, npcItemId: number) {
+    const npc = await db("npcs").where({ id: npcId, room_id: roomId }).first();
+    if (!npc) throw new Error("NPC не найден в этой комнате");
     const npcItem = await db("npc_items")
       .where({ id: npcItemId, npc_id: npcId })
       .first();
     if (!npcItem) throw new Error("Предмет не найден у NPC");
 
-    const item = await itemsService.getById(npcItem.item_id);
+    const item = await itemsService.getById(roomId, npcItem.item_id);
     if (!item) throw new Error("Предмет не найден");
 
     if (!item.is_usable) throw new Error("Этот предмет нельзя использовать");
@@ -134,37 +153,58 @@ export const npcItemsService = {
       (e) => e.effect_type === "active",
     );
 
-    // Получаем NPC для heal-math
-    const npc = await db("npcs").where("id", npcId).first();
-
     for (const effect of activeEffects) {
       // Мгновенные эффекты: применяем health-изменение, не создаём запись
       if (effect.is_instant) {
-        if (effect.attribute === "health" || effect.attribute === "max_health") {
+        if (
+          effect.attribute === "health" ||
+          effect.attribute === "max_health"
+        ) {
           // Вычисляем effectiveMaxHealth
-          const allActive = await db("npc_active_effects").where("npc_id", npcId);
-          const allItems = await db("npc_items").where({ npc_id: npcId, is_equipped: true });
+          const allActive = await db("npc_active_effects").where(
+            "npc_id",
+            npcId,
+          );
+          const allItems = await db("npc_items").where({
+            npc_id: npcId,
+            is_equipped: true,
+          });
           let maxHealthBonus = 0;
           for (const ae of allActive) {
-            if (ae.attribute === "max_health" && typeof ae.modifier === "number") {
+            if (
+              ae.attribute === "max_health" &&
+              typeof ae.modifier === "number"
+            ) {
               maxHealthBonus += ae.modifier;
             }
           }
           for (const ni of allItems) {
-            const i = await itemsService.getById(ni.item_id);
+            const i = await itemsService.getById(roomId, ni.item_id);
             if (i) {
-              for (const pe of (i.effects || []).filter(e => e.effect_type === "passive")) {
-                if (pe.attribute === "max_health" && typeof pe.modifier === "number") {
+              for (const pe of (i.effects || []).filter(
+                (e) => e.effect_type === "passive",
+              )) {
+                if (
+                  pe.attribute === "max_health" &&
+                  typeof pe.modifier === "number"
+                ) {
                   maxHealthBonus += pe.modifier;
                 }
               }
             }
           }
-          if (effect.attribute === "max_health" && typeof effect.modifier === "number") {
+          if (
+            effect.attribute === "max_health" &&
+            typeof effect.modifier === "number"
+          ) {
             maxHealthBonus += effect.modifier;
           }
           const effectiveMaxHealth = (npc?.max_health ?? 0) + maxHealthBonus;
-          const newHealth = applyInstantHealthChange(npc?.health ?? 0, effect, effectiveMaxHealth);
+          const newHealth = applyInstantHealthChange(
+            npc?.health ?? 0,
+            effect,
+            effectiveMaxHealth,
+          );
           if (newHealth !== null && newHealth !== npc?.health) {
             await db("npcs").where("id", npcId).update({ health: newHealth });
           }
@@ -203,24 +243,26 @@ export const npcItemsService = {
         item_id: item.id,
         effects_applied: activeEffects.length,
       }),
+      room_id: roomId,
     });
 
     return getFullNpcData(npcId);
   },
 
-  async discardItem(npcId: number, npcItemId: number) {
+  async discardItem(roomId: number, npcId: number, npcItemId: number) {
+    const npc = await db("npcs").where({ id: npcId, room_id: roomId }).first();
+    if (!npc) throw new Error("NPC не найден в этой комнате");
     const npcItem = await db("npc_items")
       .where({ id: npcItemId, npc_id: npcId })
       .first();
     if (!npcItem) throw new Error("Предмет не найден");
-    const item = await itemsService.getById(npcItem.item_id);
+    const item = await itemsService.getById(roomId, npcItem.item_id);
     if (!item) throw new Error("Предмет не найден");
     if (!item.is_deletable) throw new Error("Этот предмет нельзя выбросить");
     if (npcItem.is_equipped) throw new Error("Сначала снимите предмет");
 
     await db("npc_items").where({ id: npcItemId }).delete();
 
-    const npc = await db("npcs").where("id", npcId).first();
     await logsService.create({
       action_type: "item_discard",
       player_id: null,
@@ -228,26 +270,36 @@ export const npcItemsService = {
       entity_name: npc.name,
       action_name: item.name,
       details: JSON.stringify({ item_id: item.id }),
+      room_id: roomId,
     });
 
     return getFullNpcData(npcId);
   },
 
-  async transferItem(npcId: number, npcItemId: number, targetNpcId: number) {
+  async transferItem(
+    roomId: number,
+    npcId: number,
+    npcItemId: number,
+    targetNpcId: number,
+  ) {
     if (npcId === targetNpcId)
       throw new Error("Нельзя передать предмет самому себе");
 
+    const npc = await db("npcs").where({ id: npcId, room_id: roomId }).first();
+    if (!npc) throw new Error("NPC не найден в этой комнате");
     const npcItem = await db("npc_items")
       .where({ id: npcItemId, npc_id: npcId })
       .first();
     if (!npcItem) throw new Error("Предмет не найден у отправителя");
-    const item = await itemsService.getById(npcItem.item_id);
+    const item = await itemsService.getById(roomId, npcItem.item_id);
     if (!item) throw new Error("Предмет не найден");
     if (!item.is_deletable) throw new Error("Этот предмет нельзя передать");
     if (npcItem.is_equipped) throw new Error("Сначала снимите предмет");
 
-    const targetNpc = await db("npcs").where("id", targetNpcId).first();
-    if (!targetNpc) throw new Error("Целевой NPC не найден");
+    const targetNpc = await db("npcs")
+      .where({ id: targetNpcId, room_id: roomId })
+      .first();
+    if (!targetNpc) throw new Error("Целевой NPC не найден в этой комнате");
 
     await db.transaction(async (trx) => {
       if (npcItem.quantity > 1) {
@@ -275,7 +327,6 @@ export const npcItemsService = {
       }
     });
 
-    const npc = await db("npcs").where("id", npcId).first();
     await logsService.create({
       action_type: "item_transfer",
       player_id: null,
@@ -287,6 +338,7 @@ export const npcItemsService = {
         to: targetNpcId,
         item_id: item.id,
       }),
+      room_id: roomId,
     });
 
     const [sender, target] = await Promise.all([

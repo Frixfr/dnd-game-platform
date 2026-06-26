@@ -8,14 +8,23 @@ import { getFullPlayerData } from "../utils/helpers.js";
 import { emitPlayerUpdate } from "../socket/index.js";
 
 export const playerItemsService = {
-  async getAll(filters: {
-    player_id?: number;
-    item_id?: number;
-    is_equipped?: boolean;
-    with_details?: boolean;
-  }) {
+  async getAll(
+    roomId: number,
+    filters: {
+      player_id?: number;
+      item_id?: number;
+      is_equipped?: boolean;
+      with_details?: boolean;
+    },
+  ) {
     let query = db("player_items").select("*");
-    if (filters.player_id) query = query.where("player_id", filters.player_id);
+    if (filters.player_id) {
+      const player = await db("players")
+        .where({ id: filters.player_id, room_id: roomId })
+        .first();
+      if (!player) throw new Error("Игрок не найден в этой комнате");
+      query = query.where("player_id", filters.player_id);
+    }
     if (filters.item_id) query = query.where("item_id", filters.item_id);
     if (filters.is_equipped !== undefined)
       query = query.where("is_equipped", filters.is_equipped);
@@ -31,14 +40,17 @@ export const playerItemsService = {
   },
 
   async create(
+    roomId: number,
     player_id: number,
     item_id: number,
     quantity: number,
     is_equipped: boolean,
   ) {
-    const player = await db("players").where("id", player_id).first();
-    if (!player) throw new Error("Player not found");
-    const item = await itemsService.getById(item_id);
+    const player = await db("players")
+      .where({ id: player_id, room_id: roomId })
+      .first();
+    if (!player) throw new Error("Игрок не найден в этой комнате");
+    const item = await itemsService.getById(roomId, item_id);
     if (!item) throw new Error("Item not found");
 
     const existing = await db("player_items")
@@ -70,7 +82,11 @@ export const playerItemsService = {
     return newItem;
   },
 
-  async delete(player_id: number, item_id: number) {
+  async delete(roomId: number, player_id: number, item_id: number) {
+    const player = await db("players")
+      .where({ id: player_id, room_id: roomId })
+      .first();
+    if (!player) throw new Error("Игрок не найден в этой комнате");
     const deleted = await db("player_items")
       .where({ player_id, item_id })
       .delete();
@@ -79,11 +95,15 @@ export const playerItemsService = {
     return true;
   },
 
-  async toggleEquip(id: number, is_equipped: boolean) {
+  async toggleEquip(roomId: number, id: number, is_equipped: boolean) {
     const [playerItem] = await db("player_items").where({ id }).returning("*");
     if (!playerItem) throw new Error("Not found");
+    const player = await db("players")
+      .where({ id: playerItem.player_id, room_id: roomId })
+      .first();
+    if (!player) throw new Error("Игрок не найден в этой комнате");
 
-    const item = await itemsService.getById(playerItem.item_id);
+    const item = await itemsService.getById(roomId, playerItem.item_id);
     if (!item) throw new Error("Item not found");
 
     if (is_equipped) {
@@ -100,7 +120,7 @@ export const playerItemsService = {
           })
           .first();
         if (!existing) {
-          await playerEffectsService.create({
+          await playerEffectsService.create(roomId, {
             player_id: playerItem.player_id,
             effect_id: effect.id,
             source_type: "item",
@@ -128,13 +148,17 @@ export const playerItemsService = {
     return updated;
   },
 
-  async useItem(playerId: number, playerItemId: number) {
+  async useItem(roomId: number, playerId: number, playerItemId: number) {
+    const player = await db("players")
+      .where({ id: playerId, room_id: roomId })
+      .first();
+    if (!player) throw new Error("Игрок не найден в этой комнате");
     const playerItem = await db("player_items")
       .where({ id: playerItemId, player_id: playerId })
       .first();
     if (!playerItem) throw new Error("Предмет не найден у игрока");
 
-    const item = await itemsService.getById(playerItem.item_id);
+    const item = await itemsService.getById(roomId, playerItem.item_id);
     if (!item) throw new Error("Предмет не найден");
 
     if (!item.is_usable) throw new Error("Этот предмет нельзя использовать");
@@ -176,7 +200,7 @@ export const playerItemsService = {
     }
 
     for (const effect of activeEffects) {
-      await playerEffectsService.create({
+      await playerEffectsService.create(roomId, {
         player_id: playerId,
         effect_id: effect.id,
         source_type: "item",
@@ -196,7 +220,6 @@ export const playerItemsService = {
       }
     }
 
-    const player = await db("players").where("id", playerId).first();
     await logsService.create({
       action_type: "item_use",
       player_id: playerId,
@@ -207,18 +230,28 @@ export const playerItemsService = {
         item_id: item.id,
         effects_applied: activeEffects.length,
       }),
+      room_id: roomId,
     });
 
     await emitPlayerUpdate(playerId);
     return getFullPlayerData(playerId);
   },
 
-  async discardItem(playerId: number, playerItemId: number, quantity?: number) {
+  async discardItem(
+    roomId: number,
+    playerId: number,
+    playerItemId: number,
+    quantity?: number,
+  ) {
+    const player = await db("players")
+      .where({ id: playerId, room_id: roomId })
+      .first();
+    if (!player) throw new Error("Игрок не найден в этой комнате");
     const playerItem = await db("player_items")
       .where({ id: playerItemId, player_id: playerId })
       .first();
     if (!playerItem) throw new Error("Предмет не найден");
-    const item = await itemsService.getById(playerItem.item_id);
+    const item = await itemsService.getById(roomId, playerItem.item_id);
     if (!item) throw new Error("Предмет не найден");
     if (!item.is_deletable)
       throw new Error("Этот предмет нельзя выбросить или передать");
@@ -237,7 +270,6 @@ export const playerItemsService = {
         .update({ quantity: playerItem.quantity - qtyToDiscard });
     }
 
-    const player = await db("players").where("id", playerId).first();
     await logsService.create({
       action_type: "item_discard",
       player_id: playerId,
@@ -245,6 +277,7 @@ export const playerItemsService = {
       entity_name: player.name,
       action_name: item.name,
       details: JSON.stringify({ item_id: item.id, quantity: qtyToDiscard }),
+      room_id: roomId,
     });
 
     await emitPlayerUpdate(playerId);
@@ -252,6 +285,7 @@ export const playerItemsService = {
   },
 
   async transferItem(
+    roomId: number,
     playerId: number,
     playerItemId: number,
     targetPlayerId: number,
@@ -260,11 +294,15 @@ export const playerItemsService = {
     if (playerId === targetPlayerId)
       throw new Error("Нельзя передать предмет самому себе");
 
+    const player = await db("players")
+      .where({ id: playerId, room_id: roomId })
+      .first();
+    if (!player) throw new Error("Игрок не найден в этой комнате");
     const playerItem = await db("player_items")
       .where({ id: playerItemId, player_id: playerId })
       .first();
     if (!playerItem) throw new Error("Предмет не найден у отправителя");
-    const item = await itemsService.getById(playerItem.item_id);
+    const item = await itemsService.getById(roomId, playerItem.item_id);
     if (!item) throw new Error("Предмет не найден");
     if (!item.is_deletable) throw new Error("Этот предмет нельзя передать");
     if (playerItem.is_equipped) throw new Error("Сначала снимите предмет");
@@ -274,9 +312,10 @@ export const playerItemsService = {
       throw new Error("Недостаточно предметов");
 
     const targetPlayer = await db("players")
-      .where("id", targetPlayerId)
+      .where({ id: targetPlayerId, room_id: roomId })
       .first();
-    if (!targetPlayer) throw new Error("Целевой игрок не найден");
+    if (!targetPlayer)
+      throw new Error("Целевой игрок не найден в этой комнате");
     if (!targetPlayer.is_online) throw new Error("Игрок не в сети");
 
     await db.transaction(async (trx) => {
@@ -305,7 +344,6 @@ export const playerItemsService = {
       }
     });
 
-    const player = await db("players").where("id", playerId).first();
     await logsService.create({
       action_type: "item_transfer",
       player_id: playerId,
@@ -319,6 +357,7 @@ export const playerItemsService = {
         item_id: item.id,
         quantity: quantity,
       }),
+      room_id: roomId,
     });
 
     await emitPlayerUpdate(playerId);

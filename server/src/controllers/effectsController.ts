@@ -5,13 +5,14 @@ import { getIO } from "../socket/index.js";
 export const effectsController = {
   async getAll(req: Request, res: Response) {
     try {
+      const roomId = req.roomId!;
       const page = req.query.page
         ? parseInt(req.query.page as string, 10)
         : undefined;
       const limit = req.query.limit
         ? parseInt(req.query.limit as string, 10)
         : undefined;
-      const result = await effectsService.getAll(page, limit);
+      const result = await effectsService.getAll(roomId, page, limit);
       res.json(result);
     } catch (error) {
       console.error(error);
@@ -21,8 +22,9 @@ export const effectsController = {
 
   async getOne(req: Request, res: Response) {
     try {
+      const roomId = req.roomId!;
       const id = String(req.params.id);
-      const effect = await effectsService.getById(id);
+      const effect = await effectsService.getById(roomId, id);
       if (!effect) return res.status(404).json({ error: "Эффект не найден" });
       res.json({ success: true, effect });
     } catch (error) {
@@ -32,6 +34,7 @@ export const effectsController = {
   },
 
   async create(req: Request, res: Response) {
+    const roomId = req.roomId!;
     const {
       name,
       description = "",
@@ -74,19 +77,29 @@ export const effectsController = {
     }
     // Валидация трёх взаимоисключающих типов: временный / постоянный / мгновенный
     if (is_instant && is_permanent) {
-      return res.status(400).json({ error: "Эффект не может быть одновременно мгновенным и постоянным" });
+      return res
+        .status(400)
+        .json({
+          error: "Эффект не может быть одновременно мгновенным и постоянным",
+        });
     }
     if (is_instant) {
       if (duration_turns !== null || duration_days !== null) {
-        return res.status(400).json({ error: "Мгновенные эффекты не могут иметь длительность" });
+        return res
+          .status(400)
+          .json({ error: "Мгновенные эффекты не могут иметь длительность" });
       }
     } else if (is_permanent) {
       if (duration_turns !== null || duration_days !== null) {
-        return res.status(400).json({ error: "Постоянные эффекты не могут иметь длительность" });
+        return res
+          .status(400)
+          .json({ error: "Постоянные эффекты не могут иметь длительность" });
       }
     } else {
       if (duration_turns === null && duration_days === null) {
-        return res.status(400).json({ error: "Для непостоянных эффектов укажите длительность" });
+        return res
+          .status(400)
+          .json({ error: "Для непостоянных эффектов укажите длительность" });
       }
     }
 
@@ -112,7 +125,7 @@ export const effectsController = {
     }
 
     try {
-      const effect = await effectsService.create({
+      const effect = await effectsService.create(roomId, {
         name: name.trim(),
         description: description || null,
         attribute: attribute || null,
@@ -137,9 +150,11 @@ export const effectsController = {
   },
 
   async update(req: Request, res: Response) {
+    const roomId = req.roomId!;
     const id = String(req.params.id);
     const updateData = req.body;
     delete updateData.id;
+    delete updateData.room_id; // не разрешаем менять комнату
 
     // ---- НАЧАЛО ВАЛИДАЦИИ ----
     const allowedAttributes = [
@@ -212,8 +227,10 @@ export const effectsController = {
     if (updateData.is_instant === true) {
       updateData.is_permanent = false;
       if (
-        (updateData.duration_turns !== undefined && updateData.duration_turns !== null) ||
-        (updateData.duration_days !== undefined && updateData.duration_days !== null)
+        (updateData.duration_turns !== undefined &&
+          updateData.duration_turns !== null) ||
+        (updateData.duration_days !== undefined &&
+          updateData.duration_days !== null)
       ) {
         return res
           .status(400)
@@ -229,7 +246,7 @@ export const effectsController = {
     }
 
     try {
-      const updated = await effectsService.update(id, updateData);
+      const updated = await effectsService.update(roomId, id, updateData);
       if (!updated) return res.status(404).json({ error: "Эффект не найден" });
       getIO().emit("effect:updated", updated);
       res.json({ success: true, effect: updated });
@@ -245,9 +262,11 @@ export const effectsController = {
   },
 
   async partialUpdate(req: Request, res: Response) {
+    const roomId = req.roomId!;
     const id = String(req.params.id);
     const updateData = req.body;
     delete updateData.id;
+    delete updateData.room_id; // не разрешаем менять комнату
 
     // ---- НАЧАЛО ВАЛИДАЦИИ ----
     const allowedAttributes = [
@@ -317,8 +336,10 @@ export const effectsController = {
     if (updateData.is_instant === true) {
       updateData.is_permanent = false;
       if (
-        (updateData.duration_turns !== undefined && updateData.duration_turns !== null) ||
-        (updateData.duration_days !== undefined && updateData.duration_days !== null)
+        (updateData.duration_turns !== undefined &&
+          updateData.duration_turns !== null) ||
+        (updateData.duration_days !== undefined &&
+          updateData.duration_days !== null)
       ) {
         return res
           .status(400)
@@ -334,7 +355,7 @@ export const effectsController = {
     }
 
     try {
-      const updated = await effectsService.update(id, updateData);
+      const updated = await effectsService.update(roomId, id, updateData);
       if (!updated) return res.status(404).json({ error: "Эффект не найден" });
       getIO().emit("effect:updated", updated);
       res.json({ success: true, effect: updated });
@@ -350,9 +371,10 @@ export const effectsController = {
   },
 
   async delete(req: Request, res: Response) {
+    const roomId = req.roomId!;
     const id = String(req.params.id);
     try {
-      const deleted = await effectsService.delete(id);
+      const deleted = await effectsService.delete(roomId, id);
       if (!deleted) return res.status(404).json({ error: "Эффект не найден" });
       getIO().emit("effect:deleted", { id: Number(id) });
       res.json({ success: true, message: "Эффект удалён" });

@@ -7,11 +7,13 @@ import { npcAbilitiesService } from "./npcAbilitiesService.js";
 import { getIO, emitNpcUpdate } from "../socket/index.js";
 
 export const npcsService = {
+  // ADDED roomId support
   async getAll(
+    roomId: number,
     page?: number,
     limit?: number,
   ): Promise<NPC[] | PaginatedResponse<NPC>> {
-    let query = db("npcs").select("*");
+    let query = db("npcs").select("*").where("room_id", roomId); // ADDED filter
 
     if (page === undefined || limit === undefined) {
       return query;
@@ -31,21 +33,43 @@ export const npcsService = {
     return { data, total, page, limit };
   },
 
-  async getById(id: string): Promise<NPC | null> {
-    return db("npcs").where({ id }).first();
+  // ADDED roomId support
+  async getById(roomId: number, id: string): Promise<NPC | null> {
+    return db("npcs").where({ id, room_id: roomId }).first(); // ADDED room_id check
   },
 
-  async getFullDetails(id: string): Promise<FullNPCData | null> {
+  // ADDED roomId support – проверяем, что NPC существует в комнате
+  async getFullDetails(
+    roomId: number,
+    id: string,
+  ): Promise<FullNPCData | null> {
+    const exists = await this.getById(roomId, id);
+    if (!exists) return null;
     return getFullNpcData(id);
   },
 
-  async create(data: Omit<NPC, "id" | "created_at">): Promise<NPC> {
-    const [npc] = await db("npcs").insert(data).returning("*");
+  // ADDED roomId support
+  async create(
+    roomId: number,
+    data: Omit<NPC, "id" | "created_at" | "room_id">,
+  ): Promise<NPC> {
+    const [npc] = await db("npcs")
+      .insert({ ...data, room_id: roomId }) // ADDED room_id
+      .returning("*");
     await emitNpcUpdate(npc.id);
     return npc;
   },
 
-  async update(id: string, data: Partial<NPC>): Promise<NPC | null> {
+  // ADDED roomId support
+  async update(
+    roomId: number,
+    id: string,
+    data: Partial<NPC>,
+  ): Promise<NPC | null> {
+    // Сначала проверяем, что NPC принадлежит комнате
+    const existing = await db("npcs").where({ id, room_id: roomId }).first(); // ADDED room_id check
+    if (!existing) return null;
+
     // Если обновляется здоровье, проверить его относительно эффективного максимума
     if (data.health !== undefined && typeof data.health === "number") {
       let newHealth = data.health;
@@ -57,9 +81,8 @@ export const npcsService = {
         }
       } else {
         // fallback: использовать базовое max_health из БД
-        const npc = await db("npcs").where({ id }).first();
-        if (npc && newHealth > npc.max_health) {
-          newHealth = npc.max_health;
+        if (existing && newHealth > existing.max_health) {
+          newHealth = existing.max_health;
         }
       }
       if (newHealth < 0) newHealth = 0;
@@ -74,14 +97,16 @@ export const npcsService = {
     return updated || null;
   },
 
-  async delete(id: string): Promise<boolean> {
-    const deleted = await db("npcs").where({ id }).delete();
+  // ADDED roomId support
+  async delete(roomId: number, id: string): Promise<boolean> {
+    const deleted = await db("npcs").where({ id, room_id: roomId }).delete(); // ADDED room_id check
     if (deleted) getIO().emit("npc:deleted", Number(id));
     return deleted > 0;
   },
 
-  async intimidate(npcId: string): Promise<{ npc: NPC }> {
-    const npc = await db("npcs").where("id", npcId).first();
+  // ADDED roomId support
+  async intimidate(roomId: number, npcId: string): Promise<{ npc: NPC }> {
+    const npc = await db("npcs").where({ id: npcId, room_id: roomId }).first(); // ADDED room_id check
     if (!npc) throw new Error("NPC не найден");
     if (npc.aggression !== 0) {
       throw new Error(
@@ -113,8 +138,13 @@ export const npcsService = {
     return { npc: updated };
   },
 
-  async modifyAggression(npcId: string, delta: number): Promise<NPC> {
-    const npc = await db("npcs").where("id", npcId).first();
+  // ADDED roomId support
+  async modifyAggression(
+    roomId: number,
+    npcId: string,
+    delta: number,
+  ): Promise<NPC> {
+    const npc = await db("npcs").where({ id: npcId, room_id: roomId }).first(); // ADDED room_id check
     if (!npc) throw new Error("NPC не найден");
     if (npc.aggression !== 1) {
       throw new Error(
@@ -133,12 +163,14 @@ export const npcsService = {
     return updated;
   },
 
+  // ADDED roomId support
   async calm(
+    roomId: number,
     npcId: string,
     playerId?: number,
     abilityId?: number,
   ): Promise<NPC> {
-    const npc = await db("npcs").where("id", npcId).first();
+    const npc = await db("npcs").where({ id: npcId, room_id: roomId }).first(); // ADDED room_id check
     if (!npc) throw new Error("NPC не найден");
     if (npc.aggression !== 2) {
       throw new Error(
@@ -173,8 +205,13 @@ export const npcsService = {
     return updated;
   },
 
-  async setAggression(npcId: string, aggression: number): Promise<NPC> {
-    const npc = await db("npcs").where("id", npcId).first();
+  // ADDED roomId support
+  async setAggression(
+    roomId: number,
+    npcId: string,
+    aggression: number,
+  ): Promise<NPC> {
+    const npc = await db("npcs").where({ id: npcId, room_id: roomId }).first(); // ADDED room_id check
     if (!npc) throw new Error("NPC не найден");
     const [updated] = await db("npcs")
       .where("id", npcId)
@@ -184,11 +221,13 @@ export const npcsService = {
     return updated;
   },
 
+  // ADDED roomId support
   async addItemsBatch(
+    roomId: number,
     npcId: number,
     items: { item_id: number; quantity: number }[],
   ) {
-    const npc = await db("npcs").where("id", npcId).first();
+    const npc = await db("npcs").where({ id: npcId, room_id: roomId }).first(); // ADDED room_id check
     if (!npc) throw new Error("NPC не найден");
 
     const results = [];
@@ -235,14 +274,17 @@ export const npcsService = {
     return { success: true, message: "Операция завершена", results };
   },
 
-  async addAbilitiesBatch(npcId: number, abilityIds: number[]) {
-    const npc = await db("npcs").where("id", npcId).first();
+  // ADDED roomId support
+  async addAbilitiesBatch(roomId: number, npcId: number, abilityIds: number[]) {
+    const npc = await db("npcs").where({ id: npcId, room_id: roomId }).first(); // ADDED room_id check
     if (!npc) throw new Error("NPC не найден");
 
     const results = [];
     for (const ability_id of abilityIds) {
       try {
+        // TODO: когда npcAbilitiesService будет доработан, передавать roomId
         const npcAbility = await npcAbilitiesService.create(
+          roomId,
           npcId,
           ability_id,
           true,
@@ -277,8 +319,9 @@ export const npcsService = {
     };
   },
 
-  async addEffectsBatch(npcId: number, effectIds: number[]) {
-    const npc = await db("npcs").where("id", npcId).first();
+  // ADDED roomId support
+  async addEffectsBatch(roomId: number, npcId: number, effectIds: number[]) {
+    const npc = await db("npcs").where({ id: npcId, room_id: roomId }).first(); // ADDED room_id check
     if (!npc) throw new Error("NPC не найден");
 
     const results = [];
@@ -321,7 +364,12 @@ export const npcsService = {
     return { success: true, message: "Операция завершена", results };
   },
 
-  async removeItem(npcId: number, itemId: number) {
+  // ADDED roomId support
+  async removeItem(roomId: number, npcId: number, itemId: number) {
+    // Проверяем, что NPC в комнате
+    const npc = await db("npcs").where({ id: npcId, room_id: roomId }).first();
+    if (!npc) throw new Error("NPC не найден");
+
     const deleted = await db("npc_items")
       .where({ npc_id: npcId, item_id: itemId })
       .delete();
@@ -330,13 +378,21 @@ export const npcsService = {
     return true;
   },
 
-  async removeAbility(npcId: number, abilityId: number) {
-    await npcAbilitiesService.delete(npcId, abilityId);
+  // ADDED roomId support
+  async removeAbility(roomId: number, npcId: number, abilityId: number) {
+    const npc = await db("npcs").where({ id: npcId, room_id: roomId }).first();
+    if (!npc) throw new Error("NPC не найден");
+
+    await npcAbilitiesService.delete(roomId, npcId, abilityId);
     await emitNpcUpdate(npcId);
     return true;
   },
 
-  async removeEffect(npcId: number, effectId: number) {
+  // ADDED roomId support
+  async removeEffect(roomId: number, npcId: number, effectId: number) {
+    const npc = await db("npcs").where({ id: npcId, room_id: roomId }).first();
+    if (!npc) throw new Error("NPC не найден");
+
     const deleted = await db("npc_active_effects")
       .where({ npc_id: npcId, effect_id: effectId, source_type: "admin" })
       .delete();
@@ -346,7 +402,16 @@ export const npcsService = {
     return true;
   },
 
-  async toggleEquip(npcId: number, itemId: number, is_equipped: boolean) {
+  // ADDED roomId support
+  async toggleEquip(
+    roomId: number,
+    npcId: number,
+    itemId: number,
+    is_equipped: boolean,
+  ) {
+    const npc = await db("npcs").where({ id: npcId, room_id: roomId }).first();
+    if (!npc) throw new Error("NPC не найден");
+
     const [updated] = await db("npc_items")
       .where({ npc_id: npcId, item_id: itemId })
       .update({ is_equipped })
@@ -356,8 +421,18 @@ export const npcsService = {
     return updated;
   },
 
-  async toggleAbility(npcId: number, abilityId: number, is_active: boolean) {
+  // ADDED roomId support
+  async toggleAbility(
+    roomId: number,
+    npcId: number,
+    abilityId: number,
+    is_active: boolean,
+  ) {
+    const npc = await db("npcs").where({ id: npcId, room_id: roomId }).first();
+    if (!npc) throw new Error("NPC не найден");
+
     const updated = await npcAbilitiesService.toggleActive(
+      roomId,
       npcId,
       abilityId,
       is_active,
@@ -366,21 +441,25 @@ export const npcsService = {
     return updated;
   },
 
+  // ADDED roomId support
   async updateAvatar(
+    roomId: number,
     id: number,
     avatarUrl: string | null,
   ): Promise<NPC | null> {
     const [updated] = await db("npcs")
-      .where({ id })
+      .where({ id, room_id: roomId }) // ADDED room_id check
       .update({ avatar_url: avatarUrl })
       .returning("*");
     if (updated) await emitNpcUpdate(id);
     return updated || null;
   },
 
-  async deleteAvatar(id: number): Promise<NPC | null> {
-    const npc = await db("npcs").where({ id }).first();
-    if (npc?.avatar_url) {
+  // ADDED roomId support
+  async deleteAvatar(roomId: number, id: number): Promise<NPC | null> {
+    const npc = await db("npcs").where({ id, room_id: roomId }).first(); // ADDED room_id check
+    if (!npc) return null;
+    if (npc.avatar_url) {
       const fs = await import("fs");
       const path = await import("path");
       const filePath = path.join(process.cwd(), npc.avatar_url);
@@ -396,11 +475,15 @@ export const npcsService = {
     return updated || null;
   },
 
-  async duplicate(id: string, newName: string): Promise<NPC> {
-    const originalFull = await getFullNpcData(id);
+  // ADDED roomId support
+  async duplicate(roomId: number, id: string, newName: string): Promise<NPC> {
+    // Проверяем, что исходный NPC в комнате
+    const originalFull = await this.getFullDetails(roomId, id);
     if (!originalFull) throw new Error("Исходный NPC не найден");
 
-    const existing = await db("npcs").where({ name: newName }).first();
+    const existing = await db("npcs")
+      .where({ name: newName, room_id: roomId }) // ADDED room_id check
+      .first();
     if (existing) throw new Error("NPC с таким именем уже существует");
 
     let newAvatarUrl: string | null = null;
@@ -437,10 +520,12 @@ export const npcsService = {
         aggression: originalFull.aggression,
         race_id: originalFull.race_id,
         avatar_url: newAvatarUrl,
+        room_id: roomId, // ADDED room_id
       })
       .returning("*");
 
-    const originalItems = await db("npc_items").where({ npc_id: id });
+    // Копируем предметы, способности, эффекты (они привязаны к новому NPC, room_id не нужен)
+    const originalItems = await db("npc_items").where({ npc_id: Number(id) });
     for (const item of originalItems) {
       await db("npc_items").insert({
         npc_id: newNpc.id,
@@ -451,7 +536,9 @@ export const npcsService = {
       });
     }
 
-    const originalAbilities = await db("npc_abilities").where({ npc_id: id });
+    const originalAbilities = await db("npc_abilities").where({
+      npc_id: Number(id),
+    });
     for (const ability of originalAbilities) {
       await db("npc_abilities").insert({
         npc_id: newNpc.id,
@@ -464,7 +551,7 @@ export const npcsService = {
     }
 
     const originalEffects = await db("npc_active_effects").where({
-      npc_id: id,
+      npc_id: Number(id),
     });
     for (const effect of originalEffects) {
       await db("npc_active_effects").insert({

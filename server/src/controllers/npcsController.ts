@@ -5,13 +5,14 @@ import { getIO } from "../socket/index.js";
 export const npcsController = {
   async getAll(req: Request, res: Response) {
     try {
+      const roomId = req.roomId!; // authMaster гарантирует наличие
       const page = req.query.page
         ? parseInt(req.query.page as string, 10)
         : undefined;
       const limit = req.query.limit
         ? parseInt(req.query.limit as string, 10)
         : undefined;
-      const result = await npcsService.getAll(page, limit);
+      const result = await npcsService.getAll(roomId, page, limit);
       res.json(result);
     } catch (error) {
       console.error(error);
@@ -21,8 +22,9 @@ export const npcsController = {
 
   async getOne(req: Request, res: Response) {
     try {
+      const roomId = req.roomId!;
       const id = String(req.params.id);
-      const npc = await npcsService.getById(id);
+      const npc = await npcsService.getById(roomId, id);
       if (!npc) return res.status(404).json({ error: "NPC не найден" });
       res.json({ success: true, npc });
     } catch (error) {
@@ -33,8 +35,9 @@ export const npcsController = {
 
   async getDetails(req: Request, res: Response) {
     try {
+      const roomId = req.roomId!;
       const id = String(req.params.id);
-      const fullNpc = await npcsService.getFullDetails(id);
+      const fullNpc = await npcsService.getFullDetails(roomId, id);
       if (!fullNpc) return res.status(404).json({ error: "NPC не найден" });
       res.json({ success: true, npc: fullNpc });
     } catch (error) {
@@ -44,6 +47,7 @@ export const npcsController = {
   },
 
   async create(req: Request, res: Response) {
+    const roomId = req.roomId!;
     const {
       name,
       gender = "male",
@@ -61,6 +65,7 @@ export const npcsController = {
       is_online = false,
       is_card_shown = true,
       aggression = 0,
+      race_id = null,
     } = req.body;
 
     if (!name || typeof name !== "string" || name.trim().length === 0) {
@@ -91,7 +96,7 @@ export const npcsController = {
     }
 
     try {
-      const npc = await npcsService.create({
+      const npc = await npcsService.create(roomId, {
         name: name.trim(),
         gender,
         health,
@@ -108,10 +113,12 @@ export const npcsController = {
         is_online: Boolean(is_online),
         is_card_shown: Boolean(is_card_shown),
         aggression,
-        race_id: null, // добавлено
+        race_id,
       });
-      getIO().emit("npc:created", npc);
-      res.status(201).json({ success: true, npc });
+      // После создания эмитим полные данные
+      const fullNpc = await npcsService.getFullDetails(roomId, String(npc.id));
+      getIO().emit("npc:created", fullNpc || npc);
+      res.status(201).json({ success: true, npc: fullNpc || npc });
     } catch (error: unknown) {
       if (
         error instanceof Error &&
@@ -127,20 +134,21 @@ export const npcsController = {
   },
 
   async update(req: Request, res: Response) {
+    const roomId = req.roomId!;
     const id = String(req.params.id);
     const updateData = req.body;
     delete updateData.id;
     delete updateData.created_at;
+    delete updateData.room_id; // не разрешаем менять комнату
 
     if (Object.keys(updateData).length === 0) {
       return res.status(400).json({ error: "Нет данных для обновления" });
     }
 
     try {
-      const updated = await npcsService.update(id, updateData);
+      const updated = await npcsService.update(roomId, id, updateData);
       if (!updated) return res.status(404).json({ error: "NPC не найден" });
-      // --- ИЗМЕНЕНИЕ: эмитим полные данные ---
-      const fullNpc = await npcsService.getFullDetails(id);
+      const fullNpc = await npcsService.getFullDetails(roomId, id);
       if (fullNpc) getIO().emit("npc:updated", fullNpc);
       res.json({ success: true, npc: fullNpc || updated });
     } catch (error: unknown) {
@@ -153,25 +161,26 @@ export const npcsController = {
           .json({ error: "NPC с таким именем уже существует" });
       }
       console.error(error);
-      res.status(500).json({ error: "Ошибка создания NPC" });
+      res.status(500).json({ error: "Ошибка обновления NPC" });
     }
   },
 
   async partialUpdate(req: Request, res: Response) {
+    const roomId = req.roomId!;
     const id = String(req.params.id);
     const updateData = req.body;
     delete updateData.id;
     delete updateData.created_at;
+    delete updateData.room_id;
 
     if (Object.keys(updateData).length === 0) {
       return res.status(400).json({ error: "Нет данных для обновления" });
     }
 
     try {
-      const updated = await npcsService.update(id, updateData);
+      const updated = await npcsService.update(roomId, id, updateData);
       if (!updated) return res.status(404).json({ error: "NPC не найден" });
-      // --- ИЗМЕНЕНИЕ: эмитим полные данные ---
-      const fullNpc = await npcsService.getFullDetails(id);
+      const fullNpc = await npcsService.getFullDetails(roomId, id);
       if (fullNpc) getIO().emit("npc:updated", fullNpc);
       res.json({ success: true, npc: fullNpc || updated });
     } catch (error: unknown) {
@@ -184,14 +193,15 @@ export const npcsController = {
           .json({ error: "NPC с таким именем уже существует" });
       }
       console.error(error);
-      res.status(500).json({ error: "Ошибка создания NPC" });
+      res.status(500).json({ error: "Ошибка обновления NPC" });
     }
   },
 
   async delete(req: Request, res: Response) {
+    const roomId = req.roomId!;
     const id = String(req.params.id);
     try {
-      const deleted = await npcsService.delete(id);
+      const deleted = await npcsService.delete(roomId, id);
       if (!deleted) return res.status(404).json({ error: "NPC не найден" });
       getIO().emit("npc:deleted", Number(id));
       res.json({ success: true, message: "NPC удалён" });
@@ -208,11 +218,11 @@ export const npcsController = {
   },
 
   async intimidate(req: Request, res: Response) {
+    const roomId = req.roomId!;
     const id = String(req.params.id);
     try {
-      const result = await npcsService.intimidate(id);
-      // --- ИЗМЕНЕНИЕ: эмитим полные данные NPC ---
-      const fullNpc = await npcsService.getFullDetails(id);
+      const result = await npcsService.intimidate(roomId, id);
+      const fullNpc = await npcsService.getFullDetails(roomId, id);
       if (fullNpc) getIO().emit("npc:updated", fullNpc);
       res.json({
         success: true,
@@ -229,6 +239,7 @@ export const npcsController = {
   },
 
   async modifyAggression(req: Request, res: Response) {
+    const roomId = req.roomId!;
     const id = String(req.params.id);
     const { delta } = req.body;
     if (typeof delta !== "number") {
@@ -237,9 +248,8 @@ export const npcsController = {
         .json({ error: "Параметр delta (число) обязателен" });
     }
     try {
-      const updated = await npcsService.modifyAggression(id, delta);
-      // --- ИЗМЕНЕНИЕ: эмитим полные данные NPC ---
-      const fullNpc = await npcsService.getFullDetails(id);
+      const updated = await npcsService.modifyAggression(roomId, id, delta);
+      const fullNpc = await npcsService.getFullDetails(roomId, id);
       if (fullNpc) getIO().emit("npc:updated", fullNpc);
       res.json({
         success: true,
@@ -256,12 +266,12 @@ export const npcsController = {
   },
 
   async calm(req: Request, res: Response) {
+    const roomId = req.roomId!;
     const id = String(req.params.id);
     const { playerId, abilityId } = req.body;
     try {
-      const updated = await npcsService.calm(id, playerId, abilityId);
-      // --- ИЗМЕНЕНИЕ: эмитим полные данные NPC ---
-      const fullNpc = await npcsService.getFullDetails(id);
+      const updated = await npcsService.calm(roomId, id, playerId, abilityId);
+      const fullNpc = await npcsService.getFullDetails(roomId, id);
       if (fullNpc) getIO().emit("npc:updated", fullNpc);
       res.json({
         success: true,
@@ -278,6 +288,7 @@ export const npcsController = {
   },
 
   async setAggression(req: Request, res: Response) {
+    const roomId = req.roomId!;
     const id = String(req.params.id);
     const { aggression } = req.body;
     if (typeof aggression !== "number" || aggression < 0 || aggression > 2) {
@@ -286,9 +297,8 @@ export const npcsController = {
         .json({ error: "Агрессия должна быть числом от 0 до 2" });
     }
     try {
-      const updated = await npcsService.setAggression(id, aggression);
-      // --- ИЗМЕНЕНИЕ: эмитим полные данные NPC ---
-      const fullNpc = await npcsService.getFullDetails(id);
+      const updated = await npcsService.setAggression(roomId, id, aggression);
+      const fullNpc = await npcsService.getFullDetails(roomId, id);
       if (fullNpc) getIO().emit("npc:updated", fullNpc);
       res.json({
         success: true,
@@ -304,17 +314,16 @@ export const npcsController = {
     }
   },
 
-  // Добавить в npcsController
   async addItemsBatch(req: Request, res: Response) {
+    const roomId = req.roomId!;
     const id = String(req.params.id);
     const { items } = req.body;
     if (!items || !Array.isArray(items)) {
       return res.status(400).json({ error: "Некорректный массив items" });
     }
     try {
-      const result = await npcsService.addItemsBatch(Number(id), items);
-      // --- ИЗМЕНЕНИЕ: эмитим полные данные NPC ---
-      const fullNpc = await npcsService.getFullDetails(id);
+      const result = await npcsService.addItemsBatch(roomId, Number(id), items);
+      const fullNpc = await npcsService.getFullDetails(roomId, id);
       if (fullNpc) getIO().emit("npc:updated", fullNpc);
       res.json(result);
     } catch (error: unknown) {
@@ -327,6 +336,7 @@ export const npcsController = {
   },
 
   async addAbilitiesBatch(req: Request, res: Response) {
+    const roomId = req.roomId!;
     const id = String(req.params.id);
     const { ability_ids } = req.body;
     if (!ability_ids || !Array.isArray(ability_ids)) {
@@ -334,11 +344,11 @@ export const npcsController = {
     }
     try {
       const result = await npcsService.addAbilitiesBatch(
+        roomId,
         Number(id),
         ability_ids,
       );
-      // --- ИЗМЕНЕНИЕ: эмитим полные данные NPC ---
-      const fullNpc = await npcsService.getFullDetails(id);
+      const fullNpc = await npcsService.getFullDetails(roomId, id);
       if (fullNpc) getIO().emit("npc:updated", fullNpc);
       res.json(result);
     } catch (error: unknown) {
@@ -351,15 +361,19 @@ export const npcsController = {
   },
 
   async addEffectsBatch(req: Request, res: Response) {
+    const roomId = req.roomId!;
     const id = String(req.params.id);
     const { effect_ids } = req.body;
     if (!effect_ids || !Array.isArray(effect_ids)) {
       return res.status(400).json({ error: "Некорректный массив effect_ids" });
     }
     try {
-      const result = await npcsService.addEffectsBatch(Number(id), effect_ids);
-      // --- ИЗМЕНЕНИЕ: эмитим полные данные NPC ---
-      const fullNpc = await npcsService.getFullDetails(id);
+      const result = await npcsService.addEffectsBatch(
+        roomId,
+        Number(id),
+        effect_ids,
+      );
+      const fullNpc = await npcsService.getFullDetails(roomId, id);
       if (fullNpc) getIO().emit("npc:updated", fullNpc);
       res.json(result);
     } catch (error: unknown) {
@@ -372,12 +386,12 @@ export const npcsController = {
   },
 
   async removeItem(req: Request, res: Response) {
+    const roomId = req.roomId!;
     const id = String(req.params.id);
     const itemId = Number(req.params.itemId);
     try {
-      await npcsService.removeItem(Number(id), itemId);
-      // --- ИЗМЕНЕНИЕ: эмитим полные данные NPC ---
-      const fullNpc = await npcsService.getFullDetails(id);
+      await npcsService.removeItem(roomId, Number(id), itemId);
+      const fullNpc = await npcsService.getFullDetails(roomId, id);
       if (fullNpc) getIO().emit("npc:updated", fullNpc);
       res.json({ success: true, message: "Предмет удалён" });
     } catch (error: unknown) {
@@ -390,12 +404,12 @@ export const npcsController = {
   },
 
   async removeAbility(req: Request, res: Response) {
+    const roomId = req.roomId!;
     const id = String(req.params.id);
     const abilityId = Number(req.params.abilityId);
     try {
-      await npcsService.removeAbility(Number(id), abilityId);
-      // --- ИЗМЕНЕНИЕ: эмитим полные данные NPC ---
-      const fullNpc = await npcsService.getFullDetails(id);
+      await npcsService.removeAbility(roomId, Number(id), abilityId);
+      const fullNpc = await npcsService.getFullDetails(roomId, id);
       if (fullNpc) getIO().emit("npc:updated", fullNpc);
       res.json({ success: true, message: "Способность удалена" });
     } catch (error: unknown) {
@@ -408,12 +422,12 @@ export const npcsController = {
   },
 
   async removeEffect(req: Request, res: Response) {
+    const roomId = req.roomId!;
     const id = String(req.params.id);
     const effectId = Number(req.params.effectId);
     try {
-      await npcsService.removeEffect(Number(id), effectId);
-      // --- ИЗМЕНЕНИЕ: эмитим полные данные NPC ---
-      const fullNpc = await npcsService.getFullDetails(id);
+      await npcsService.removeEffect(roomId, Number(id), effectId);
+      const fullNpc = await npcsService.getFullDetails(roomId, id);
       if (fullNpc) getIO().emit("npc:updated", fullNpc);
       res.json({ success: true, message: "Эффект удалён" });
     } catch (error: unknown) {
@@ -426,6 +440,7 @@ export const npcsController = {
   },
 
   async toggleEquip(req: Request, res: Response) {
+    const roomId = req.roomId!;
     const id = String(req.params.id);
     const itemId = Number(req.params.itemId);
     const { is_equipped } = req.body;
@@ -434,12 +449,12 @@ export const npcsController = {
     }
     try {
       const updated = await npcsService.toggleEquip(
+        roomId,
         Number(id),
         itemId,
         is_equipped,
       );
-      // --- ИЗМЕНЕНИЕ: эмитим полные данные NPC ---
-      const fullNpc = await npcsService.getFullDetails(id);
+      const fullNpc = await npcsService.getFullDetails(roomId, id);
       if (fullNpc) getIO().emit("npc:updated", fullNpc);
       res.json({ success: true, npc_item: updated });
     } catch (error: unknown) {
@@ -452,6 +467,7 @@ export const npcsController = {
   },
 
   async toggleAbility(req: Request, res: Response) {
+    const roomId = req.roomId!;
     const id = String(req.params.id);
     const abilityId = Number(req.params.abilityId);
     const { is_active } = req.body;
@@ -460,12 +476,12 @@ export const npcsController = {
     }
     try {
       const updated = await npcsService.toggleAbility(
+        roomId,
         Number(id),
         abilityId,
         is_active,
       );
-      // --- ИЗМЕНЕНИЕ: эмитим полные данные NPC ---
-      const fullNpc = await npcsService.getFullDetails(id);
+      const fullNpc = await npcsService.getFullDetails(roomId, id);
       if (fullNpc) getIO().emit("npc:updated", fullNpc);
       res.json({ success: true, npc_ability: updated });
     } catch (error: unknown) {
@@ -478,14 +494,18 @@ export const npcsController = {
   },
 
   async uploadAvatar(req: Request, res: Response) {
+    const roomId = req.roomId!;
     const id = String(req.params.id);
     if (!req.file) return res.status(400).json({ error: "Файл не загружен" });
     try {
       const avatarUrl = `/uploads/avatars/${req.file.filename}`;
-      const updated = await npcsService.updateAvatar(Number(id), avatarUrl);
+      const updated = await npcsService.updateAvatar(
+        roomId,
+        Number(id),
+        avatarUrl,
+      );
       if (!updated) return res.status(404).json({ error: "NPC не найден" });
-      // --- ИЗМЕНЕНИЕ: эмитим полные данные ---
-      const fullNpc = await npcsService.getFullDetails(id);
+      const fullNpc = await npcsService.getFullDetails(roomId, id);
       if (fullNpc) getIO().emit("npc:updated", fullNpc);
       res.json({ success: true, npc: fullNpc || updated, avatarUrl });
     } catch (error) {
@@ -495,12 +515,12 @@ export const npcsController = {
   },
 
   async deleteAvatar(req: Request, res: Response) {
+    const roomId = req.roomId!;
     const id = String(req.params.id);
     try {
-      const updated = await npcsService.deleteAvatar(Number(id));
+      const updated = await npcsService.deleteAvatar(roomId, Number(id));
       if (!updated) return res.status(404).json({ error: "NPC не найден" });
-      // --- ИЗМЕНЕНИЕ: эмитим полные данные ---
-      const fullNpc = await npcsService.getFullDetails(id);
+      const fullNpc = await npcsService.getFullDetails(roomId, id);
       if (fullNpc) getIO().emit("npc:updated", fullNpc);
       res.json({ success: true, npc: fullNpc || updated });
     } catch (error) {
@@ -510,6 +530,7 @@ export const npcsController = {
   },
 
   async duplicate(req: Request, res: Response) {
+    const roomId = req.roomId!;
     const id = String(req.params.id);
     const { name } = req.body;
 
@@ -523,9 +544,11 @@ export const npcsController = {
     }
 
     try {
-      const newNpc = await npcsService.duplicate(id, name.trim());
-      // Загрузить полные данные для сокета
-      const fullNpc = await npcsService.getFullDetails(String(newNpc.id));
+      const newNpc = await npcsService.duplicate(roomId, id, name.trim());
+      const fullNpc = await npcsService.getFullDetails(
+        roomId,
+        String(newNpc.id),
+      );
       getIO().emit("npc:created", fullNpc || newNpc);
       res.status(201).json({ success: true, npc: fullNpc || newNpc });
     } catch (error: unknown) {

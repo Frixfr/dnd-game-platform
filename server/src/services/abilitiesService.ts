@@ -4,11 +4,13 @@ import { getFullPlayerData, getFullNpcData } from "../utils/helpers.js";
 import { getIO } from "../socket/index.js";
 
 export const abilitiesService = {
+  // ADDED roomId support
   async getAll(
+    roomId: number,
     page?: number,
     limit?: number,
   ): Promise<Ability[] | PaginatedResponse<Ability>> {
-    let query = db("abilities").select("*");
+    let query = db("abilities").select("*").where("room_id", roomId); // ADDED filter
 
     if (page === undefined || limit === undefined) {
       return query;
@@ -28,26 +30,33 @@ export const abilitiesService = {
     return { data, total, page, limit };
   },
 
-  async getById(id: string): Promise<Ability | null> {
-    return db("abilities").where({ id }).first();
+  // ADDED roomId support
+  async getById(roomId: number, id: string): Promise<Ability | null> {
+    return db("abilities").where({ id, room_id: roomId }).first();
   },
 
+  // ADDED roomId support
   async create(
-    data: Omit<Ability, "id" | "created_at" | "updated_at">,
+    roomId: number,
+    data: Omit<Ability, "id" | "created_at" | "updated_at" | "room_id">,
   ): Promise<Ability> {
     const now = db.fn.now();
     const [ability] = await db("abilities")
-      .insert({ ...data, created_at: now, updated_at: now })
+      .insert({ ...data, room_id: roomId, created_at: now, updated_at: now }) // ADDED room_id
       .returning("*");
     return ability;
   },
 
+  // ADDED roomId support
   async update(
+    roomId: number,
     id: string,
-    data: Partial<Omit<Ability, "id" | "created_at">>,
+    data: Partial<Omit<Ability, "id" | "created_at" | "room_id">>,
   ): Promise<Ability | null> {
-    // 1. Получаем старую версию способности до обновления
-    const oldAbility = await db("abilities").where({ id }).first();
+    // Проверяем, что способность принадлежит комнате
+    const oldAbility = await db("abilities")
+      .where({ id, room_id: roomId })
+      .first();
     if (!oldAbility) return null;
 
     // 2. Обновляем способность
@@ -146,7 +155,14 @@ export const abilitiesService = {
     return updated;
   },
 
-  async delete(id: string): Promise<boolean> {
+  // ADDED roomId support
+  async delete(roomId: number, id: string): Promise<boolean> {
+    // Проверяем, что способность в комнате
+    const ability = await db("abilities")
+      .where({ id, room_id: roomId })
+      .first();
+    if (!ability) return false;
+
     const usedByPlayer = await db("player_abilities")
       .where("ability_id", id)
       .first();
@@ -159,6 +175,7 @@ export const abilitiesService = {
     return deleted > 0;
   },
 
+  // Этот метод не требует комнаты, так как проверяет существование эффекта по ID
   async checkEffectExists(effectId: number): Promise<boolean> {
     const effect = await db("effects").where("id", effectId).first();
     return !!effect;

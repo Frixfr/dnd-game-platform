@@ -5,6 +5,7 @@ import cors from "cors";
 import { createServer } from "http";
 import { initializeDatabase } from "./db/init.js";
 import { initSocket } from "./socket/index.js";
+import { authMaster } from "./middleware/authMaster.js";
 
 // Импорт роутеров
 import playersRouter from "./routes/players.js";
@@ -22,6 +23,8 @@ import racesRouter from "./routes/races.js";
 import combatRouter from "./routes/combat.js";
 import logsRouter from "./routes/logs.js";
 import mapsRouter from "./routes/maps.js";
+import masterRouter from "./routes/master.js";
+import roomsRouter from "./routes/rooms.js";
 
 const app = express();
 const server = createServer(app);
@@ -30,7 +33,6 @@ const server = createServer(app);
 app.use(
   cors({
     origin: (origin, callback) => {
-      // В разработке разрешаем всё (или проверяем на локальные адреса)
       const allowed =
         !origin ||
         origin.startsWith("http://localhost") ||
@@ -45,32 +47,39 @@ app.use(
 app.use(express.json({ limit: "10mb" }));
 app.use("/uploads", express.static("uploads"));
 
-// Health check
+// Health check (без авторизации)
 app.get("/api/health", (_req, res) => {
   res.json({ status: "OK", timestamp: new Date().toISOString() });
 });
 
-// Подключение роутеров
-app.use("/api/players", playersRouter);
-app.use("/api/effects", effectsRouter);
-app.use("/api/abilities", abilitiesRouter);
-app.use("/api/items", itemsRouter);
-app.use("/api/npcs", npcsRouter);
-app.use("/api/player-abilities", playerAbilitiesRouter);
-app.use("/api/player-items", playerItemsRouter);
-app.use("/api/player-active-effects", playerEffectsRouter);
-app.use("/api/npc-abilities", npcAbilitiesRoutes);
-app.use("/api/npc-items", npcItemsRoutes);
-app.use("/api/npc-effects", npcEffectsRoutes);
-app.use("/api/races", racesRouter);
-app.use("/api/combat", combatRouter);
-app.use("/api/logs", logsRouter);
-app.use("/api/maps", mapsRouter);
+// Публичные роутеры (без авторизации)
+app.use("/api/master", masterRouter); // только /login
+app.use("/api/rooms", roomsRouter); // /enter не требует authMaster, остальное требует
+
+// Роутеры, требующие авторизации мастера с roomId
+// Применяем authMaster ко всем остальным маршрутам
+app.use("/api/players", authMaster, playersRouter);
+app.use("/api/effects", authMaster, effectsRouter);
+app.use("/api/abilities", authMaster, abilitiesRouter);
+app.use("/api/items", authMaster, itemsRouter);
+app.use("/api/npcs", authMaster, npcsRouter);
+app.use("/api/player-abilities", authMaster, playerAbilitiesRouter);
+app.use("/api/player-items", authMaster, playerItemsRouter);
+app.use("/api/player-active-effects", authMaster, playerEffectsRouter);
+app.use("/api/npc-abilities", authMaster, npcAbilitiesRoutes);
+app.use("/api/npc-items", authMaster, npcItemsRoutes);
+app.use("/api/npc-effects", authMaster, npcEffectsRoutes);
+app.use("/api/races", authMaster, racesRouter);
+app.use("/api/combat", authMaster, combatRouter);
+app.use("/api/logs", authMaster, logsRouter);
+app.use("/api/maps", authMaster, mapsRouter);
 
 // Функция для запуска приложения (инициализация БД и сокетов)
 export async function startApp() {
   await initializeDatabase();
-  initSocket(server);
+  const io = initSocket(server);
+  // Передаём io в app для использования в роутерах
+  app.set("io", io);
   return server;
 }
 

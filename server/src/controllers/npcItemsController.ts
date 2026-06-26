@@ -1,3 +1,4 @@
+// server/src/controllers/npcItemsController.ts
 import { Request, Response } from "express";
 import { npcItemsService } from "../services/npcItemsService.js";
 import { getIO } from "../socket/index.js";
@@ -5,6 +6,7 @@ import { getIO } from "../socket/index.js";
 export const npcItemsController = {
   async getAll(req: Request, res: Response) {
     try {
+      const roomId = req.roomId!;
       const npc_id = req.query.npc_id ? Number(req.query.npc_id) : undefined;
       const item_id = req.query.item_id ? Number(req.query.item_id) : undefined;
       const is_equipped =
@@ -13,54 +15,60 @@ export const npcItemsController = {
           : undefined;
       const with_details = req.query.with_details === "true";
 
-      const data = await npcItemsService.getAll({
+      const data = await npcItemsService.getAll(roomId, {
         npc_id,
         item_id,
         is_equipped,
         with_details,
       });
       res.json({ success: true, data, count: data.length });
-    } catch (error) {
+    } catch (error: any) {
+      if (error.message.includes("не найден в этой комнате")) {
+        return res.status(404).json({ error: error.message });
+      }
       console.error(error);
       res.status(500).json({ error: "Ошибка сервера" });
     }
   },
 
   async create(req: Request, res: Response) {
-    const { npc_id, item_id, quantity = 1, is_equipped = false } = req.body;
-
-    if (!npc_id || typeof npc_id !== "number" || npc_id <= 0) {
-      return res
-        .status(400)
-        .json({ error: "npc_id должен быть положительным числом" });
-    }
-    if (!item_id || typeof item_id !== "number" || item_id <= 0) {
-      return res
-        .status(400)
-        .json({ error: "item_id должен быть положительным числом" });
-    }
-    if (typeof quantity !== "number" || quantity < 1) {
-      return res
-        .status(400)
-        .json({ error: "quantity должно быть положительным числом" });
-    }
-    if (typeof is_equipped !== "boolean") {
-      return res
-        .status(400)
-        .json({ error: "is_equipped должен быть булевым значением" });
-    }
-
     try {
+      const roomId = req.roomId!;
+      const { npc_id, item_id, quantity = 1, is_equipped = false } = req.body;
+
+      if (!npc_id || typeof npc_id !== "number" || npc_id <= 0) {
+        return res
+          .status(400)
+          .json({ error: "npc_id должен быть положительным числом" });
+      }
+      if (!item_id || typeof item_id !== "number" || item_id <= 0) {
+        return res
+          .status(400)
+          .json({ error: "item_id должен быть положительным числом" });
+      }
+      if (typeof quantity !== "number" || quantity < 1) {
+        return res
+          .status(400)
+          .json({ error: "quantity должно быть положительным числом" });
+      }
+      if (typeof is_equipped !== "boolean") {
+        return res
+          .status(400)
+          .json({ error: "is_equipped должен быть булевым значением" });
+      }
+
       const result = await npcItemsService.create(
+        roomId,
         npc_id,
         item_id,
         quantity,
         is_equipped,
       );
-      getIO().emit("npc_item:created", result);
+      const io = getIO();
+      io.to(`room:${roomId}`).emit("npc_item:created", result);
       res.status(201).json({ success: true, npc_item: result });
     } catch (error: any) {
-      if (error.message.includes("not found")) {
+      if (error.message.includes("не найден")) {
         return res.status(404).json({ error: error.message });
       }
       console.error(error);
@@ -69,18 +77,23 @@ export const npcItemsController = {
   },
 
   async delete(req: Request, res: Response) {
-    const npc_id = req.query.npc_id ? Number(req.query.npc_id) : undefined;
-    const item_id = req.query.item_id ? Number(req.query.item_id) : undefined;
-    if (!npc_id || !item_id) {
-      return res.status(400).json({ error: "Необходимы npc_id и item_id" });
-    }
     try {
-      await npcItemsService.delete(npc_id, item_id);
-      getIO().emit("npc_item:deleted", { npc_id, item_id });
+      const roomId = req.roomId!;
+      const npc_id = req.query.npc_id ? Number(req.query.npc_id) : undefined;
+      const item_id = req.query.item_id ? Number(req.query.item_id) : undefined;
+      if (!npc_id || !item_id) {
+        return res.status(400).json({ error: "Необходимы npc_id и item_id" });
+      }
+      await npcItemsService.delete(roomId, npc_id, item_id);
+      const io = getIO();
+      io.to(`room:${roomId}`).emit("npc_item:deleted", { npc_id, item_id });
       res.json({ success: true, message: "Предмет удалён" });
     } catch (error: any) {
       if (error.message === "Not found") {
         return res.status(404).json({ error: "Предмет не найден у NPC" });
+      }
+      if (error.message.includes("не найден")) {
+        return res.status(404).json({ error: error.message });
       }
       console.error(error);
       res.status(500).json({ error: "Ошибка удаления предмета" });
@@ -88,23 +101,32 @@ export const npcItemsController = {
   },
 
   async toggleEquip(req: Request, res: Response) {
-    const id = req.params.id ? Number(req.params.id) : undefined;
-    const { is_equipped } = req.body;
-    if (!id || isNaN(id)) {
-      return res.status(400).json({ error: "Некорректный id записи" });
-    }
-    if (typeof is_equipped !== "boolean") {
-      return res
-        .status(400)
-        .json({ error: "is_equipped должен быть булевым значением" });
-    }
     try {
-      const updated = await npcItemsService.toggleEquip(id, is_equipped);
-      getIO().emit("npc_item:updated", updated);
+      const roomId = req.roomId!;
+      const id = req.params.id ? Number(req.params.id) : undefined;
+      const { is_equipped } = req.body;
+      if (!id || isNaN(id)) {
+        return res.status(400).json({ error: "Некорректный id записи" });
+      }
+      if (typeof is_equipped !== "boolean") {
+        return res
+          .status(400)
+          .json({ error: "is_equipped должен быть булевым значением" });
+      }
+      const updated = await npcItemsService.toggleEquip(
+        roomId,
+        id,
+        is_equipped,
+      );
+      const io = getIO();
+      io.to(`room:${roomId}`).emit("npc_item:updated", updated);
       res.json({ success: true, npc_item: updated });
     } catch (error: any) {
       if (error.message === "Not found") {
         return res.status(404).json({ error: "Запись не найдена" });
+      }
+      if (error.message.includes("не найден")) {
+        return res.status(404).json({ error: error.message });
       }
       console.error(error);
       res.status(500).json({ error: "Ошибка обновления экипировки" });
@@ -112,17 +134,21 @@ export const npcItemsController = {
   },
 
   async useItem(req: Request, res: Response) {
-    const npcId = Number(req.params.npcId);
-    const npcItemId = Number(req.params.npcItemId);
-    if (isNaN(npcId) || isNaN(npcItemId)) {
-      return res.status(400).json({ error: "Некорректные ID" });
-    }
     try {
-      const fullNpc = await npcItemsService.useItem(npcId, npcItemId);
-      // Эмитим обновление NPC через сокет
-      getIO().emit("npc:updated", fullNpc);
+      const roomId = req.roomId!;
+      const npcId = Number(req.params.npcId);
+      const npcItemId = Number(req.params.npcItemId);
+      if (isNaN(npcId) || isNaN(npcItemId)) {
+        return res.status(400).json({ error: "Некорректные ID" });
+      }
+      const fullNpc = await npcItemsService.useItem(roomId, npcId, npcItemId);
+      const io = getIO();
+      io.to(`room:${roomId}`).emit("npc:updated", fullNpc);
       res.json({ success: true, npc: fullNpc });
     } catch (error: any) {
+      if (error.message.includes("не найден")) {
+        return res.status(404).json({ error: error.message });
+      }
       res.status(400).json({ error: error.message });
     }
   },

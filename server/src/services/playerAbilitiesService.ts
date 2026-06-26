@@ -6,14 +6,23 @@ import { emitPlayerUpdate } from "../socket/index.js";
 import { applyInstantHealthChange } from "../utils/helpers.js";
 
 export const playerAbilitiesService = {
-  async getAll(filters: {
-    player_id?: number;
-    ability_id?: number;
-    is_active?: boolean;
-    with_details?: boolean;
-  }) {
+  async getAll(
+    roomId: number,
+    filters: {
+      player_id?: number;
+      ability_id?: number;
+      is_active?: boolean;
+      with_details?: boolean;
+    },
+  ) {
     let query = db("player_abilities").select("*");
-    if (filters.player_id) query = query.where("player_id", filters.player_id);
+    if (filters.player_id) {
+      const player = await db("players")
+        .where({ id: filters.player_id, room_id: roomId })
+        .first();
+      if (!player) throw new Error("Игрок не найден в этой комнате");
+      query = query.where("player_id", filters.player_id);
+    }
     if (filters.ability_id)
       query = query.where("ability_id", filters.ability_id);
     if (filters.is_active !== undefined)
@@ -29,11 +38,20 @@ export const playerAbilitiesService = {
     return rows;
   },
 
-  async create(player_id: number, ability_id: number, is_active: boolean) {
-    const player = await db("players").where("id", player_id).first();
-    if (!player) throw new Error("Player not found");
-    const ability = await db("abilities").where("id", ability_id).first();
-    if (!ability) throw new Error("Ability not found");
+  async create(
+    roomId: number,
+    player_id: number,
+    ability_id: number,
+    is_active: boolean,
+  ) {
+    const player = await db("players")
+      .where({ id: player_id, room_id: roomId })
+      .first();
+    if (!player) throw new Error("Игрок не найден в этой комнате");
+    const ability = await db("abilities")
+      .where({ id: ability_id, room_id: roomId })
+      .first();
+    if (!ability) throw new Error("Способность не найдена в этой комнате");
 
     const existing = await db("player_abilities")
       .where({ player_id, ability_id })
@@ -96,7 +114,11 @@ export const playerAbilitiesService = {
     return result;
   },
 
-  async delete(player_id: number, ability_id: number) {
+  async delete(roomId: number, player_id: number, ability_id: number) {
+    const player = await db("players")
+      .where({ id: player_id, room_id: roomId })
+      .first();
+    if (!player) throw new Error("Игрок не найден в этой комнате");
     const ability = await db("abilities").where("id", ability_id).first();
     const deleted = await db("player_abilities")
       .where({ player_id, ability_id })
@@ -112,10 +134,15 @@ export const playerAbilitiesService = {
   },
 
   async toggleActive(
+    roomId: number,
     player_id: number,
     ability_id: number,
     is_active: boolean,
   ) {
+    const player = await db("players")
+      .where({ id: player_id, room_id: roomId })
+      .first();
+    if (!player) throw new Error("Игрок не найден в этой комнате");
     const ability = await db("abilities").where("id", ability_id).first();
     if (!ability) throw new Error("Ability not found");
     const [updated] = await db("player_abilities")
@@ -160,9 +187,14 @@ export const playerAbilitiesService = {
   },
 
   async useAbility(
+    roomId: number,
     playerId: number,
     abilityId: number,
   ): Promise<{ success: boolean; message: string; effect?: any }> {
+    const player = await db("players")
+      .where({ id: playerId, room_id: roomId })
+      .first();
+    if (!player) throw new Error("Игрок не найден в этой комнате");
     const playerAbility = await db("player_abilities")
       .where({ player_id: playerId, ability_id: abilityId })
       .first();
@@ -193,9 +225,6 @@ export const playerAbilitiesService = {
 
         if (isInstant) {
           // ---- Мгновенный эффект: применяем изменение здоровья ----
-          const player = await db("players").where("id", playerId).first();
-          if (!player) throw new Error("Игрок не найден");
-
           // Получаем все активные эффекты игрока (кроме текущего, который ещё не добавлен)
           const allActiveEffects = await db("player_active_effects")
             .where({ player_id: playerId })
@@ -264,21 +293,19 @@ export const playerAbilitiesService = {
           }
 
           // Логируем мгновенное применение (с пометкой instant)
-          const playerData = await db("players").where("id", playerId).first();
-          if (playerData) {
-            await logsService.create({
-              action_type: "effect_gain",
-              player_id: playerId,
-              npc_id: null,
-              entity_name: playerData.name,
-              action_name: effect.name,
-              details: JSON.stringify({
-                source_type: "ability",
-                source_id: abilityId,
-                instant: true,
-              }),
-            });
-          }
+          await logsService.create({
+            action_type: "effect_gain",
+            player_id: playerId,
+            npc_id: null,
+            entity_name: player.name,
+            action_name: effect.name,
+            details: JSON.stringify({
+              source_type: "ability",
+              source_id: abilityId,
+              instant: true,
+            }),
+            room_id: roomId,
+          });
 
           // Не создаём запись в active_effects
         } else {
@@ -304,21 +331,19 @@ export const playerAbilitiesService = {
       });
 
     // Логируем использование способности (всегда)
-    const player = await db("players").where({ id: playerId }).first();
-    if (player) {
-      await logsService.create({
-        action_type: "ability_use",
-        player_id: playerId,
-        npc_id: null,
-        entity_name: player.name,
-        action_name: ability.name,
-        details: JSON.stringify({
-          ability_id: abilityId,
-          cooldown: ability.cooldown_turns,
-          instant_effect: isInstant,
-        }),
-      });
-    }
+    await logsService.create({
+      action_type: "ability_use",
+      player_id: playerId,
+      npc_id: null,
+      entity_name: player.name,
+      action_name: ability.name,
+      details: JSON.stringify({
+        ability_id: abilityId,
+        cooldown: ability.cooldown_turns,
+        instant_effect: isInstant,
+      }),
+      room_id: roomId,
+    });
 
     await emitPlayerUpdate(playerId);
     return {

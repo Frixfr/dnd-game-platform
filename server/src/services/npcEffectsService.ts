@@ -1,15 +1,25 @@
+// server/src/services/npcEffectsService.ts
 import { db } from "../db/index.js";
 import { getFullNpcData } from "../utils/helpers.js";
 
 export const npcEffectsService = {
-  async getAll(filters: {
-    npc_id?: number;
-    effect_id?: number;
-    source_type?: string;
-    with_details?: boolean;
-  }) {
+  async getAll(
+    roomId: number,
+    filters: {
+      npc_id?: number;
+      effect_id?: number;
+      source_type?: string;
+      with_details?: boolean;
+    },
+  ) {
     let query = db("npc_active_effects").select("*");
-    if (filters.npc_id) query = query.where("npc_id", filters.npc_id);
+    if (filters.npc_id) {
+      const npc = await db("npcs")
+        .where({ id: filters.npc_id, room_id: roomId })
+        .first();
+      if (!npc) throw new Error("NPC не найден в этой комнате");
+      query = query.where("npc_id", filters.npc_id);
+    }
     if (filters.effect_id) query = query.where("effect_id", filters.effect_id);
     if (filters.source_type)
       query = query.where("source_type", filters.source_type);
@@ -24,17 +34,24 @@ export const npcEffectsService = {
     return rows;
   },
 
-  async create(data: {
-    npc_id: number;
-    effect_id: number;
-    source_type: string;
-    source_id: number | null;
-    remaining_turns: number | null;
-    remaining_days: number | null;
-  }) {
-    const npc = await db("npcs").where("id", data.npc_id).first();
-    if (!npc) throw new Error("NPC not found");
-    const effect = await db("effects").where("id", data.effect_id).first();
+  async create(
+    roomId: number,
+    data: {
+      npc_id: number;
+      effect_id: number;
+      source_type: string;
+      source_id: number | null;
+      remaining_turns: number | null;
+      remaining_days: number | null;
+    },
+  ) {
+    const npc = await db("npcs")
+      .where({ id: data.npc_id, room_id: roomId })
+      .first();
+    if (!npc) throw new Error("NPC не найден в этой комнате");
+    const effect = await db("effects")
+      .where({ id: data.effect_id, room_id: roomId })
+      .first();
     if (!effect) throw new Error("Effect not found");
 
     // Получаем все активные эффекты NPC (кроме текущего, который ещё не добавлен)
@@ -43,12 +60,12 @@ export const npcEffectsService = {
       .where({ npc_id: data.npc_id })
       .join("effects", "npc_active_effects.effect_id", "effects.id")
       .select("effects.*");
-    
+
     const fullNpcData = await getFullNpcData(data.npc_id);
-    const passiveEffects = fullNpcData 
+    const passiveEffects = fullNpcData
       ? fullNpcData.items.flatMap((item) => item.passive_effects || [])
       : [];
-    
+
     // Получаем эффекты расы для учёта бонусов к max_health
     let raceEffects: any[] = [];
     if (npc.race_id) {
@@ -58,7 +75,7 @@ export const npcEffectsService = {
         .select("effects.*");
       raceEffects = raceEffectsRaw;
     }
-    
+
     // Считаем бонус к max_health от всех активных и пассивных эффектов, включая расу
     let maxHealthBonus = 0;
     for (const e of allActiveEffects) {
@@ -76,31 +93,46 @@ export const npcEffectsService = {
         maxHealthBonus += re.modifier;
       }
     }
-    
+
     // Если текущий эффект тоже увеличивает max_health, добавляем его бонус
-    if (effect.attribute === "max_health" && typeof effect.modifier === "number") {
+    if (
+      effect.attribute === "max_health" &&
+      typeof effect.modifier === "number"
+    ) {
       maxHealthBonus += effect.modifier;
     }
-    
+
     const effectiveMaxHealth = npc.max_health + maxHealthBonus;
 
     // Если эффект увеличивает max_health, то увеличиваем и текущее здоровье
     // Если эффект изменяет health (лечение/урон), применяем сразу
     let newHealth = npc.health;
-    if (effect.attribute === "max_health" && typeof effect.modifier === "number") {
+    if (
+      effect.attribute === "max_health" &&
+      typeof effect.modifier === "number"
+    ) {
       newHealth = Math.min(npc.health + effect.modifier, effectiveMaxHealth);
-    } else if (effect.attribute === "health" && typeof effect.modifier === "number") {
-      newHealth = Math.max(0, Math.min(npc.health + effect.modifier, effectiveMaxHealth));
+    } else if (
+      effect.attribute === "health" &&
+      typeof effect.modifier === "number"
+    ) {
+      newHealth = Math.max(
+        0,
+        Math.min(npc.health + effect.modifier, effectiveMaxHealth),
+      );
     }
 
     // Мгновенные эффекты: применяем health-изменение, но НЕ создаём запись в active_effects
     if (effect.is_instant) {
       if (newHealth !== npc.health) {
-        await db("npcs")
-          .where("id", data.npc_id)
-          .update({ health: newHealth });
+        await db("npcs").where("id", data.npc_id).update({ health: newHealth });
       }
-      return { ...effect, remaining_turns: null, remaining_days: null, applied_at: new Date().toISOString() };
+      return {
+        ...effect,
+        remaining_turns: null,
+        remaining_days: null,
+        applied_at: new Date().toISOString(),
+      };
     }
 
     const [newEffect] = await db("npc_active_effects")
@@ -117,17 +149,15 @@ export const npcEffectsService = {
 
     // Применяем увеличение здоровья если нужно
     if (newHealth !== npc.health) {
-      await db("npcs")
-        .where("id", data.npc_id)
-        .update({ health: newHealth });
+      await db("npcs").where("id", data.npc_id).update({ health: newHealth });
     }
 
     return newEffect;
   },
 
-  async delete(npc_id: number, effect_id: number) {
-    const npc = await db("npcs").where("id", npc_id).first();
-    if (!npc) throw new Error("NPC not found");
+  async delete(roomId: number, npc_id: number, effect_id: number) {
+    const npc = await db("npcs").where({ id: npc_id, room_id: roomId }).first();
+    if (!npc) throw new Error("NPC не найден в этой комнате");
 
     const activeEffect = await db("npc_active_effects")
       .where({ npc_id, effect_id })
@@ -174,9 +204,14 @@ export const npcEffectsService = {
       // Также учитываем пассивные эффекты от предметов
       const fullNpcData = await getFullNpcData(npc_id);
       if (fullNpcData) {
-        const passiveEffects = fullNpcData.items.flatMap((item) => item.passive_effects || []);
+        const passiveEffects = fullNpcData.items.flatMap(
+          (item) => item.passive_effects || [],
+        );
         for (const pe of passiveEffects) {
-          if (pe.attribute === "max_health" && typeof pe.modifier === "number") {
+          if (
+            pe.attribute === "max_health" &&
+            typeof pe.modifier === "number"
+          ) {
             remainingMaxHealthBonus += pe.modifier;
           }
         }
@@ -207,9 +242,7 @@ export const npcEffectsService = {
 
     // Применяем уменьшение здоровья если нужно
     if (newHealth !== npc.health) {
-      await db("npcs")
-        .where("id", npc_id)
-        .update({ health: newHealth });
+      await db("npcs").where("id", npc_id).update({ health: newHealth });
     }
 
     return true;
