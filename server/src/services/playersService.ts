@@ -13,13 +13,16 @@ import { playerItemsService } from "./playerItemsService.js";
 import { logsService } from "./logsService.js";
 
 export const playersService = {
+  // === ВСЕ МЕТОДЫ ПРИНИМАЮТ roomId как первый параметр ===
+
   async getAll(
+    roomId: number,
     card_shown_only?: boolean,
     available_for_selection?: boolean,
     page?: number,
     limit?: number,
   ): Promise<Player[] | PaginatedResponse<Player>> {
-    let query = db("players").select("*");
+    let query = db("players").select("*").where("room_id", roomId);
     if (card_shown_only) {
       query = query.where("is_card_shown", true);
     }
@@ -45,8 +48,8 @@ export const playersService = {
     return { data, total, page, limit };
   },
 
-  async getAllFull(): Promise<FullPlayerData[]> {
-    const players = await db("players").select("*");
+  async getAllFull(roomId: number): Promise<FullPlayerData[]> {
+    const players = await db("players").select("*").where("room_id", roomId);
     if (players.length === 0) return [];
 
     const playerIds = players.map((p) => p.id);
@@ -239,7 +242,10 @@ export const playersService = {
 
     if (playersWithRace.length > 0) {
       const raceIds = [...new Set(playersWithRace.map((p) => p.race_id!))];
-      const races = await db("races").whereIn("id", raceIds).select("*");
+      const races = await db("races")
+        .whereIn("id", raceIds)
+        .andWhere("room_id", roomId)
+        .select("*");
       const raceEffectsRaw = await db("race_effects")
         .whereIn("race_id", raceIds)
         .join("effects", "race_effects.effect_id", "effects.id")
@@ -296,11 +302,12 @@ export const playersService = {
   },
 
   async getAllFullPaginated(
+    roomId: number,
     page: number,
     limit: number,
     card_shown_only?: boolean,
   ): Promise<PaginatedResponse<FullPlayerData>> {
-    let query = db("players").select("*");
+    let query = db("players").select("*").where("room_id", roomId);
     if (card_shown_only) {
       query = query.where("is_card_shown", true);
     }
@@ -501,7 +508,10 @@ export const playersService = {
 
     if (playersWithRacePag.length > 0) {
       const raceIds = [...new Set(playersWithRacePag.map((p) => p.race_id!))];
-      const races = await db("races").whereIn("id", raceIds).select("*");
+      const races = await db("races")
+        .whereIn("id", raceIds)
+        .andWhere("room_id", roomId)
+        .select("*");
       const raceEffectsRawPag = await db("race_effects")
         .whereIn("race_id", raceIds)
         .join("effects", "race_effects.effect_id", "effects.id")
@@ -558,27 +568,33 @@ export const playersService = {
     return { data: result, total, page, limit };
   },
 
-  async getById(id: number): Promise<Player | null> {
-    return db("players").where({ id }).first();
+  async getById(roomId: number, id: number): Promise<Player | null> {
+    return db("players").where({ id, room_id: roomId }).first();
   },
 
-  async getFullDetails(id: number): Promise<FullPlayerData | null> {
-    return getFullPlayerData(id.toString());
+  async getFullDetails(
+    roomId: number,
+    id: number,
+  ): Promise<FullPlayerData | null> {
+    return getFullPlayerData(String(id)); // getFullPlayerData уже использует room_id из игрока
   },
 
-  async loginWithPassword(password: string, roomId?: number): Promise<Player | null> {
-    let query = db("players").where({ access_password: password });
-    if (roomId !== undefined) {
-      query = query.andWhere({ room_id: roomId });
-    }
-    const player = await query.first();
+  async loginWithPassword(password: string): Promise<Player | null> {
+    // Не требует roomId — используется при входе игрока, игроки видят только активную комнату
+    const player = await db("players")
+      .where({ access_password: password })
+      .first();
     return player || null;
   },
 
-  async create(data: Omit<Player, "id" | "created_at">): Promise<Player> {
+  async create(
+    roomId: number,
+    data: Omit<Player, "id" | "created_at" | "room_id">,
+  ): Promise<Player> {
     const [player] = await db("players")
       .insert({
         ...data,
+        room_id: roomId,
         access_password: data.access_password ?? null,
       })
       .returning("*");
@@ -586,22 +602,29 @@ export const playersService = {
     return player;
   },
 
-  async update(id: number, data: Partial<Player>): Promise<Player | null> {
+  async update(
+    roomId: number,
+    id: number,
+    data: Partial<Player>,
+  ): Promise<Player | null> {
+    // Сначала проверим, что игрок принадлежит комнате
+    const existing = await db("players").where({ id, room_id: roomId }).first();
+    if (!existing) return null;
+
     if (data.access_password === "") {
       data.access_password = null;
     }
     if (data.access_password !== undefined && data.access_password !== null) {
-      const existing = await db("players")
+      const existingWithPass = await db("players")
         .where({ access_password: data.access_password })
         .whereNotNull("access_password")
         .whereNot("id", id)
         .first();
-      if (existing) {
+      if (existingWithPass) {
         throw new Error("Этот пароль уже используется другим игроком");
       }
     }
 
-    // Если обновляется здоровье, проверить его относительно эффективного максимума
     if (data.health !== undefined && typeof data.health === "number") {
       let newHealth = data.health;
       const fullData = await getFullPlayerData(String(id));
@@ -611,13 +634,10 @@ export const playersService = {
           newHealth = effectiveMaxHealth;
         }
       } else {
-        // fallback: использовать базовое max_health из БД
-        const player = await db("players").where({ id }).first();
-        if (player && newHealth > player.max_health) {
-          newHealth = player.max_health;
+        if (newHealth > existing.max_health) {
+          newHealth = existing.max_health;
         }
       }
-      // здоровье не может быть отрицательным
       if (newHealth < 0) newHealth = 0;
       data.health = newHealth;
     }
@@ -630,17 +650,20 @@ export const playersService = {
     return updated || null;
   },
 
-  async delete(id: number): Promise<boolean> {
-    const deleted = await db("players").where({ id }).delete();
-    if (deleted) getIO().emit("player:deleted", id);
+  async delete(roomId: number, id: number): Promise<boolean> {
+    const deleted = await db("players").where({ id, room_id: roomId }).delete();
+    if (deleted) getIO().to(`room:${roomId}`).emit("player:deleted", id);
     return deleted > 0;
   },
 
   async addItemsBatch(
+    roomId: number,
     playerId: number,
     items: { item_id: number; quantity: number }[],
   ) {
-    const player = await db("players").where("id", playerId).first();
+    const player = await db("players")
+      .where({ id: playerId, room_id: roomId })
+      .first();
     if (!player) throw new Error("Игрок не найден");
 
     const results = [];
@@ -688,10 +711,13 @@ export const playersService = {
   },
 
   async setPassword(
+    roomId: number,
     playerId: number,
     password: string,
   ): Promise<Player | null> {
-    const player = await db("players").where({ id: playerId }).first();
+    const player = await db("players")
+      .where({ id: playerId, room_id: roomId })
+      .first();
     if (!player) throw new Error("Игрок не найден");
     if (player.access_password !== null) {
       throw new Error("Пароль уже установлен для этого игрока");
@@ -711,14 +737,21 @@ export const playersService = {
     return updated || null;
   },
 
-  async addAbilitiesBatch(playerId: number, abilityIds: number[]) {
-    const player = await db("players").where("id", playerId).first();
+  async addAbilitiesBatch(
+    roomId: number,
+    playerId: number,
+    abilityIds: number[],
+  ) {
+    const player = await db("players")
+      .where({ id: playerId, room_id: roomId })
+      .first();
     if (!player) throw new Error("Игрок не найден");
 
     const results = [];
     for (const ability_id of abilityIds) {
       try {
         const playerAbility = await playerAbilitiesService.create(
+          roomId,
           playerId,
           ability_id,
           true,
@@ -745,8 +778,10 @@ export const playersService = {
     };
   },
 
-  async addEffectsBatch(playerId: number, effectIds: number[]) {
-    const player = await db("players").where("id", playerId).first();
+  async addEffectsBatch(roomId: number, playerId: number, effectIds: number[]) {
+    const player = await db("players")
+      .where({ id: playerId, room_id: roomId })
+      .first();
     if (!player) throw new Error("Игрок не найден");
 
     const results = [];
@@ -789,7 +824,11 @@ export const playersService = {
     return { success: true, message: "Операция завершена", results };
   },
 
-  async removeItem(playerId: number, itemId: number) {
+  async removeItem(roomId: number, playerId: number, itemId: number) {
+    const player = await db("players")
+      .where({ id: playerId, room_id: roomId })
+      .first();
+    if (!player) throw new Error("Игрок не найден");
     const deleted = await db("player_items")
       .where({ player_id: playerId, item_id: itemId })
       .delete();
@@ -798,13 +837,23 @@ export const playersService = {
     return true;
   },
 
-  async removeAbility(playerId: number, abilityId: number) {
-    await playerAbilitiesService.delete(playerId, abilityId);
+  async removeAbility(roomId: number, playerId: number, abilityId: number) {
+    // Проверяем, что игрок принадлежит комнате
+    const player = await db("players")
+      .where({ id: playerId, room_id: roomId })
+      .first();
+    if (!player) throw new Error("Игрок не найден");
+
+    await playerAbilitiesService.delete(roomId, playerId, abilityId);
     await emitPlayerUpdate(playerId);
     return true;
   },
 
-  async removeEffect(playerId: number, effectId: number) {
+  async removeEffect(roomId: number, playerId: number, effectId: number) {
+    const player = await db("players")
+      .where({ id: playerId, room_id: roomId })
+      .first();
+    if (!player) throw new Error("Игрок не найден");
     const deleted = await db("player_active_effects")
       .where({ player_id: playerId, effect_id: effectId, source_type: "admin" })
       .delete();
@@ -814,7 +863,16 @@ export const playersService = {
     return true;
   },
 
-  async toggleEquip(playerId: number, itemId: number, is_equipped: boolean) {
+  async toggleEquip(
+    roomId: number,
+    playerId: number,
+    itemId: number,
+    is_equipped: boolean,
+  ) {
+    const player = await db("players")
+      .where({ id: playerId, room_id: roomId })
+      .first();
+    if (!player) throw new Error("Игрок не найден");
     const [updated] = await db("player_items")
       .where({ player_id: playerId, item_id: itemId })
       .update({ is_equipped })
@@ -824,8 +882,18 @@ export const playersService = {
     return updated;
   },
 
-  async toggleAbility(playerId: number, abilityId: number, is_active: boolean) {
+  async toggleAbility(
+    roomId: number,
+    playerId: number,
+    abilityId: number,
+    is_active: boolean,
+  ) {
+    const player = await db("players")
+      .where({ id: playerId, room_id: roomId })
+      .first();
+    if (!player) throw new Error("Игрок не найден");
     const updated = await playerAbilitiesService.toggleActive(
+      roomId,
       playerId,
       abilityId,
       is_active,
@@ -835,20 +903,22 @@ export const playersService = {
   },
 
   async updateAvatar(
+    roomId: number,
     id: number,
     avatarUrl: string | null,
   ): Promise<Player | null> {
     const [updated] = await db("players")
-      .where({ id })
+      .where({ id, room_id: roomId })
       .update({ avatar_url: avatarUrl })
       .returning("*");
     if (updated) await emitPlayerUpdate(id);
     return updated || null;
   },
 
-  async deleteAvatar(id: number): Promise<Player | null> {
-    const player = await db("players").where({ id }).first();
-    if (player?.avatar_url) {
+  async deleteAvatar(roomId: number, id: number): Promise<Player | null> {
+    const player = await db("players").where({ id, room_id: roomId }).first();
+    if (!player) return null;
+    if (player.avatar_url) {
       const fs = await import("fs");
       const path = await import("path");
       const filePath = path.join(process.cwd(), player.avatar_url);
@@ -864,8 +934,10 @@ export const playersService = {
     return updated || null;
   },
 
-  async useItem(playerId: number, playerItemId: number) {
-    const player = await db("players").where({ id: playerId }).first();
+  async useItem(roomId: number, playerId: number, playerItemId: number) {
+    const player = await db("players")
+      .where({ id: playerId, room_id: roomId })
+      .first();
     if (!player) throw new Error("Игрок не найден");
 
     const playerItem = await db("player_items")
@@ -875,7 +947,11 @@ export const playersService = {
     const item = await db("items").where({ id: playerItem.item_id }).first();
     if (!item) throw new Error("Предмет не найден");
 
-    const result = await playerItemsService.useItem(playerId, playerItemId);
+    const result = await playerItemsService.useItem(
+      roomId,
+      playerId,
+      playerItemId,
+    );
 
     await logsService.create({
       action_type: "item_use",
@@ -887,6 +963,7 @@ export const playersService = {
         item_id: item.id,
         quantity_before: playerItem.quantity,
       }),
+      room_id: roomId,
     });
 
     await emitPlayerUpdate(playerId);
@@ -894,18 +971,28 @@ export const playersService = {
   },
 
   async useAbility(
+    roomId: number,
     playerId: number,
     abilityId: number,
   ): Promise<{ success: boolean; message: string; effect?: any }> {
-    return playerAbilitiesService.useAbility(playerId, abilityId);
+    // Проверяем, что игрок принадлежит комнате
+    const player = await db("players")
+      .where({ id: playerId, room_id: roomId })
+      .first();
+    if (!player) throw new Error("Игрок не найден");
+
+    return playerAbilitiesService.useAbility(roomId, playerId, abilityId);
   },
 
-  async getAllWithFilters(filters: {
-    online?: boolean;
-    is_card_shown?: boolean;
-    excludeId?: number;
-  }) {
-    let query = db("players").select("*");
+  async getAllWithFilters(
+    roomId: number,
+    filters: {
+      online?: boolean;
+      is_card_shown?: boolean;
+      excludeId?: number;
+    },
+  ) {
+    let query = db("players").select("*").where("room_id", roomId);
     if (filters.online !== undefined) {
       query = query.where("is_online", filters.online);
     }

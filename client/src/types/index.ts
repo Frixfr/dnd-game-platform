@@ -68,6 +68,7 @@ export interface Effect {
   duration_turns: number | null;
   duration_days: number | null;
   is_permanent: boolean;
+  is_instant: boolean;
   tags: string[];
 }
 

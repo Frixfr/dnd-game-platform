@@ -1,10 +1,11 @@
-// LoginPage - Новый дизайн в стиле Midnight Blue + Torch Red
+// client/src/pages/LoginPage.tsx
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MasterAuthModal from '../components/ui/MasterAuthModal';
 import PlayerAuthModal from '../components/ui/PlayerAuthModal';
 import { disconnectAllSocketHandlers } from '../lib/socketCleanup';
 import { usePlayerSessionStore } from '../stores/playerSessionStore';
+import { useRoomStore } from '../stores/roomStore';
 import { Shield, Sword, Sparkles } from 'lucide-react';
 
 const LoginPage: React.FC = () => {
@@ -15,10 +16,23 @@ const LoginPage: React.FC = () => {
   useEffect(() => {
     disconnectAllSocketHandlers();
     usePlayerSessionStore.getState().clearSession();
-  }, []);
+
+    // Проверяем состояние комнаты
+    const { token, currentRoom } = useRoomStore.getState();
+    if (token) {
+      if (currentRoom) {
+        // Если есть токен и комната — редирект на мастер-интерфейс
+        navigate('/master');
+      } else {
+        // Если есть токен, но нет комнаты — на страницу комнат
+        navigate('/rooms');
+      }
+    }
+  }, [navigate]);
 
   const handleMasterLoginSuccess = () => {
-    navigate('/master');
+    // После успешного входа мастера — переходим на страницу выбора комнаты
+    navigate('/rooms');
   };
 
   return (

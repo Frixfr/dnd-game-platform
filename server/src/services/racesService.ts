@@ -5,8 +5,9 @@ import type { Race } from "../types/index.js";
 import { emitPlayerUpdate, emitNpcUpdate } from "../socket/index.js";
 
 export const racesService = {
-  async getAll(): Promise<(Race & { effects: any[] })[]> {
-    const races = await db("races").select("*");
+  // ADDED roomId
+  async getAll(roomId: number): Promise<(Race & { effects: any[] })[]> {
+    const races = await db("races").select("*").where("room_id", roomId);
     if (races.length === 0) return races;
 
     const raceIds = races.map((r) => r.id);
@@ -28,14 +29,17 @@ export const racesService = {
     }));
   },
 
-  async getById(id: string): Promise<Race | null> {
-    return db("races").where({ id }).first();
+  // ADDED roomId
+  async getById(roomId: number, id: string): Promise<Race | null> {
+    return db("races").where({ id, room_id: roomId }).first();
   },
 
+  // ADDED roomId
   async getWithEffects(
+    roomId: number,
     id: string,
   ): Promise<(Race & { effects: any[] }) | null> {
-    const race = await db("races").where({ id }).first();
+    const race = await db("races").where({ id, room_id: roomId }).first();
     if (!race) return null;
     const effects = await db("race_effects")
       .where("race_id", id)
@@ -44,11 +48,15 @@ export const racesService = {
     return { ...race, effects };
   },
 
+  // ADDED roomId
   async create(
-    data: Omit<Race, "id" | "created_at">,
+    roomId: number,
+    data: Omit<Race, "id" | "created_at" | "room_id">,
     effectIds: number[] = [],
   ): Promise<Race> {
-    const [race] = await db("races").insert(data).returning("*");
+    const [race] = await db("races")
+      .insert({ ...data, room_id: roomId })
+      .returning("*");
     if (effectIds.length) {
       const raceEffects = effectIds.map((effect_id) => ({
         race_id: race.id,
@@ -59,11 +67,17 @@ export const racesService = {
     return race;
   },
 
+  // ADDED roomId
   async update(
+    roomId: number,
     id: string,
-    data: Partial<Race>,
+    data: Partial<Omit<Race, "id" | "created_at" | "room_id">>,
     effectIds?: number[],
   ): Promise<Race | null> {
+    // Проверяем, что раса принадлежит комнате
+    const existing = await db("races").where({ id, room_id: roomId }).first();
+    if (!existing) return null;
+
     if (effectIds !== undefined && effectIds.length > 0) {
       const existingEffects = await db("effects")
         .whereIn("id", effectIds)
@@ -103,7 +117,11 @@ export const racesService = {
     return updated || null;
   },
 
-  async delete(id: string): Promise<boolean> {
+  // ADDED roomId
+  async delete(roomId: number, id: string): Promise<boolean> {
+    const race = await db("races").where({ id, room_id: roomId }).first();
+    if (!race) return false;
+
     const usedByPlayer = await db("players").where("race_id", id).first();
     if (usedByPlayer) throw new Error("Race is used by players");
     const usedByNpc = await db("npcs").where("race_id", id).first();

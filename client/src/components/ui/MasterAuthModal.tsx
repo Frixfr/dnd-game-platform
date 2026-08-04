@@ -1,8 +1,7 @@
+// client/src/components/ui/MasterAuthModal.tsx
 import React, { useState } from 'react';
 import Modal from './Modal';
-import { socket } from '../../lib/socket';
-
-const MASTER_PASSWORD = 'dm123';
+import { useRoomStore } from '../../stores/roomStore';
 
 interface MasterAuthModalProps {
   onClose: () => void;
@@ -16,25 +15,16 @@ const MasterAuthModal: React.FC<MasterAuthModalProps> = ({ onClose, onSuccess })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password !== MASTER_PASSWORD) {
-      setError('Неверный пароль');
-      return;
-    }
+    setError('');
     setIsLoading(true);
+
     try {
-      socket.emit('master:auth', password);
-
-      const successPromise = new Promise<void>((resolve, reject) => {
-        socket.once('master:auth:success', () => resolve());
-        socket.once('master:auth:error', (errMsg: string) => reject(new Error(errMsg)));
-        setTimeout(() => reject(new Error('Таймаут аутентификации')), 5000);
-      });
-
-      await successPromise;
+      await useRoomStore.getState().loginAsMaster(password);
       onSuccess();
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Ошибка аутентификации';
-      setError(errorMessage);
+    } catch {
+      // Ошибка уже сохранена в сторе, берём оттуда
+      const storeError = useRoomStore.getState().error;
+      setError(storeError || 'Неверный пароль или ошибка сети');
     } finally {
       setIsLoading(false);
     }

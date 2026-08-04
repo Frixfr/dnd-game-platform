@@ -24,9 +24,11 @@ interface PlayerStore {
   playersTotal: number;
   currentPage: number;
   limit: number;
+  roomId: number | null;
   socket: typeof socket;
   initializeSocket: () => void;
-  disconnectSocket: () => void; // <-- добавили
+  disconnectSocket: () => void;
+  setRoomId: (roomId: number | null) => void;
   setPlayers: (
     players: PlayerType[],
     total: number,
@@ -59,6 +61,7 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
   playersTotal: 0,
   currentPage: 1,
   limit: 20,
+  roomId: null,
   socket,
 
   initializeSocket: () => {
@@ -110,6 +113,12 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
     socket.on("player:deleted", onDeleted);
 
     playerSocketHandlers = { onConnect, onCreated, onUpdated, onDeleted };
+
+    // Отправляем join-room с текущим roomId
+    const roomId = get().roomId;
+    if (roomId !== null && roomId !== undefined) {
+      socket.emit("join-room", { roomId });
+    }
   },
 
   disconnectSocket: () => {
@@ -122,6 +131,13 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
     playerSocketInitialized = false;
     playerSocketHandlers = null;
     console.log("PlayerStore socket handlers removed");
+  },
+
+  setRoomId: (roomId) => {
+    set({ roomId });
+    if (socket.connected) {
+      socket.emit("join-room", { roomId });
+    }
   },
 
   fetchPlayers: async (page = 1, limit = 20) => {

@@ -26,6 +26,7 @@ interface MapStore {
   activeMap: MapWithTokensType | null;
   currentMap: MapWithTokensType | null;
   loading: boolean;
+  roomId: number | null;
   fetchMaps: () => Promise<void>;
   fetchMap: (id: number) => Promise<void>;
   fetchActiveMap: () => Promise<void>;
@@ -48,6 +49,7 @@ interface MapStore {
   getAvailableEntities: () => Promise<AvailableEntities>;
   initializeSocket: () => void;
   disconnectSocket: () => void;
+  setRoomId: (roomId: number | null) => void;
 }
 
 export const useMapStore = create<MapStore>((set, get) => ({
@@ -55,6 +57,7 @@ export const useMapStore = create<MapStore>((set, get) => ({
   activeMap: null,
   currentMap: null,
   loading: false,
+  roomId: null,
 
   initializeSocket: () => {
     if (mapSocketInitialized) return;
@@ -120,6 +123,11 @@ export const useMapStore = create<MapStore>((set, get) => ({
       onTokensUpdated,
       onActiveTokensUpdated,
     };
+
+    const roomId = get().roomId;
+    if (roomId !== null && roomId !== undefined) {
+      socket.emit("join-room", { roomId });
+    }
   },
 
   disconnectSocket: () => {
@@ -143,6 +151,13 @@ export const useMapStore = create<MapStore>((set, get) => ({
     mapSocketInitialized = false;
     mapSocketHandlers = null;
     console.log("MapStore socket handlers removed");
+  },
+
+  setRoomId: (roomId) => {
+    set({ roomId });
+    if (socket.connected) {
+      socket.emit("join-room", { roomId });
+    }
   },
 
   fetchMaps: async () => {

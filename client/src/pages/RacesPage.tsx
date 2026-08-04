@@ -47,15 +47,15 @@ export const RacesPage = () => {
   };
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
+    <div className="p-4 md:p-6 max-w-6xl mx-auto">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-text-primary">Расы</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-text-primary">Расы</h1>
           <p className="text-text-secondary mt-1">Всего рас: {races.length}</p>
         </div>
-        <button 
+        <button
           onClick={() => setIsCreateOpen(true)}
-          className="btn-primary"
+          className="btn-primary w-full sm:w-auto"
         >
           + Создать расу
         </button>

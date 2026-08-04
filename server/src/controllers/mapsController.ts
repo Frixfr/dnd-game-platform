@@ -5,9 +5,10 @@ import { getIO } from "../socket/index.js";
 
 export const mapsController = {
   // Получить все карты
-  async getAllMaps(_req: Request, res: Response) {
+  async getAllMaps(req: Request, res: Response) {
     try {
-      const maps = await mapsService.getAllMaps();
+      const roomId = req.roomId!;
+      const maps = await mapsService.getAllMaps(roomId);
       res.json(maps);
     } catch (error) {
       console.error(error);
@@ -18,15 +19,16 @@ export const mapsController = {
   // Получить карту с токенами
   async getMapWithTokens(req: Request, res: Response) {
     try {
+      const roomId = req.roomId!;
       const id = parseInt(String(req.params.id));
       if (isNaN(id)) {
         return res.status(400).json({ error: "Неверный ID карты" });
       }
-      const map = await mapsService.getMapById(id);
+      const map = await mapsService.getMapById(roomId, id);
       if (!map) {
         return res.status(404).json({ error: "Карта не найдена" });
       }
-      const tokens = await mapsService.getTokensByMapId(id);
+      const tokens = await mapsService.getTokensByMapId(roomId, id);
       res.json({ ...map, tokens });
     } catch (error) {
       console.error(error);
@@ -37,6 +39,7 @@ export const mapsController = {
   // Создать карту (с загрузкой изображения)
   async createMap(req: Request, res: Response) {
     try {
+      const roomId = req.roomId!;
       const { name, show_to_players } = req.body;
       if (!name) {
         return res.status(400).json({ error: "Название карты обязательно" });
@@ -49,12 +52,13 @@ export const mapsController = {
       }
       const imageUrl = `/uploads/maps/${file.filename}`;
       const map = await mapsService.createMap(
+        roomId,
         { name, show_to_players: show_to_players === "true" },
         imageUrl,
-        file.path, // добавить аргумент
+        file.path,
       );
       const io = getIO();
-      io.emit("map:created", map);
+      io.to(`room:${roomId}`).emit("map:created", map);
       res.status(201).json(map);
     } catch (error) {
       console.error(error);
@@ -65,12 +69,13 @@ export const mapsController = {
   // Обновить карту (только имя, show_to_players)
   async updateMap(req: Request, res: Response) {
     try {
+      const roomId = req.roomId!;
       const id = parseInt(String(req.params.id));
       if (isNaN(id)) {
         return res.status(400).json({ error: "Неверный ID карты" });
       }
       const { name, show_to_players } = req.body;
-      const updated = await mapsService.updateMap(id, {
+      const updated = await mapsService.updateMap(roomId, id, {
         name,
         show_to_players,
       });
@@ -78,12 +83,12 @@ export const mapsController = {
         return res.status(404).json({ error: "Карта не найдена" });
       }
       const io = getIO();
-      io.emit("map:updated", updated);
+      io.to(`room:${roomId}`).emit("map:updated", updated);
       // Если show_to_players изменился, обновляем всех
       if (show_to_players !== undefined) {
-        await mapsService.setShowToPlayers(id, show_to_players);
-        const activeMap = await mapsService.getActiveMapForPlayers();
-        io.emit("map:active-changed", activeMap);
+        await mapsService.setShowToPlayers(roomId, id, show_to_players);
+        const activeMap = await mapsService.getActiveMapForPlayers(roomId);
+        io.to(`room:${roomId}`).emit("map:active-changed", activeMap);
       }
       res.json(updated);
     } catch (error) {
@@ -95,13 +100,14 @@ export const mapsController = {
   // Удалить карту
   async deleteMap(req: Request, res: Response) {
     try {
+      const roomId = req.roomId!;
       const id = parseInt(String(req.params.id));
       if (isNaN(id)) {
         return res.status(400).json({ error: "Неверный ID карты" });
       }
-      await mapsService.deleteMap(id);
+      await mapsService.deleteMap(roomId, id);
       const io = getIO();
-      io.emit("map:deleted", id);
+      io.to(`room:${roomId}`).emit("map:deleted", id);
       res.status(204).send();
     } catch (error) {
       console.error(error);
@@ -110,13 +116,14 @@ export const mapsController = {
   },
 
   // Получить активную карту для игроков
-  async getActiveMap(_req: Request, res: Response) {
+  async getActiveMap(req: Request, res: Response) {
     try {
-      const map = await mapsService.getActiveMapForPlayers();
+      const roomId = req.roomId!;
+      const map = await mapsService.getActiveMapForPlayers(roomId);
       if (!map) {
         return res.json(null);
       }
-      const tokens = await mapsService.getTokensByMapId(map.id);
+      const tokens = await mapsService.getTokensByMapId(roomId, map.id);
       res.json({ ...map, tokens });
     } catch (error) {
       console.error(error);
@@ -127,11 +134,12 @@ export const mapsController = {
   // --- Токены ---
   async getTokens(req: Request, res: Response) {
     try {
+      const roomId = req.roomId!;
       const mapId = parseInt(String(req.params.mapId));
       if (isNaN(mapId)) {
         return res.status(400).json({ error: "Неверный ID карты" });
       }
-      const tokens = await mapsService.getTokensByMapId(mapId);
+      const tokens = await mapsService.getTokensByMapId(roomId, mapId);
       res.json(tokens);
     } catch (error) {
       console.error(error);
@@ -141,6 +149,7 @@ export const mapsController = {
 
   async addOrUpdateToken(req: Request, res: Response) {
     try {
+      const roomId = req.roomId!;
       const mapId = parseInt(String(req.params.mapId));
       if (isNaN(mapId)) {
         return res.status(400).json({ error: "Неверный ID карты" });
@@ -152,6 +161,7 @@ export const mapsController = {
           .json({ error: "entity_type и entity_id обязательны" });
       }
       const token = await mapsService.addOrUpdateToken(
+        roomId,
         mapId,
         entity_type,
         entity_id,
@@ -159,12 +169,15 @@ export const mapsController = {
       );
       const io = getIO();
       // Отправляем обновлённый список токенов для этой карты
-      const allTokens = await mapsService.getTokensByMapId(mapId);
-      io.emit("map:tokens-updated", { mapId, tokens: allTokens });
+      const allTokens = await mapsService.getTokensByMapId(roomId, mapId);
+      io.to(`room:${roomId}`).emit("map:tokens-updated", {
+        mapId,
+        tokens: allTokens,
+      });
       // Также обновляем активную карту, если эта карта показывается игрокам
-      const map = await mapsService.getMapById(mapId);
+      const map = await mapsService.getMapById(roomId, mapId);
       if (map?.show_to_players) {
-        io.emit("map:active-tokens-updated", allTokens);
+        io.to(`room:${roomId}`).emit("map:active-tokens-updated", allTokens);
       }
       res.json(token);
     } catch (error) {
@@ -175,6 +188,7 @@ export const mapsController = {
 
   async deleteToken(req: Request, res: Response) {
     try {
+      const roomId = req.roomId!;
       const mapId = parseInt(String(req.params.mapId));
       if (isNaN(mapId)) {
         return res.status(400).json({ error: "Неверный ID карты" });
@@ -184,13 +198,21 @@ export const mapsController = {
       if (isNaN(entity_id)) {
         return res.status(400).json({ error: "Неверный ID сущности" });
       }
-      await mapsService.deleteToken(mapId, entity_type as any, entity_id);
+      await mapsService.deleteToken(
+        roomId,
+        mapId,
+        entity_type as any,
+        entity_id,
+      );
       const io = getIO();
-      const allTokens = await mapsService.getTokensByMapId(mapId);
-      io.emit("map:tokens-updated", { mapId, tokens: allTokens });
-      const map = await mapsService.getMapById(mapId);
+      const allTokens = await mapsService.getTokensByMapId(roomId, mapId);
+      io.to(`room:${roomId}`).emit("map:tokens-updated", {
+        mapId,
+        tokens: allTokens,
+      });
+      const map = await mapsService.getMapById(roomId, mapId);
       if (map?.show_to_players) {
-        io.emit("map:active-tokens-updated", allTokens);
+        io.to(`room:${roomId}`).emit("map:active-tokens-updated", allTokens);
       }
       res.status(204).send();
     } catch (error) {
@@ -199,9 +221,10 @@ export const mapsController = {
     }
   },
 
-  async getAvailableEntities(_req: Request, res: Response) {
+  async getAvailableEntities(req: Request, res: Response) {
     try {
-      const data = await mapsService.getAvailableEntities();
+      const roomId = req.roomId!;
+      const data = await mapsService.getAvailableEntities(roomId);
       res.json(data);
     } catch (error) {
       console.error(error);

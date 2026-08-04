@@ -591,3 +591,22 @@ export async function ensureFrightenedEffect(): Promise<Effect> {
   }
   return effect;
 }
+
+/**
+ * Применяет мгновенное изменение health/max_health от эффекта.
+ * Возвращает новое значение HP (или null, если эффект не затрагивает здоровье).
+ * Используется для мгновенных эффектов (is_instant), которые не создают запись в active_effects.
+ */
+export function applyInstantHealthChange(
+  currentHealth: number,
+  effect: { attribute: string | null; modifier: number },
+  effectiveMaxHealth: number,
+): number | null {
+  if (effect.attribute === "max_health" && typeof effect.modifier === "number") {
+    return Math.min(currentHealth + effect.modifier, effectiveMaxHealth);
+  }
+  if (effect.attribute === "health" && typeof effect.modifier === "number") {
+    return Math.max(0, Math.min(currentHealth + effect.modifier, effectiveMaxHealth));
+  }
+  return null;
+}

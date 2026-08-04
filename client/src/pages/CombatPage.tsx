@@ -54,6 +54,16 @@ export const CombatPage = () => {
     reorderParticipants(newIds);
   };
 
+  // Перемещение участника кнопками (тач-альтернатива drag-and-drop)
+  const moveParticipant = (index: number, direction: "up" | "down") => {
+    if (direction === "up" && index === 0) return;
+    if (direction === "down" && index === participants.length - 1) return;
+    const currentOrder = [...participants];
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    [currentOrder[index], currentOrder[targetIndex]] = [currentOrder[targetIndex], currentOrder[index]];
+    reorderParticipants(currentOrder.map((p) => p.id));
+  };
+
   const availablePlayers = players.filter(
     (p) => p.is_online && !participants.some((part) => part.entity_type === "player" && part.entity_id === p.id)
   );
@@ -84,14 +94,14 @@ export const CombatPage = () => {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-text-primary">⚔️ Бой</h1>
-        <div className="flex gap-3">
+    <div className="p-4 md:p-6 max-w-7xl mx-auto">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+        <h1 className="text-2xl md:text-3xl font-bold text-text-primary">⚔️ Бой</h1>
+        <div className="flex flex-wrap gap-2">
           {!session ? (
             <button
               onClick={startNewSession}
-              className="px-4 py-2 btn-primary"
+              className="flex-1 sm:flex-none px-4 py-2 btn-primary"
             >
               Начать битву
             </button>
@@ -99,19 +109,19 @@ export const CombatPage = () => {
             <>
               <button
                 onClick={() => setShowAddModal(true)}
-                className="px-4 py-2 btn-secondary"
+                className="flex-1 sm:flex-none px-4 py-2 btn-secondary"
               >
                 + Добавить участника
               </button>
               <button
                 onClick={nextTurn}
-                className="px-4 py-2 btn-secondary"
+                className="flex-1 sm:flex-none px-4 py-2 btn-secondary"
               >
                 Передать ход
               </button>
               <button
                 onClick={advanceDay}
-                className="px-4 py-2 btn-secondary"
+                className="flex-1 sm:flex-none px-4 py-2 btn-secondary"
               >
                 Завершить день
               </button>
@@ -121,11 +131,11 @@ export const CombatPage = () => {
       </div>
 
       {!session ? (
-        <div className="text-center py-12 text-text-muted bg-card rounded-lg border border-border-color">
+        <div className="text-center py-12 text-text-muted bg-card rounded-lg border border-border-color p-4">
           Нет активной битвы. Нажмите «Начать битву»
         </div>
       ) : participants.length === 0 ? (
-        <div className="text-center py-12 text-text-muted bg-card rounded-lg border border-border-color">
+        <div className="text-center py-12 text-text-muted bg-card rounded-lg border border-border-color p-4">
           Нет участников. Добавьте игроков или NPC
         </div>
       ) : (
@@ -144,6 +154,8 @@ export const CombatPage = () => {
                 isCurrentTurn={participant.is_current_turn}
                 onRemove={() => handleRemoveParticipant(participant.id)}
                 onEdit={() => handleEditParticipant(participant)}
+                onMoveUp={idx > 0 ? () => moveParticipant(idx, "up") : undefined}
+                onMoveDown={idx < participants.length - 1 ? () => moveParticipant(idx, "down") : undefined}
               />
             </div>
           ))}

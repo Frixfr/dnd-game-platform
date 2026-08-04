@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 import type { EffectType } from '../../types';
 import { useConfirm } from '../../hooks/useConfirm';
 
+type EffectMode = 'temporary' | 'permanent' | 'instant';
+
 interface EditEffectModalProps {
   effect: EffectType | null;
   onClose: () => void;
@@ -19,6 +21,7 @@ interface FormData {
   duration_turns: number | null;
   duration_days: number | null;
   is_permanent: boolean;
+  is_instant: boolean;
   tags: string[];
 }
 
@@ -50,9 +53,11 @@ export const EditEffectModal = ({
     duration_turns: null,
     duration_days: null,
     is_permanent: false,
+    is_instant: false,
     tags: []
   });
   
+  const [currentMode, setCurrentMode] = useState<EffectMode>('temporary');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [serverErrors, setServerErrors] = useState<Record<string, string>>({});
@@ -67,8 +72,17 @@ export const EditEffectModal = ({
         duration_turns: effect.duration_turns || null,
         duration_days: effect.duration_days || null,
         is_permanent: effect.is_permanent || false,
+        is_instant: effect.is_instant || false,
         tags: effect.tags || []
       });
+      // Устанавливаем режим на основе данных эффекта
+      if (effect.is_instant) {
+        setCurrentMode('instant');
+      } else if (effect.is_permanent) {
+        setCurrentMode('permanent');
+      } else {
+        setCurrentMode('temporary');
+      }
     } else if (mode === 'create') {
       setFormData({
         name: '',
@@ -78,8 +92,10 @@ export const EditEffectModal = ({
         duration_turns: null,
         duration_days: null,
         is_permanent: false,
+        is_instant: false,
         tags: []
       });
+      setCurrentMode('temporary');
     }
   }, [effect, mode]);
   
@@ -110,6 +126,29 @@ export const EditEffectModal = ({
     }
   };
 
+  const handleModeChange = (newMode: EffectMode) => {
+    setCurrentMode(newMode);
+    // Сбрасываем длительность для постоянных и мгновенных
+    if (newMode === 'permanent' || newMode === 'instant') {
+      setFormData(prev => ({
+        ...prev,
+        duration_turns: null,
+        duration_days: null,
+        is_permanent: newMode === 'permanent',
+        is_instant: newMode === 'instant',
+      }));
+    } else {
+      // temporary
+      setFormData(prev => ({
+        ...prev,
+        is_permanent: false,
+        is_instant: false,
+      }));
+    }
+    // Очищаем ошибки, связанные с режимом
+    setServerErrors(prev => ({ ...prev, duration: '', is_permanent: '', duration_turns: '', duration_days: '' }));
+  };
+
   const handleTagsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value;
     const tagsArray = raw.split(',').map(s => s.trim()).filter(s => s.length > 0);
@@ -117,15 +156,6 @@ export const EditEffectModal = ({
     if (serverErrors.tags) {
       setServerErrors(prev => ({ ...prev, tags: '' }));
     }
-  };
-  
-  const handleTogglePermanent = (isPermanent: boolean) => {
-    setFormData({
-      ...formData,
-      is_permanent: isPermanent,
-      duration_turns: isPermanent ? null : formData.duration_turns,
-      duration_days: isPermanent ? null : formData.duration_days
-    });
   };
   
   const validateForm = () => {
@@ -154,7 +184,19 @@ export const EditEffectModal = ({
       }
     }
 
-    if (!formData.is_permanent) {
+    // Валидация в зависимости от режима
+    if (currentMode === 'instant') {
+      if (formData.duration_turns !== null || formData.duration_days !== null) {
+        errors.duration = 'Мгновенные эффекты не могут иметь длительность';
+      }
+      if (formData.is_permanent) {
+        errors.is_permanent = 'Мгновенный эффект не может быть постоянным';
+      }
+    } else if (currentMode === 'permanent') {
+      if (formData.duration_turns !== null || formData.duration_days !== null) {
+        errors.is_permanent = 'Постоянные эффекты не могут иметь длительность';
+      }
+    } else { // temporary
       if (!formData.duration_turns && !formData.duration_days) {
         errors.duration = 'Для непостоянных эффектов укажите длительность';
       } else {
@@ -164,10 +206,6 @@ export const EditEffectModal = ({
         if (formData.duration_days !== null && formData.duration_days <= 0) {
           errors.duration_days = 'Длительность в днях должна быть положительной';
         }
-      }
-    } else {
-      if (formData.duration_turns !== null || formData.duration_days !== null) {
-        errors.is_permanent = 'Постоянные эффекты не могут иметь длительность';
       }
     }
 
@@ -187,11 +225,14 @@ export const EditEffectModal = ({
     }
     
     const submitData = {
-        ...formData,
+        name: formData.name,
         description: formData.description || '',
         attribute: formData.attribute || null,
-        duration_turns: formData.is_permanent ? null : (formData.duration_turns || null),
-        duration_days: formData.is_permanent ? null : (formData.duration_days || null),
+        modifier: formData.modifier,
+        duration_turns: (currentMode === 'permanent' || currentMode === 'instant') ? null : (formData.duration_turns || null),
+        duration_days: (currentMode === 'permanent' || currentMode === 'instant') ? null : (formData.duration_days || null),
+        is_permanent: currentMode === 'permanent',
+        is_instant: currentMode === 'instant',
         tags: formData.tags
     };
     
@@ -256,6 +297,14 @@ export const EditEffectModal = ({
         }
       }
     });
+  };
+
+  const getModeLabel = (m: EffectMode) => {
+    switch (m) {
+      case 'temporary': return 'Временный';
+      case 'permanent': return 'Постоянный';
+      case 'instant': return 'Мгновенный';
+    }
   };
   
   const modalTitle = mode === 'edit' ? 'Редактирование эффекта' : 'Создание нового эффекта';
@@ -362,33 +411,28 @@ export const EditEffectModal = ({
               
               <div>
                 <label className="block text-sm font-medium text-[#F2E9E4] mb-3">Тип эффекта</label>
-                <div className="flex space-x-4">
-                  <button
-                    type="button"
-                    onClick={() => handleTogglePermanent(false)}
-                    className={`flex-1 py-2 px-4 rounded-md border transition-colors ${
-                      !formData.is_permanent ? 'bg-[#FF0026] text-white border-[#FF0026]' : 'bg-[#0A1F44] text-[#F2E9E4] border-[#F2E9E4]/30 hover:bg-[#0A1F44]/80'
-                    }`}
-                    disabled={loading}
-                  >
-                    Временный
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleTogglePermanent(true)}
-                    className={`flex-1 py-2 px-4 rounded-md border transition-colors ${
-                      formData.is_permanent ? 'bg-[#FF0026] text-white border-[#FF0026]' : 'bg-[#0A1F44] text-[#F2E9E4] border-[#F2E9E4]/30 hover:bg-[#0A1F44]/80'
-                    }`}
-                    disabled={loading}
-                  >
-                    Постоянный
-                  </button>
+                <div className="flex space-x-2">
+                  {(['temporary', 'permanent', 'instant'] as const).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => handleModeChange(m)}
+                      className={`flex-1 py-2 px-3 rounded-md border transition-colors ${
+                        currentMode === m
+                          ? 'bg-[#FF0026] text-white border-[#FF0026]'
+                          : 'bg-[#0A1F44] text-[#F2E9E4] border-[#F2E9E4]/30 hover:bg-[#0A1F44]/80'
+                      }`}
+                      disabled={loading}
+                    >
+                      {getModeLabel(m)}
+                    </button>
+                  ))}
                 </div>
                 {serverErrors.is_permanent && <p className="mt-1 text-sm text-[#FF0026]">{serverErrors.is_permanent}</p>}
               </div>
             </div>
             
-            {!formData.is_permanent && (
+            {currentMode === 'temporary' && (
               <div className="bg-[#0A1F44]/80 p-4 rounded-md border border-[#F2E9E4]/20">
                 <h3 className="font-medium text-[#F2E9E4] mb-3">Длительность эффекта</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -423,6 +467,14 @@ export const EditEffectModal = ({
                 <div className="mt-2 text-xs text-[#F2E9E4]/60">
                   Укажите хотя бы один тип длительности. Если указаны оба, эффект закончится при истечении любого из сроков.
                 </div>
+              </div>
+            )}
+
+            {currentMode === 'instant' && (
+              <div className="bg-[#0A1F44]/80 p-4 rounded-md border border-[#FF0026]/30">
+                <p className="text-sm text-[#F2E9E4]">
+                  ⚡ Мгновенный эффект применяется сразу (например, лечение) и не создаёт запись в активных эффектах. Длительность не указывается.
+                </p>
               </div>
             )}
             

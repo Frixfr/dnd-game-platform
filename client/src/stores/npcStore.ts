@@ -23,8 +23,10 @@ interface NpcStore {
   npcsTotal: number;
   currentPage: number;
   limit: number;
+  roomId: number | null;
   initializeSocket: () => void;
   disconnectSocket: () => void;
+  setRoomId: (roomId: number | null) => void;
   fetchNpcs: (page?: number, limit?: number) => Promise<void>;
   fetchAllNpcs: () => Promise<NpcType[]>;
   addNpc: (npc: NpcType) => void;
@@ -43,6 +45,7 @@ export const useNpcStore = create<NpcStore>((set, get) => ({
   npcsTotal: 0,
   currentPage: 1,
   limit: 20,
+  roomId: null,
 
   initializeSocket: () => {
     if (npcSocketInitialized) return;
@@ -82,6 +85,11 @@ export const useNpcStore = create<NpcStore>((set, get) => ({
     socket.on("npc:deleted", onDeleted);
 
     npcSocketHandlers = { onConnect, onCreated, onUpdated, onDeleted };
+
+    const roomId = get().roomId;
+    if (roomId !== null && roomId !== undefined) {
+      socket.emit("join-room", { roomId });
+    }
   },
 
   disconnectSocket: () => {
@@ -94,6 +102,13 @@ export const useNpcStore = create<NpcStore>((set, get) => ({
     npcSocketInitialized = false;
     npcSocketHandlers = null;
     console.log("NpcStore socket handlers removed");
+  },
+
+  setRoomId: (roomId) => {
+    set({ roomId });
+    if (socket.connected) {
+      socket.emit("join-room", { roomId });
+    }
   },
 
   fetchNpcs: async (page = 1, limit = 20) => {

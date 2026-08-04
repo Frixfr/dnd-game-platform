@@ -14,11 +14,14 @@ import { useMapStore } from '../../stores/mapStore';
 import { useRaceStore } from '../../stores/raceStore';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useNpcStore } from '../../stores/npcStore';
+import { useRoomStore } from '../../stores/roomStore';
 
 const MasterLayout: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const navigate = useNavigate();
+
+  const { currentRoom, leaveRoom, logout } = useRoomStore();
 
   useEffect(() => {
     usePlayerStore.getState().initializeSocket();
@@ -48,7 +51,13 @@ const MasterLayout: React.FC = () => {
   const closeSidebar = () => setIsSidebarOpen(false);
 
   const handleLogout = () => {
+    logout();
     navigate('/');
+  };
+
+  const handleLeaveRoom = () => {
+    leaveRoom();
+    navigate('/rooms');
   };
 
   return (
@@ -62,7 +71,13 @@ const MasterLayout: React.FC = () => {
         <Sidebar onClose={closeSidebar} isMobile={isMobile} />
       </div>
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header toggleSidebar={toggleSidebar} isMobile={isMobile} onLogout={handleLogout} />
+        <Header
+          toggleSidebar={toggleSidebar}
+          isMobile={isMobile}
+          onLogout={handleLogout}
+          roomName={currentRoom?.name}
+          onLeaveRoom={handleLeaveRoom}
+        />
         <main className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6">
           <Outlet />
         </main>

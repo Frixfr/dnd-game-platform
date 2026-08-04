@@ -109,15 +109,15 @@ export const NpcsPage = () => {
   const totalPages = Math.ceil(npcsTotal / limit);
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
+    <div className="p-4 md:p-6 max-w-6xl mx-auto">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-text-primary">NPC</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-text-primary">NPC</h1>
           <p className="text-text-secondary mt-1">Всего NPC: {npcsTotal}</p>
         </div>
         <button
           onClick={() => setIsCreateModalOpen(true)}
-          className="px-4 py-2 btn-primary"
+          className="px-4 py-2 btn-primary w-full sm:w-auto"
         >
           + Создать NPC
         </button>
@@ -175,8 +175,8 @@ export const NpcsPage = () => {
         }}
       />
       {isDuplicateModalOpen && duplicateNpc && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="modal-content p-6 w-96">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="modal-content p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-bold mb-4 text-text-primary">Дублировать NPC</h3>
             <p className="text-text-secondary mb-2">Создать копию NPC "{duplicateNpc.name}"</p>
             <input

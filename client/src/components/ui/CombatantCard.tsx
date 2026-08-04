@@ -6,9 +6,11 @@ interface CombatantCardProps {
   isCurrentTurn: boolean;
   onRemove: () => void;
   onEdit: () => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
 }
 
-export const CombatantCard = ({ participant, isCurrentTurn, onRemove, onEdit }: CombatantCardProps) => {
+export const CombatantCard = ({ participant, isCurrentTurn, onRemove, onEdit, onMoveUp, onMoveDown }: CombatantCardProps) => {
   const entity = participant.entity;
   const baseMaxHealth = entity.max_health;           // базовое из таблицы
   const finalMaxHealth = entity.final_stats?.max_health ?? baseMaxHealth;
@@ -55,21 +57,41 @@ export const CombatantCard = ({ participant, isCurrentTurn, onRemove, onEdit }: 
           )}
         </div>
         <div className="flex-1">
-          <div className="flex justify-between items-start">
-            <div>
-              <h3 className="font-bold text-text-primary">{entityName}</h3>
+          <div className="flex justify-between items-start gap-2">
+            <div className="min-w-0">
+              <h3 className="font-bold text-text-primary truncate">{entityName}</h3>
               <span className="text-xs text-text-secondary">{entityTypeLabel}</span>
             </div>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onRemove();
-              }}
-              className="text-text-secondary hover:text-accent-red text-xl leading-none"
-              title="Удалить из боя"
-            >
-              ×
-            </button>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              {onMoveUp && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onMoveUp(); }}
+                  className="w-7 h-7 flex items-center justify-center text-text-secondary hover:text-accent-red hover:bg-accent-red/10 rounded-full transition-colors"
+                  title="Поднять в порядке"
+                >
+                  ▲
+                </button>
+              )}
+              {onMoveDown && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onMoveDown(); }}
+                  className="w-7 h-7 flex items-center justify-center text-text-secondary hover:text-accent-red hover:bg-accent-red/10 rounded-full transition-colors"
+                  title="Опустить в порядке"
+                >
+                  ▼
+                </button>
+              )}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRemove();
+                }}
+                className="w-7 h-7 flex items-center justify-center text-text-secondary hover:text-accent-red hover:bg-accent-red/10 rounded-full transition-colors text-xl leading-none"
+                title="Удалить из боя"
+              >
+                ×
+              </button>
+            </div>
           </div>
 
           <div className="mt-1 flex justify-between items-center text-sm">

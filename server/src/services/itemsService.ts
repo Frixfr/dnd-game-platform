@@ -2,11 +2,13 @@ import { db } from "../db/index.js";
 import type { Item, Effect, PaginatedResponse } from "../types/index.js";
 
 export const itemsService = {
+  // ADDED roomId support
   async getAll(
+    roomId: number,
     page?: number,
     limit?: number,
   ): Promise<Item[] | PaginatedResponse<Item>> {
-    let query = db("items").select("*");
+    let query = db("items").select("*").where("room_id", roomId); // ADDED filter
     if (page !== undefined && limit !== undefined) {
       const offset = (page - 1) * limit;
       const totalQuery = query
@@ -31,14 +33,16 @@ export const itemsService = {
     }
   },
 
-  async getById(id: string | number): Promise<Item | null> {
-    const item = await db("items").where({ id }).first();
+  // ADDED roomId support
+  async getById(roomId: number, id: string | number): Promise<Item | null> {
+    const item = await db("items").where({ id, room_id: roomId }).first(); // ADDED room_id check
     if (item) {
       item.effects = await this.getItemEffects(item.id);
     }
     return item;
   },
 
+  // Этот метод не требует комнаты, так как получает эффекты по itemId
   async getItemEffects(
     itemId: number,
   ): Promise<(Effect & { effect_type: "active" | "passive" })[]> {
@@ -49,17 +53,21 @@ export const itemsService = {
     return rows;
   },
 
-  async create(data: {
-    name: string;
-    description?: string;
-    rarity: Item["rarity"];
-    base_quantity: number;
-    is_deletable: boolean;
-    is_usable: boolean;
-    infinite_uses: boolean;
-    active_effect_ids?: number[];
-    passive_effect_ids?: number[];
-  }): Promise<Item> {
+  // ADDED roomId support
+  async create(
+    roomId: number,
+    data: {
+      name: string;
+      description?: string;
+      rarity: Item["rarity"];
+      base_quantity: number;
+      is_deletable: boolean;
+      is_usable: boolean;
+      infinite_uses: boolean;
+      active_effect_ids?: number[];
+      passive_effect_ids?: number[];
+    },
+  ): Promise<Item> {
     const now = db.fn.now();
     const [item] = await db("items")
       .insert({
@@ -70,6 +78,7 @@ export const itemsService = {
         is_deletable: data.is_deletable,
         is_usable: data.is_usable,
         infinite_uses: data.infinite_uses,
+        room_id: roomId, // ADDED room_id
         created_at: now,
         updated_at: now,
       })
@@ -98,13 +107,19 @@ export const itemsService = {
     return item;
   },
 
+  // ADDED roomId support
   async update(
+    roomId: number,
     id: number,
-    data: Partial<Omit<Item, "id" | "created_at">> & {
+    data: Partial<Omit<Item, "id" | "created_at" | "room_id">> & {
       active_effect_ids?: number[];
       passive_effect_ids?: number[];
     },
   ): Promise<Item | null> {
+    // Проверяем, что предмет принадлежит комнате
+    const existing = await db("items").where({ id, room_id: roomId }).first();
+    if (!existing) return null;
+
     const updateData: any = { updated_at: db.fn.now() };
     if (data.name !== undefined) updateData.name = data.name;
     if (data.description !== undefined)
@@ -150,7 +165,12 @@ export const itemsService = {
     return updated;
   },
 
-  async delete(id: number): Promise<boolean> {
+  // ADDED roomId support
+  async delete(roomId: number, id: number): Promise<boolean> {
+    // Проверяем, что предмет принадлежит комнате
+    const item = await db("items").where({ id, room_id: roomId }).first();
+    if (!item) return false;
+
     const usedByPlayer = await db("player_items").where("item_id", id).first();
     if (usedByPlayer) throw new Error("Item is in use");
     const usedByNpc = await db("npc_items").where("item_id", id).first();

@@ -5,13 +5,14 @@ import { getIO } from "../socket/index.js";
 export const itemsController = {
   async getAll(req: Request, res: Response) {
     try {
+      const roomId = req.roomId!;
       const page = req.query.page
         ? parseInt(req.query.page as string, 10)
         : undefined;
       const limit = req.query.limit
         ? parseInt(req.query.limit as string, 10)
         : undefined;
-      const result = await itemsService.getAll(page, limit);
+      const result = await itemsService.getAll(roomId, page, limit);
       res.json(result);
     } catch (error) {
       console.error(error);
@@ -21,6 +22,7 @@ export const itemsController = {
 
   async getOne(req: Request, res: Response) {
     try {
+      const roomId = req.roomId!;
       const idParam = req.params.id;
       const id =
         typeof idParam === "string"
@@ -28,7 +30,7 @@ export const itemsController = {
           : Number(idParam[0]);
       if (isNaN(id)) return res.status(400).json({ error: "Неверный ID" });
 
-      const item = await itemsService.getById(id);
+      const item = await itemsService.getById(roomId, id);
       if (!item) return res.status(404).json({ error: "Предмет не найден" });
       res.json(item);
     } catch (error) {
@@ -38,6 +40,7 @@ export const itemsController = {
   },
 
   async create(req: Request, res: Response) {
+    const roomId = req.roomId!;
     const {
       name,
       description,
@@ -51,7 +54,7 @@ export const itemsController = {
     } = req.body;
 
     try {
-      const item = await itemsService.create({
+      const item = await itemsService.create(roomId, {
         name,
         description,
         rarity,
@@ -76,6 +79,7 @@ export const itemsController = {
   },
 
   async update(req: Request, res: Response) {
+    const roomId = req.roomId!;
     const idParam = req.params.id;
     const id =
       typeof idParam === "string" ? parseInt(idParam, 10) : Number(idParam[0]);
@@ -93,7 +97,7 @@ export const itemsController = {
       passive_effect_ids,
     } = req.body;
 
-    const updated = await itemsService.update(id, {
+    const updated = await itemsService.update(roomId, id, {
       name,
       description,
       rarity,
@@ -110,6 +114,7 @@ export const itemsController = {
   },
 
   async partialUpdate(req: Request, res: Response) {
+    const roomId = req.roomId!;
     const idParam = req.params.id;
     const id =
       typeof idParam === "string" ? parseInt(idParam, 10) : Number(idParam[0]);
@@ -118,13 +123,14 @@ export const itemsController = {
     const updateData = req.body;
     delete updateData.id;
     delete updateData.created_at;
+    delete updateData.room_id; // не разрешаем менять комнату
 
     if (Object.keys(updateData).length === 0) {
       return res.status(400).json({ error: "Нет данных для обновления" });
     }
 
     try {
-      const updated = await itemsService.update(id, updateData);
+      const updated = await itemsService.update(roomId, id, updateData);
       if (!updated) return res.status(404).json({ error: "Предмет не найден" });
       getIO().emit("item:updated", updated);
       res.json({ success: true, item: updated });
@@ -140,13 +146,14 @@ export const itemsController = {
   },
 
   async delete(req: Request, res: Response) {
+    const roomId = req.roomId!;
     const idParam = req.params.id;
     const id =
       typeof idParam === "string" ? parseInt(idParam, 10) : Number(idParam[0]);
     if (isNaN(id)) return res.status(400).json({ error: "Неверный ID" });
 
     try {
-      const deleted = await itemsService.delete(id);
+      const deleted = await itemsService.delete(roomId, id);
       if (!deleted) return res.status(404).json({ error: "Предмет не найден" });
       getIO().emit("item:deleted", { id });
       res.json({ success: true, message: "Предмет удалён" });

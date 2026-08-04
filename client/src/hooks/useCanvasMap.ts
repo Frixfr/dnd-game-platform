@@ -82,6 +82,12 @@ export function useCanvasMap(
     startRelY: number;
   } | null>(null);
   const avatarCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
+  // Таймер долгого тапа для контекстного меню на тач-устройствах
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Признак того, что сработал долгий тап (чтобы подавить последующий touchend-клик)
+  const longPressFiredRef = useRef<boolean>(false);
+  // Сколько пикселей движения допускается до отмены долгого тапа
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
   const getDrawParams = useCallback(
     (canvas: HTMLCanvasElement, img: HTMLImageElement) => {
@@ -234,18 +240,27 @@ export function useCanvasMap(
     return () => window.removeEventListener("resize", drawCanvas);
   }, [drawCanvas]);
 
-  // Обработка перетаскивания и кликов (без изменений)
+  // Очистка таймера долгого тапа
+  const clearLongPress = useCallback(() => {
+    if (longPressTimerRef.current !== null) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }, []);
+
+  // Обработка перетаскивания, кликов и тач-событий
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const getMouseCanvasCoords = (e: MouseEvent) => {
+    // Универсальный расчёт координат в системе canvas по клиентским координатам
+    const getCanvasCoords = (clientX: number, clientY: number) => {
       const rect = canvas.getBoundingClientRect();
       const scaleX = canvas.width / rect.width;
       const scaleY = canvas.height / rect.height;
       return {
-        mouseX: (e.clientX - rect.left) * scaleX,
-        mouseY: (e.clientY - rect.top) * scaleY,
+        mouseX: (clientX - rect.left) * scaleX,
+        mouseY: (clientY - rect.top) * scaleY,
       };
     };
 
@@ -279,14 +294,12 @@ export function useCanvasMap(
       return null;
     };
 
-    const handleMouseDown = (e: MouseEvent) => {
-      if (!onTokenDrag) return;
-      if (e.button !== 0) return;
-      const { mouseX, mouseY } = getMouseCanvasCoords(e);
+    // Запуск перетаскивания токена по начальным координатам канвы
+    const beginDrag = (mouseX: number, mouseY: number) => {
       const token = getTokenAt(mouseX, mouseY);
-      if (!token) return;
+      if (!token) return false;
       const img = imageRef.current;
-      if (!img) return;
+      if (!img) return false;
       let relX, relY;
       if (token.x <= 1 && token.y <= 1) {
         relX = token.x;
@@ -302,13 +315,22 @@ export function useCanvasMap(
         startRelX: relX,
         startRelY: relY,
       };
-      canvas.style.cursor = "grabbing";
-      e.preventDefault();
+      return true;
+    };
+
+    const handleMouseDown = (e: MouseEvent) => {
+      if (!onTokenDrag) return;
+      if (e.button !== 0) return;
+      const { mouseX, mouseY } = getCanvasCoords(e.clientX, e.clientY);
+      if (beginDrag(mouseX, mouseY)) {
+        canvas.style.cursor = "grabbing";
+        e.preventDefault();
+      }
     };
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!dragRef.current) return;
-      const { mouseX, mouseY } = getMouseCanvasCoords(e);
+      const { mouseX, mouseY } = getCanvasCoords(e.clientX, e.clientY);
       const img = imageRef.current;
       if (!img) return;
       const { drawWidth, drawHeight } = getDrawParams(canvas, img);
@@ -339,7 +361,7 @@ export function useCanvasMap(
     const handleClick = (e: MouseEvent) => {
       if (!onCanvasClick) return;
       if (e.button !== 0) return;
-      const { mouseX, mouseY } = getMouseCanvasCoords(e);
+      const { mouseX, mouseY } = getCanvasCoords(e.clientX, e.clientY);
       const img = imageRef.current;
       if (!img) return;
       const { drawWidth, drawHeight, offsetX, offsetY } = getDrawParams(
@@ -355,7 +377,7 @@ export function useCanvasMap(
 
     const handleContextMenu = (e: MouseEvent) => {
       e.preventDefault();
-      const { mouseX, mouseY } = getMouseCanvasCoords(e);
+      const { mouseX, mouseY } = getCanvasCoords(e.clientX, e.clientY);
       const token = getTokenAt(mouseX, mouseY);
       const img = imageRef.current;
       if (!img) return;
@@ -374,11 +396,128 @@ export function useCanvasMap(
       }
     };
 
+    // === ТАЧ-ОБРАБОТКА ===
+    // Долгий тап (удержание ~500мс без движения) открывает контекстное меню,
+    // как правый клик мышью. Перетаскивание токена начинается при движении пальца.
+    const LONG_PRESS_DELAY = 500;
+    const LONG_PRESS_TOLERANCE = 10; // px движения до отмены долгого тапа
+
+    const startLongPress = (clientX: number, clientY: number) => {
+      clearLongPress();
+      longPressFiredRef.current = false;
+      longPressTimerRef.current = setTimeout(() => {
+        const { mouseX, mouseY } = getCanvasCoords(clientX, clientY);
+        const token = getTokenAt(mouseX, mouseY);
+        const img = imageRef.current;
+        if (!img) return;
+        const { drawWidth, drawHeight, offsetX, offsetY } = getDrawParams(
+          canvas,
+          img,
+        );
+        const relX = (mouseX - offsetX) / drawWidth;
+        const relY = (mouseY - offsetY) / drawHeight;
+        if (relX < 0 || relX > 1 || relY < 0 || relY > 1) return;
+        longPressFiredRef.current = true;
+        // Снимаем возможный драг, чтобы палец не двигал токен после меню
+        dragRef.current = null;
+        if (token && onTokenContextMenu) {
+          onTokenContextMenu(token, clientX, clientY);
+        } else if (!token && onCanvasContextMenu) {
+          onCanvasContextMenu(relX, relY);
+        }
+      }, LONG_PRESS_DELAY);
+    };
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      const touch = e.touches[0];
+      touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+      const { mouseX, mouseY } = getCanvasCoords(touch.clientX, touch.clientY);
+      // Запускаем потенциальный драг токена (если попали по токену)
+      if (onTokenDrag) beginDrag(mouseX, mouseY);
+      // Запускаем таймер долгого тапа для контекстного меню
+      startLongPress(touch.clientX, touch.clientY);
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      const touch = e.touches[0];
+      const start = touchStartRef.current;
+
+      // Если палец сдвинулся дальше допуска — отменяем долгий тап
+      if (start) {
+        const moved = Math.hypot(touch.clientX - start.x, touch.clientY - start.y);
+        if (moved > LONG_PRESS_TOLERANCE) {
+          clearLongPress();
+        }
+      }
+
+      if (!dragRef.current) return;
+      // Предотвращаем скролл страницы во время перетаскивания токена
+      e.preventDefault();
+      const { mouseX, mouseY } = getCanvasCoords(touch.clientX, touch.clientY);
+      const img = imageRef.current;
+      if (!img) return;
+      const { drawWidth, drawHeight } = getDrawParams(canvas, img);
+
+      const deltaX = (mouseX - dragRef.current.startX) / drawWidth;
+      const deltaY = (mouseY - dragRef.current.startY) / drawHeight;
+      let newRelX = dragRef.current.startRelX + deltaX;
+      let newRelY = dragRef.current.startRelY + deltaY;
+      newRelX = Math.min(1, Math.max(0, newRelX));
+      newRelY = Math.min(1, Math.max(0, newRelY));
+
+      onTokenDrag?.(
+        dragRef.current.token,
+        newRelX * originalWidth,
+        newRelY * originalHeight,
+      );
+
+      dragRef.current.startX = mouseX;
+      dragRef.current.startY = mouseY;
+      dragRef.current.startRelX = newRelX;
+      dragRef.current.startRelY = newRelY;
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      clearLongPress();
+      // Если сработал долгий тап — драг/клик не нужен
+      if (longPressFiredRef.current) {
+        longPressFiredRef.current = false;
+        dragRef.current = null;
+        touchStartRef.current = null;
+        return;
+      }
+      dragRef.current = null;
+      // Симулируем клик/обработку canvas-click при коротком тапе
+      if (onCanvasClick && touchStartRef.current && e.changedTouches.length === 1) {
+        const touch = e.changedTouches[0];
+        const { mouseX, mouseY } = getCanvasCoords(touch.clientX, touch.clientY);
+        const img = imageRef.current;
+        if (img) {
+          const { drawWidth, drawHeight, offsetX, offsetY } = getDrawParams(
+            canvas,
+            img,
+          );
+          const relX = (mouseX - offsetX) / drawWidth;
+          const relY = (mouseY - offsetY) / drawHeight;
+          if (relX >= 0 && relX <= 1 && relY >= 0 && relY <= 1) {
+            onCanvasClick(relX, relY);
+          }
+        }
+      }
+      touchStartRef.current = null;
+    };
+
     canvas.addEventListener("mousedown", handleMouseDown);
     window.addEventListener("mousemove", handleMouseMove);
     window.addEventListener("mouseup", handleMouseUp);
     canvas.addEventListener("click", handleClick);
     canvas.addEventListener("contextmenu", handleContextMenu);
+    // touchmove — пассивный по умолчанию, нужен { passive: false } для preventDefault
+    canvas.addEventListener("touchstart", handleTouchStart, { passive: false });
+    canvas.addEventListener("touchmove", handleTouchMove, { passive: false });
+    canvas.addEventListener("touchend", handleTouchEnd, { passive: false });
 
     return () => {
       canvas.removeEventListener("mousedown", handleMouseDown);
@@ -386,6 +525,10 @@ export function useCanvasMap(
       window.removeEventListener("mouseup", handleMouseUp);
       canvas.removeEventListener("click", handleClick);
       canvas.removeEventListener("contextmenu", handleContextMenu);
+      canvas.removeEventListener("touchstart", handleTouchStart);
+      canvas.removeEventListener("touchmove", handleTouchMove);
+      canvas.removeEventListener("touchend", handleTouchEnd);
+      clearLongPress();
     };
   }, [
     canvasRef,
@@ -397,5 +540,6 @@ export function useCanvasMap(
     onCanvasContextMenu,
     onTokenContextMenu,
     getDrawParams,
+    clearLongPress,
   ]);
 }

@@ -23,6 +23,7 @@ interface AbilityStore {
   abilitiesTotal: number;
   currentPage: number;
   limit: number;
+  roomId: number | null;
   addAbility: (ability: AbilityType) => void;
   setAbilities: (
     abilities: AbilityType[],
@@ -34,6 +35,7 @@ interface AbilityStore {
   removeAbility: (abilityId: number) => void;
   initializeSocket: () => void;
   disconnectSocket: () => void;
+  setRoomId: (roomId: number | null) => void;
   fetchAbilities: (page?: number, limit?: number) => Promise<void>;
   fetchAllAbilities: () => Promise<AbilityType[]>;
 }
@@ -43,6 +45,7 @@ export const useAbilityStore = create<AbilityStore>((set, get) => ({
   abilitiesTotal: 0,
   currentPage: 1,
   limit: 20,
+  roomId: null,
 
   addAbility: (ability) =>
     set((state) => {
@@ -92,6 +95,11 @@ export const useAbilityStore = create<AbilityStore>((set, get) => ({
     socket.on("ability:deleted", onDeleted);
 
     abilitySocketHandlers = { onConnect, onCreated, onUpdated, onDeleted };
+
+    const roomId = get().roomId;
+    if (roomId !== null && roomId !== undefined) {
+      socket.emit("join-room", { roomId });
+    }
   },
 
   disconnectSocket: () => {
@@ -105,6 +113,13 @@ export const useAbilityStore = create<AbilityStore>((set, get) => ({
     abilitySocketInitialized = false;
     abilitySocketHandlers = null;
     console.log("AbilityStore socket handlers removed");
+  },
+
+  setRoomId: (roomId) => {
+    set({ roomId });
+    if (socket.connected) {
+      socket.emit("join-room", { roomId });
+    }
   },
 
   fetchAbilities: async (page = 1, limit = 20) => {
