@@ -15,8 +15,10 @@ interface CombatStore {
   session: CombatSession | null;
   participants: CombatParticipantWithDetails[];
   loading: boolean;
+  roomId: number | null;
   initializeSocket: () => void;
   disconnectSocket: () => void;
+  setRoomId: (roomId: number | null) => void;
   fetchActiveSession: () => Promise<void>;
   startNewSession: () => Promise<void>;
   addParticipant: (
@@ -50,6 +52,7 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
   session: null,
   participants: [],
   loading: false,
+  roomId: null,
 
   initializeSocket: () => {
     if (combatSocketInitialized) return;
@@ -65,6 +68,11 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
 
     socket.on("combat:updated", onCombatUpdated);
     combatSocketHandlers = { onCombatUpdated };
+
+    const roomId = get().roomId;
+    if (roomId !== null && roomId !== undefined) {
+      socket.emit("join-room", { roomId });
+    }
   },
 
   disconnectSocket: () => {
@@ -74,6 +82,13 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
     combatSocketInitialized = false;
     combatSocketHandlers = null;
     console.log("CombatStore socket handlers removed");
+  },
+
+  setRoomId: (roomId) => {
+    set({ roomId });
+    if (socket.connected) {
+      socket.emit("join-room", { roomId });
+    }
   },
 
   fetchActiveSession: async () => {

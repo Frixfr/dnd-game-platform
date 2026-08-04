@@ -11,14 +11,17 @@ let logSocketInitialized = false;
 
 interface LogStore {
   logs: Log[];
+  roomId: number | null;
   initializeSocket: () => void;
   disconnectSocket: () => void;
+  setRoomId: (roomId: number | null) => void;
   fetchLogs: () => Promise<void>;
   addLog: (log: Log) => void;
 }
 
 export const useLogStore = create<LogStore>((set, get) => ({
   logs: [],
+  roomId: null,
 
   initializeSocket: () => {
     if (logSocketInitialized) return;
@@ -40,6 +43,11 @@ export const useLogStore = create<LogStore>((set, get) => ({
     if (socket.connected) {
       get().fetchLogs();
     }
+
+    const roomId = get().roomId;
+    if (roomId !== null && roomId !== undefined) {
+      socket.emit("join-room", { roomId });
+    }
   },
 
   disconnectSocket: () => {
@@ -50,6 +58,13 @@ export const useLogStore = create<LogStore>((set, get) => ({
     logSocketInitialized = false;
     logSocketHandlers = null;
     console.log("LogStore socket handlers removed");
+  },
+
+  setRoomId: (roomId) => {
+    set({ roomId });
+    if (socket.connected) {
+      socket.emit("join-room", { roomId });
+    }
   },
 
   fetchLogs: async () => {

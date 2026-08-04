@@ -23,6 +23,7 @@ interface ItemState {
   itemsTotal: number;
   currentPage: number;
   limit: number;
+  roomId: number | null;
   addItem: (item: ItemType) => void;
   setItems: (
     items: ItemType[],
@@ -32,6 +33,7 @@ interface ItemState {
   ) => void;
   initializeSocket: () => void;
   disconnectSocket: () => void;
+  setRoomId: (roomId: number | null) => void;
   fetchItems: (page?: number, limit?: number) => Promise<void>;
   fetchAllItems: () => Promise<ItemType[]>;
   updateItem: (item: ItemType) => void;
@@ -43,6 +45,7 @@ export const useItemStore = create<ItemState>((set, get) => ({
   itemsTotal: 0,
   currentPage: 1,
   limit: 20,
+  roomId: null,
 
   initializeSocket: () => {
     if (itemSocketInitialized) return;
@@ -71,6 +74,11 @@ export const useItemStore = create<ItemState>((set, get) => ({
     socket.on("item:deleted", onDeleted);
 
     itemSocketHandlers = { onConnect, onCreated, onUpdated, onDeleted };
+
+    const roomId = get().roomId;
+    if (roomId !== null && roomId !== undefined) {
+      socket.emit("join-room", { roomId });
+    }
   },
 
   disconnectSocket: () => {
@@ -83,6 +91,13 @@ export const useItemStore = create<ItemState>((set, get) => ({
     itemSocketInitialized = false;
     itemSocketHandlers = null;
     console.log("ItemStore socket handlers removed");
+  },
+
+  setRoomId: (roomId) => {
+    set({ roomId });
+    if (socket.connected) {
+      socket.emit("join-room", { roomId });
+    }
   },
 
   fetchItems: async (page = 1, limit = 20) => {

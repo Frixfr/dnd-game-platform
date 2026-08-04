@@ -23,6 +23,7 @@ interface EffectState {
   effectsTotal: number;
   currentPage: number;
   limit: number;
+  roomId: number | null;
   addEffect: (effect: EffectType) => void;
   setEffects: (
     effects: EffectType[],
@@ -32,6 +33,7 @@ interface EffectState {
   ) => void;
   initializeSocket: () => void;
   disconnectSocket: () => void;
+  setRoomId: (roomId: number | null) => void;
   fetchEffects: (page?: number, limit?: number) => Promise<void>;
   fetchAllEffects: () => Promise<EffectType[]>;
   updateEffect: (effect: EffectType) => void;
@@ -43,6 +45,7 @@ export const useEffectStore = create<EffectState>((set, get) => ({
   effectsTotal: 0,
   currentPage: 1,
   limit: 20,
+  roomId: null,
 
   initializeSocket: () => {
     if (effectSocketInitialized) return;
@@ -71,6 +74,11 @@ export const useEffectStore = create<EffectState>((set, get) => ({
     socket.on("effect:deleted", onDeleted);
 
     effectSocketHandlers = { onConnect, onCreated, onUpdated, onDeleted };
+
+    const roomId = get().roomId;
+    if (roomId !== null && roomId !== undefined) {
+      socket.emit("join-room", { roomId });
+    }
   },
 
   disconnectSocket: () => {
@@ -83,6 +91,13 @@ export const useEffectStore = create<EffectState>((set, get) => ({
     effectSocketInitialized = false;
     effectSocketHandlers = null;
     console.log("EffectStore socket handlers removed");
+  },
+
+  setRoomId: (roomId) => {
+    set({ roomId });
+    if (socket.connected) {
+      socket.emit("join-room", { roomId });
+    }
   },
 
   fetchEffects: async (page = 1, limit = 20) => {

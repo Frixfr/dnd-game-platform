@@ -13,9 +13,11 @@ let raceSocketInitialized = false;
 
 interface RaceState {
   races: RaceType[];
+  roomId: number | null;
   setRaces: (races: RaceType[]) => void;
   initializeSocket: () => void;
   disconnectSocket: () => void;
+  setRoomId: (roomId: number | null) => void;
   fetchRaces: () => Promise<void>;
   addRace: (race: RaceType) => void;
   updateRace: (race: RaceType) => void;
@@ -24,6 +26,7 @@ interface RaceState {
 
 export const useRaceStore = create<RaceState>((set, get) => ({
   races: [],
+  roomId: null,
 
   initializeSocket: () => {
     if (raceSocketInitialized) return;
@@ -55,6 +58,11 @@ export const useRaceStore = create<RaceState>((set, get) => ({
     socket.on("race:deleted", onDeleted);
 
     raceSocketHandlers = { onConnect, onCreated, onUpdated, onDeleted };
+
+    const roomId = get().roomId;
+    if (roomId !== null && roomId !== undefined) {
+      socket.emit("join-room", { roomId });
+    }
   },
 
   disconnectSocket: () => {
@@ -67,6 +75,13 @@ export const useRaceStore = create<RaceState>((set, get) => ({
     raceSocketInitialized = false;
     raceSocketHandlers = null;
     console.log("RaceStore socket handlers removed");
+  },
+
+  setRoomId: (roomId) => {
+    set({ roomId });
+    if (socket.connected) {
+      socket.emit("join-room", { roomId });
+    }
   },
 
   fetchRaces: async () => {
