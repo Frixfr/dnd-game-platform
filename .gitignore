@@ -1,52 +1,115 @@
 ```
 # Dependencies
 node_modules/
-server/node_modules/
+.pnpm-store/
+.npm/
+.yarn/
 
-# Package lock files
-package-lock.json
-server/package-lock.json
-server/node_modules/.package-lock.json
-
-# Build artifacts
-server/dist/
-server/build/
-server/target/
-
-# TypeScript compiled files
-server/**/*.js
-server/**/*.js.map
-server/**/*.d.ts
+# Build outputs
+dist/
+build/
+coverage/
+target/
+.DS_Store
+Thumbs.db
 
 # Logs
 *.log
-server/*.log
 
-# Environment
+# Environment variables
 .env
 .env.local
-.env.*
+*.env
 
-# Editors
+# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
+*.tmp
 
-# OS
-.DS_Store
-Thumbs.db
-
-# Coverage
-coverage/
-htmlcov/
-.coverage
-
-# Python (if applicable)
+# Python specific
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 .Python
 *.so
+.eggs/
+eggs/
+parts/
+var/
+sdist/
+develop-eggs/
+.installed.cfg
+lib/
+lib64/
+pip-delete-this-directory.txt
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.git/refs/replace/*
+venv/
+ENV/
+env/
+.venv/
+env.bak/
+venv.bak/
+.python-version
+*.pot
+*.po
+MANIFEST
+.wafpickle-*
+.coverage*
+.pytest_cache/
+.mypy_cache/
+.hypothesis/
+
+# Node.js specific
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+node_modules/
+jspm_packages/
+typings/
+.flow-typed/
+.nyc_output
+.nyc_output/
+coverage/
+*.lcov
+.nyc_output/
+coverage/
+.nyc_output
+coverage/
+.nyc_output/
+*.orig
+package-lock.json
+yarn.lock
+.pnp.*
+.pnp.js
+.pnp.cjs
+async/
+.nyc_output/
+.nyc_output/*
+coverage/
+.nyc_output/
+*.lcov
+.nyc_output/
+coverage/
+.nyc_output
+coverage/
+.nyc_output/
+*.orig
+package-lock.json
+yarn.lock
+.pnp.*
+.pnp.js
+.pnp.cjs
+async/
 ```
