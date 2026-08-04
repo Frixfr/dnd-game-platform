@@ -22,6 +22,7 @@ export interface Player {
   access_password?: string | null;
   avatar_url?: string | null;
   notes?: string | null;
+  room_id?: number | null;
 }
 
 export interface Effect {

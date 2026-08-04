@@ -92,8 +92,17 @@ export async function initializeDatabase() {
           .onDelete("SET NULL");
         table.text("access_password");
         table.string("avatar_url", 255).nullable();
+        table.integer("room_id").nullable();
       });
       console.log("Таблица players создана");
+    } else {
+      // Миграция: добавляем room_id если нет
+      const hasRoomId = await db.schema.hasColumn("players", "room_id");
+      if (!hasRoomId) {
+        await db.schema.alterTable("players", (table) => {
+          table.integer("room_id").nullable();
+        });
+      }
     }
 
     // Таблица abilities

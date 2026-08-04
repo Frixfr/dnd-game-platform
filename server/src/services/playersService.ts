@@ -566,10 +566,12 @@ export const playersService = {
     return getFullPlayerData(id.toString());
   },
 
-  async loginWithPassword(password: string): Promise<Player | null> {
-    const player = await db("players")
-      .where({ access_password: password })
-      .first();
+  async loginWithPassword(password: string, roomId?: number): Promise<Player | null> {
+    let query = db("players").where({ access_password: password });
+    if (roomId !== undefined) {
+      query = query.andWhere({ room_id: roomId });
+    }
+    const player = await query.first();
     return player || null;
   },
 

@@ -98,12 +98,12 @@ export const playersController = {
   },
 
   async loginByPassword(req: Request, res: Response) {
-    const { password } = req.body;
+    const { password, roomId } = req.body;
     if (!password || typeof password !== "string") {
       return res.status(400).json({ error: "Пароль обязателен" });
     }
     try {
-      const player = await playersService.loginWithPassword(password);
+      const player = await playersService.loginWithPassword(password, roomId);
       if (!player) {
         return res.status(401).json({ error: "Неверный пароль" });
       }
