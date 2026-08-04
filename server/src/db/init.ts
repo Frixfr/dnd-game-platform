@@ -140,7 +140,7 @@ export async function initializeDatabase() {
     if (!(await db.schema.hasTable("players"))) {
       await db.schema.createTable("players", (table) => {
         table.increments("id").primary();
-        table.string("name", 50).notNullable().unique();
+        table.string("name", 50).notNullable();
         table.string("gender", 10).checkIn(["male", "female"]);
         table.integer("health").defaultTo(50);
         table.integer("max_health").defaultTo(50);
