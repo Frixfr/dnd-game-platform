@@ -1,115 +1,87 @@
 ```
 # Dependencies
 node_modules/
-.pnpm-store/
-.npm/
-.yarn/
 
-# Build outputs
+# Build artifacts
 dist/
 build/
-coverage/
 target/
-.DS_Store
-Thumbs.db
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.py.class
+*.py.obj
+*.py.out
+*.py.o
+*.py.a
+*.py.so
+*.py.dll
+*.py.exe
+*.py.lib
+*.py.dll.a
+*.py.so.a
+*.py.dylib
+*.py.bundle
+*.py.egg-info
+*.py.egg-info/*
+venv/
+.venv/
+.env
+.env.local
+.env.*
 
 # Logs
 *.log
 
-# Environment variables
-.env
-.env.local
-*.env
-
-# IDE
+# Editor
 .vscode/
 .idea/
 *.swp
 *.swo
 *.tmp
 
-# Python specific
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-*.so
-.eggs/
-eggs/
-parts/
-var/
-sdist/
-develop-eggs/
-.installed.cfg
-lib/
-lib64/
-pip-delete-this-directory.txt
-htmlcov/
-.tox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.log
-.git/refs/replace/*
-venv/
-ENV/
-env/
-.venv/
-env.bak/
-venv.bak/
-.python-version
-*.pot
-*.po
-MANIFEST
-.wafpickle-*
-.coverage*
-.pytest_cache/
-.mypy_cache/
-.hypothesis/
+# OS
+.DS_Store
+Thumbs.db
 
-# Node.js specific
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-node_modules/
-jspm_packages/
-typings/
-.flow-typed/
-.nyc_output
-.nyc_output/
+# Coverage
 coverage/
-*.lcov
-.nyc_output/
-coverage/
-.nyc_output
-coverage/
-.nyc_output/
-*.orig
-package-lock.json
-yarn.lock
-.pnp.*
-.pnp.js
-.pnp.cjs
-async/
-.nyc_output/
-.nyc_output/*
-coverage/
-.nyc_output/
-*.lcov
-.nyc_output/
-coverage/
-.nyc_output
-coverage/
-.nyc_output/
-*.orig
-package-lock.json
-yarn.lock
-.pnp.*
-.pnp.js
-.pnp.cjs
-async/
+htmlcov/
+.coverage
+
+# MyPy
+.mypy_cache/
+
+# PyTest
+.pytest_cache/
+
+# Gradle
+.gradle/
+
+# Compressed files
+*.zip
+*.gz
+*.tar
+*.tgz
+*.bz2
+*.xz
+*.7z
+*.rar
+*.zst
+*.lz4
+*.lzh
+*.cab
+*.arj
+*.rpm
+*.deb
+*.Z
+*.lz
+*.lzo
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.tar.zst
 ```
