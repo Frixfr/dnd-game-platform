@@ -45,7 +45,9 @@ export const MyRoomsPage: React.FC = () => {
   const handleEnterRoom = (id: number, name: string, hasPassword?: boolean) => {
     if (!hasPassword) {
       // Если пароля нет, входим сразу
-      enterRoom(id, undefined).catch(() => showError('Не удалось войти в комнату'));
+      setActiveRoom(id).then(() => {
+        navigate('/master');
+      }).catch(() => showError('Не удалось войти в комнату'));
     } else {
       // Если пароль есть, показываем модальное окно
       setRoomToEnter({ id, name });
