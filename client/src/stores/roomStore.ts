@@ -171,6 +171,7 @@ export const useRoomStore = create<RoomStore>()(
           // Сохраняем новый токен (с комнатой), masterToken не меняем
           set({
             token: response.token,
+            masterToken: response.token, // Обновляем мастер-токен с roomId
             currentRoom: { id: response.room.id, name: response.room.name },
             isLoading: false,
           });

@@ -22,7 +22,8 @@ export const EnterRoomModal: React.FC<EnterRoomModalProps> = ({ roomId, roomName
     e.preventDefault();
     setIsLoading(true);
     try {
-      await enterRoom(roomId, password.trim() || undefined);
+      // Если пароля нет, передаем undefined (сервер пропустит без проверки)
+      await enterRoom(roomId, hasPassword ? password.trim() : undefined);
       if (onSuccess) onSuccess();
       onClose();
     } catch (err) {
