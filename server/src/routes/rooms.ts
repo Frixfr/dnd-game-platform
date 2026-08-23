@@ -74,8 +74,9 @@ router.post("/:id/enter", async (req, res) => {
       return res.status(404).json({ error: "Комната не найдена" });
     }
 
+    // Если у комнаты есть пароль, проверяем его
     if (room.password_hash) {
-      if (!password) {
+      if (!password || typeof password !== "string") {
         return res.status(401).json({ error: "Требуется пароль комнаты" });
       }
       const isValid = await bcrypt.compare(password, room.password_hash);
@@ -83,6 +84,7 @@ router.post("/:id/enter", async (req, res) => {
         return res.status(401).json({ error: "Неверный пароль" });
       }
     }
+    // Если пароля нет (password_hash === null), просто пропускаем
 
     // Бессрочный токен с roomId
     const token = jwt.sign(
