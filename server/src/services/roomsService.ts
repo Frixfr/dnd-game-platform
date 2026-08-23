@@ -19,15 +19,23 @@ export const roomsService = {
     return safe;
   },
 
-  async create(name: string): Promise<Omit<Room, "password_hash">> {
-    const [room] = await db("rooms")
-      .insert({
-        name: name.trim(),
-        is_active_for_players: false,
-        created_at: db.fn.now(),
-        updated_at: db.fn.now(),
-      })
-      .returning("*");
+  async create(
+    name: string,
+    password?: string | null,
+  ): Promise<Omit<Room, "password_hash">> {
+    const updateData: any = {
+      name: name.trim(),
+      is_active_for_players: false,
+      created_at: db.fn.now(),
+      updated_at: db.fn.now(),
+    };
+
+    if (password !== undefined && password !== null && password.length > 0) {
+      const salt = await bcrypt.genSalt(10);
+      updateData.password_hash = await bcrypt.hash(password, salt);
+    }
+
+    const [room] = await db("rooms").insert(updateData).returning("*");
     const { password_hash, ...safe } = room;
     return safe;
   },
