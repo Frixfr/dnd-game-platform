@@ -6,11 +6,13 @@ import { useErrorHandler } from '../../hooks/useErrorHandler';
 interface EnterRoomModalProps {
   roomId: number;
   roomName: string;
+  hasPassword?: boolean;
   onClose: () => void;
   onSuccess?: () => void;
+  onSetPassword?: () => void;
 }
 
-export const EnterRoomModal: React.FC<EnterRoomModalProps> = ({ roomId, roomName, onClose, onSuccess }) => {
+export const EnterRoomModal: React.FC<EnterRoomModalProps> = ({ roomId, roomName, hasPassword, onClose, onSuccess, onSetPassword }) => {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { enterRoom } = useRoomStore();
@@ -42,20 +44,37 @@ export const EnterRoomModal: React.FC<EnterRoomModalProps> = ({ roomId, roomName
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <p className="text-text-secondary text-sm">
-            Введите пароль для комнаты <span className="font-semibold text-text-primary">"{roomName}"</span>
+            {hasPassword 
+              ? 'Введите пароль для комнаты' 
+              : 'Комната не защищена паролем. Вы можете войти без пароля или задать его.'}
+            <span className="font-semibold text-text-primary"> "{roomName}"</span>
           </p>
-          <div>
-            <label className="block text-sm font-medium form-label mb-1">Пароль</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full form-input"
-              placeholder="Введите пароль (если установлен)"
-              autoFocus
-            />
-            <p className="text-xs text-text-muted mt-1">Если пароль не установлен, оставьте поле пустым</p>
-          </div>
+          
+          {hasPassword && (
+            <div>
+              <label className="block text-sm font-medium form-label mb-1">Пароль</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full form-input"
+                placeholder="Введите пароль"
+                autoFocus
+              />
+            </div>
+          )}
+
+          {!hasPassword && onSetPassword && (
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={onSetPassword}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 btn-secondary text-sm"
+              >
+                🔐 Задать пароль
+              </button>
+            </div>
+          )}
 
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onClose} className="px-4 py-2 btn-secondary">
