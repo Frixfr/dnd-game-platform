@@ -43,19 +43,16 @@ export const MyRoomsPage: React.FC = () => {
   }, [token, currentRoom, navigate, fetchRooms, showError]);
 
   const handleEnterRoom = (id: number, name: string, hasPassword?: boolean) => {
-    if (!hasPassword) {
-      // Если пароля нет, входим сразу
-      setActiveRoom(id).then(() => {
-        navigate('/master');
-      }).catch(() => showError('Не удалось войти в комнату'));
-    } else {
-      // Если пароль есть, показываем модальное окно
-      setRoomToEnter({ id, name });
-      setIsEnterModalOpen(true);
-    }
+    // Всегда показываем модальное окно входа
+    setRoomToEnter({ id, name });
+    setIsEnterModalOpen(true);
   };
 
-  const handleSetPassword = () => {
+  const handleSetPasswordFromList = () => {
+    setIsSetPasswordModalOpen(true);
+  };
+
+  const handleSetPasswordFromEnter = () => {
     setIsEnterModalOpen(false);
     setIsSetPasswordModalOpen(true);
   };
@@ -192,7 +189,7 @@ export const MyRoomsPage: React.FC = () => {
                     <button
                       onClick={() => {
                         setRoomToEnter({ id: room.id, name: room.name });
-                        setIsSetPasswordModalOpen(true);
+                        handleSetPasswordFromList();
                       }}
                       className="flex items-center justify-center gap-2 px-3 py-2 btn-secondary text-sm"
                       title="Задать пароль"
@@ -226,14 +223,15 @@ export const MyRoomsPage: React.FC = () => {
             setIsEnterModalOpen(false);
             setRoomToEnter(null);
           }}
-          onSetPassword={handleSetPassword}
+          onSetPassword={handleSetPasswordFromEnter}
           onSuccess={() => {
             // После входа редирект произойдёт автоматически благодаря эффекту
           }}
         />
       )}
 
-      {isSetPasswordModalOpen && roomToEnter && (
+      {/* Модалка установки пароля из списка комнат (когда не открыто окно входа) */}
+      {!isEnterModalOpen && isSetPasswordModalOpen && roomToEnter && (
         <SetRoomPasswordModal
           roomId={roomToEnter.id}
           roomName={roomToEnter.name}
@@ -242,9 +240,9 @@ export const MyRoomsPage: React.FC = () => {
             setRoomToEnter(null);
           }}
           onSuccess={() => {
-            // После установки пароля снова открываем модальное окно входа
             setIsSetPasswordModalOpen(false);
-            setIsEnterModalOpen(true);
+            setRoomToEnter(null);
+            fetchRooms();
           }}
         />
       )}
