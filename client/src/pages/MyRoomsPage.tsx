@@ -43,8 +43,14 @@ export const MyRoomsPage: React.FC = () => {
   }, [token, currentRoom, navigate, fetchRooms, showError]);
 
   const handleEnterRoom = (id: number, name: string, hasPassword?: boolean) => {
-    setRoomToEnter({ id, name });
-    setIsEnterModalOpen(true);
+    if (!hasPassword) {
+      // Если пароля нет, входим сразу
+      enterRoom(id, undefined).catch(() => showError('Не удалось войти в комнату'));
+    } else {
+      // Если пароль есть, показываем модальное окно
+      setRoomToEnter({ id, name });
+      setIsEnterModalOpen(true);
+    }
   };
 
   const handleSetPassword = () => {
@@ -180,6 +186,18 @@ export const MyRoomsPage: React.FC = () => {
                     <DoorOpen size={16} />
                     Войти
                   </button>
+                  {!room.has_password && (
+                    <button
+                      onClick={() => {
+                        setRoomToEnter({ id: room.id, name: room.name });
+                        setIsSetPasswordModalOpen(true);
+                      }}
+                      className="flex items-center justify-center gap-2 px-3 py-2 btn-secondary text-sm"
+                      title="Задать пароль"
+                    >
+                      <Lock size={16} />
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
