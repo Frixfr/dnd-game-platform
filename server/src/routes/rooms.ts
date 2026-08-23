@@ -23,6 +23,7 @@ router.get("/", authMaster, async (_req, res) => {
     const safeRooms = rooms.map((room: Room) => ({
       ...room,
       password_hash: undefined,
+      has_password: !!room.password_hash,
     }));
     res.json(safeRooms);
   } catch (error) {

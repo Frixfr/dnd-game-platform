@@ -5,7 +5,8 @@ import apiClient from "./client";
 export interface Room {
   id: number;
   name: string;
-  password_hash: string | null; // на фронте не используем, но для типизации
+  password_hash?: string | null; // на фронте не используем, но для типизации
+  has_password?: boolean; // есть ли пароль у комнаты
   is_active_for_players: boolean;
   created_at: string;
   updated_at: string;

@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useRoomStore } from '../stores/roomStore';
 import { CreateRoomModal } from '../components/ui/CreateRoomModal';
 import { EnterRoomModal } from '../components/ui/EnterRoomModal';
+import { SetRoomPasswordModal } from '../components/ui/SetRoomPasswordModal';
 import ConfirmModal from '../components/ui/ConfirmModal';
 import { useErrorHandler } from '../hooks/useErrorHandler';
 import { Plus, DoorOpen, Lock, Trash2, Users, CheckCircle } from 'lucide-react';
@@ -24,6 +25,7 @@ export const MyRoomsPage: React.FC = () => {
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEnterModalOpen, setIsEnterModalOpen] = useState(false);
+  const [isSetPasswordModalOpen, setIsSetPasswordModalOpen] = useState(false);
   const [roomToEnter, setRoomToEnter] = useState<{ id: number; name: string } | null>(null);
   const [roomToDelete, setRoomToDelete] = useState<number | null>(null);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
@@ -40,9 +42,14 @@ export const MyRoomsPage: React.FC = () => {
     fetchRooms().catch(() => showError('Не удалось загрузить комнаты'));
   }, [token, currentRoom, navigate, fetchRooms, showError]);
 
-  const handleEnterRoom = (id: number, name: string) => {
+  const handleEnterRoom = (id: number, name: string, hasPassword?: boolean) => {
     setRoomToEnter({ id, name });
     setIsEnterModalOpen(true);
+  };
+
+  const handleSetPassword = () => {
+    setIsEnterModalOpen(false);
+    setIsSetPasswordModalOpen(true);
   };
 
   const handleDeleteRoom = (id: number) => {
@@ -139,7 +146,7 @@ export const MyRoomsPage: React.FC = () => {
                           Неактивна
                         </span>
                       )}
-                      {room.password_hash && (
+                      {room.has_password && (
                         <span className="inline-flex items-center gap-1 text-xs text-text-secondary bg-bg-tertiary px-2 py-0.5 rounded-full border border-border-color">
                           <Lock size={12} />
                           Защищена
@@ -167,7 +174,7 @@ export const MyRoomsPage: React.FC = () => {
 
                 <div className="mt-auto pt-4 border-t border-border-color flex gap-2">
                   <button
-                    onClick={() => handleEnterRoom(room.id, room.name)}
+                    onClick={() => handleEnterRoom(room.id, room.name, room.has_password)}
                     className="flex-1 flex items-center justify-center gap-2 px-4 py-2 btn-primary text-sm"
                   >
                     <DoorOpen size={16} />
@@ -194,12 +201,30 @@ export const MyRoomsPage: React.FC = () => {
         <EnterRoomModal
           roomId={roomToEnter.id}
           roomName={roomToEnter.name}
+          hasPassword={rooms.find(r => r.id === roomToEnter?.id)?.has_password}
           onClose={() => {
             setIsEnterModalOpen(false);
             setRoomToEnter(null);
           }}
+          onSetPassword={handleSetPassword}
           onSuccess={() => {
             // После входа редирект произойдёт автоматически благодаря эффекту
+          }}
+        />
+      )}
+
+      {isSetPasswordModalOpen && roomToEnter && (
+        <SetRoomPasswordModal
+          roomId={roomToEnter.id}
+          roomName={roomToEnter.name}
+          onClose={() => {
+            setIsSetPasswordModalOpen(false);
+            setRoomToEnter(null);
+          }}
+          onSuccess={() => {
+            // После установки пароля снова открываем модальное окно входа
+            setIsSetPasswordModalOpen(false);
+            setIsEnterModalOpen(true);
           }}
         />
       )}
