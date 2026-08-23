@@ -34,18 +34,26 @@ router.get("/", authMaster, async (_req, res) => {
 // POST /api/rooms
 router.post("/", authMaster, async (req, res) => {
   try {
-    const { name } = req.body;
+    const { name, password } = req.body;
     if (!name || typeof name !== "string" || name.trim().length === 0) {
       return res.status(400).json({ error: "Название комнаты обязательно" });
     }
 
+    const insertData: any = {
+      name: name.trim(),
+      is_active_for_players: false,
+      created_at: db.fn.now(),
+      updated_at: db.fn.now(),
+    };
+
+    // Если пароль указан, хешируем и сохраняем
+    if (password && typeof password === "string" && password.length > 0) {
+      const salt = await bcrypt.genSalt(10);
+      insertData.password_hash = await bcrypt.hash(password, salt);
+    }
+
     const [room] = await db("rooms")
-      .insert({
-        name: name.trim(),
-        is_active_for_players: false,
-        created_at: db.fn.now(),
-        updated_at: db.fn.now(),
-      })
+      .insert(insertData)
       .returning("*");
 
     const safeRoom = { ...room, password_hash: undefined };
