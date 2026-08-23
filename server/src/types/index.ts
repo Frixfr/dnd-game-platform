@@ -1,5 +1,14 @@
 // server/src/types/index.ts
 
+export interface Room {
+  id: number;
+  name: string;
+  password_hash: string | null;
+  is_active_for_players: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Player {
   id: number;
   name: string;
@@ -21,6 +30,8 @@ export interface Player {
   race_id: number | null;
   access_password?: string | null;
   avatar_url?: string | null;
+  notes?: string | null;
+  room_id: number;
 }
 
 export interface Effect {
@@ -44,7 +55,9 @@ export interface Effect {
   duration_turns: number | null;
   duration_days: number | null;
   is_permanent: boolean;
+  is_instant: boolean;
   tags: string[];
+  room_id: number;
 }
 
 export interface Ability {
@@ -57,6 +70,7 @@ export interface Ability {
   effect_id: number | null;
   created_at: string;
   updated_at: string;
+  room_id: number;
 }
 
 export interface Item {
@@ -80,6 +94,7 @@ export interface Item {
   is_usable: boolean;
   infinite_uses: boolean;
   effects?: (Effect & { effect_type: "active" | "passive" })[];
+  room_id: number;
 }
 
 export interface NPC {
@@ -103,6 +118,7 @@ export interface NPC {
   created_at: string;
   race_id: number | null;
   avatar_url?: string | null;
+  room_id: number;
 }
 
 export interface PlayerAbility {
@@ -181,11 +197,12 @@ export interface FullPlayerData extends Player {
     quantity: number;
     is_equipped: boolean;
     active_effect?: Effect | null;
-    passive_effect?: Effect | null;
+    passive_effects?: (Effect & { source_item_name: string })[];
   })[];
   active_effects: (Effect & {
     source_type: string;
     source_id: number | null;
+    source_name?: string | null;
     remaining_turns: number | null;
     remaining_days: number | null;
     applied_at: string;
@@ -211,11 +228,12 @@ export interface FullNPCData extends NPC {
     quantity: number;
     is_equipped: boolean;
     active_effect?: Effect | null;
-    passive_effect?: Effect | null;
+    passive_effects?: (Effect & { source_item_name: string })[];
   })[];
   active_effects: (Effect & {
     source_type: string;
     source_id: number | null;
+    source_name?: string | null;
     remaining_turns: number | null;
     remaining_days: number | null;
     applied_at: string;
@@ -228,6 +246,7 @@ export interface Race {
   name: string;
   description: string | null;
   created_at: string;
+  room_id: number;
 }
 
 export interface RaceEffect {
@@ -241,6 +260,7 @@ export interface CombatSession {
   is_active: boolean;
   created_at: string;
   ended_at: string | null;
+  room_id: number;
 }
 
 export interface CombatParticipant {
@@ -267,6 +287,7 @@ export interface Log {
   action_name: string;
   details: string | null;
   created_at: string;
+  room_id: number;
 }
 
 // Расширенный участник боя с данными сущности
@@ -295,8 +316,11 @@ export interface Map {
   name: string;
   image_url: string;
   show_to_players: boolean;
+  original_width: number;
+  original_height: number;
   created_at: string;
   updated_at: string;
+  room_id: number;
 }
 
 export interface MapToken {
@@ -304,8 +328,8 @@ export interface MapToken {
   map_id: number;
   entity_type: "player" | "npc";
   entity_id: number;
-  x: number; // 0..1
-  y: number; // 0..1
+  x: number;
+  y: number;
   is_grayscale: boolean;
   scale: number;
   updated_at: string;

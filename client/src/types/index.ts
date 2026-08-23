@@ -21,6 +21,7 @@ export interface Player {
   race_id: number | null;
   access_password?: string | null;
   avatar_url?: string | null;
+  notes?: string | null;
 }
 
 // Тип для финальных характеристик (общий для игроков и NPC)
@@ -67,6 +68,7 @@ export interface Effect {
   duration_turns: number | null;
   duration_days: number | null;
   is_permanent: boolean;
+  is_instant: boolean;
   tags: string[];
 }
 
@@ -103,6 +105,8 @@ export interface Item {
   is_usable: boolean;
   infinite_uses: boolean;
   effects?: (Effect & { effect_type: "active" | "passive" })[];
+  active_effects?: Effect[];
+  passive_effects?: Effect[];
 }
 
 export interface NPC {
@@ -197,16 +201,22 @@ export interface FullPlayerData extends Player {
 
 export interface FullNPCData extends NPC {
   final_stats: FinalStats;
-  abilities: (Ability & { effect?: Effect | null; is_active: boolean })[];
+  abilities: (Ability & {
+    effect?: Effect | null;
+    is_active: boolean;
+    remaining_cooldown_turns?: number | null;
+    remaining_cooldown_days?: number | null;
+  })[];
   items: (Item & {
+    npc_item_id?: number;
     quantity: number;
-    is_equipped: boolean;
     active_effect?: Effect | null;
-    passive_effect?: Effect | null;
+    passive_effects?: (Effect & { source_item_name: string })[];
   })[];
   active_effects: (Effect & {
     source_type: string;
     source_id: number | null;
+    source_name?: string | null;
     remaining_turns: number | null;
     remaining_days: number | null;
     applied_at: string;
@@ -219,6 +229,7 @@ export interface Race {
   name: string;
   description: string | null;
   created_at: string;
+  effects?: Effect[];
 }
 
 export interface RaceEffect {
@@ -262,8 +273,7 @@ export interface Log {
 
 // Расширенный участник боя с данными сущности
 export interface CombatParticipantWithDetails extends CombatParticipant {
-  entity: Player | NPC;
-  final_stats?: FinalStats;
+  entity: FullPlayerData | FullNPCData;
 }
 
 export interface PaginatedResponse<T> {
@@ -286,6 +296,8 @@ export interface Map {
   name: string;
   image_url: string;
   show_to_players: boolean;
+  original_width: number; // добавить
+  original_height: number; // добавить
   created_at: string;
   updated_at: string;
 }
@@ -335,15 +347,15 @@ export interface PlayerAbilityExtended extends Ability {
 export interface PlayerItemExtended extends Item {
   player_item_id?: number;
   quantity: number;
-  is_equipped: boolean;
   obtained_at: string;
-  active_effects?: Effect[]; // массив активных эффектов от предмета
-  passive_effects?: Effect[]; // массив пассивных эффектов от предмета
+  active_effects?: Effect[];
+  passive_effects?: (Effect & { source_item_name: string })[];
 }
 
 export interface PlayerEffectExtended extends Effect {
   source_type: string;
   source_id: number | null;
+  source_name?: string | null;
   remaining_turns: number | null;
   remaining_days: number | null;
   applied_at: string;
@@ -363,6 +375,17 @@ export interface AvailableEntities {
 // Алиасы для способностей, эффектов и рас (для удобства)
 export type AbilityType = Ability;
 export type EffectType = Effect;
+export type ItemType = Item;
 export type RaceType = Race;
 
 export type RarityType = Item["rarity"];
+
+export type NpcType = NPC;
+export type StatType = keyof Pick<
+  NPC,
+  "strength" | "agility" | "intelligence" | "physique" | "wisdom" | "charisma"
+>;
+
+export type NpcItemExtended = FullNPCData["items"][0];
+export type NpcAbilityExtended = FullNPCData["abilities"][0];
+export type NpcEffectExtended = FullNPCData["active_effects"][0];

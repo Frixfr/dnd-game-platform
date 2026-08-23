@@ -12,14 +12,19 @@ export const logsService = {
         entity_name: data.entity_name,
         action_name: data.action_name,
         details: data.details,
+        room_id: data.room_id,
         created_at: db.fn.now(),
       })
       .returning("*");
-    getIO().emit("log:new", log);
+    getIO().to(`room:${data.room_id}`).emit("log:new", log);
     return log;
   },
 
-  async getAll(limit: number = 200): Promise<Log[]> {
-    return db("logs").select("*").orderBy("created_at", "desc").limit(limit);
+  async getAll(limit: number = 200, roomId?: number): Promise<Log[]> {
+    let query = db("logs").select("*");
+    if (roomId) {
+      query = query.where("room_id", roomId);
+    }
+    return query.orderBy("created_at", "desc").limit(limit);
   },
 };

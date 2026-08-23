@@ -3,7 +3,10 @@ import { useCombatStore } from "../stores/combatStore";
 import { usePlayerStore } from "../stores/playerStore";
 import { useNpcStore } from "../stores/npcStore";
 import { CombatantCard } from "../components/ui/CombatantCard";
-import type { EffectType } from "../types";
+import { EditPlayerModal } from "../components/ui/EditPlayerModal";
+import { EditNpcModal } from "../components/ui/EditNpcModal";
+import AddCombatantModal from "../components/ui/AddCombatantModal"; // импорт новой модалки
+import type { PlayerType, NpcType } from "../types";
 
 export const CombatPage = () => {
   const {
@@ -16,36 +19,23 @@ export const CombatPage = () => {
     addParticipant,
     removeParticipant,
     reorderParticipants,
-    endRound,
-    updateHealth,
     nextTurn,
+    advanceDay,
   } = useCombatStore();
   const { players, fetchPlayers } = usePlayerStore();
   const { npcs, fetchNpcs } = useNpcStore();
   const [showAddModal, setShowAddModal] = useState(false);
-  const [selectedEffect, setSelectedEffect] = useState<{
-    participantId: number;
-    entityType: "player" | "npc";
-    entityId: number;
+
+  // Состояние для редактируемого участника
+  const [editingParticipant, setEditingParticipant] = useState<{
+    participant: typeof participants[0];
   } | null>(null);
-  const [effectsList, setEffectsList] = useState<EffectType[]>([]);
-  const [effectSearch, setEffectSearch] = useState("");
-  const filteredEffects = effectsList.filter(effect => {
-    const searchLower = effectSearch.toLowerCase();
-    const nameMatch = effect.name.toLowerCase().includes(searchLower);
-    const tagsMatch = effect.tags?.some(tag => tag.toLowerCase().includes(searchLower)) || false;
-    return nameMatch || tagsMatch;
-});
-  const { callUseAbility } = useCombatStore();
 
   useEffect(() => {
     initializeSocket();
     fetchActiveSession();
     fetchPlayers();
     fetchNpcs();
-    fetch("/api/effects")
-      .then((res) => res.json())
-      .then(setEffectsList);
   }, [initializeSocket, fetchActiveSession, fetchPlayers, fetchNpcs]);
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -64,8 +54,18 @@ export const CombatPage = () => {
     reorderParticipants(newIds);
   };
 
+  // Перемещение участника кнопками (тач-альтернатива drag-and-drop)
+  const moveParticipant = (index: number, direction: "up" | "down") => {
+    if (direction === "up" && index === 0) return;
+    if (direction === "down" && index === participants.length - 1) return;
+    const currentOrder = [...participants];
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    [currentOrder[index], currentOrder[targetIndex]] = [currentOrder[targetIndex], currentOrder[index]];
+    reorderParticipants(currentOrder.map((p) => p.id));
+  };
+
   const availablePlayers = players.filter(
-    (p) => !participants.some((part) => part.entity_type === "player" && part.entity_id === p.id)
+    (p) => p.is_online && !participants.some((part) => part.entity_type === "player" && part.entity_id === p.id)
   );
   const availableNpcs = npcs.filter(
     (n) => !participants.some((part) => part.entity_type === "npc" && part.entity_id === n.id)
@@ -76,27 +76,17 @@ export const CombatPage = () => {
     setShowAddModal(false);
   };
 
-  const handleHealthChange = async (participant: typeof participants[0], newHealth: number) => {
-    await updateHealth(participant.entity_type, participant.entity_id, newHealth);
+  const handleRemoveParticipant = async (participantId: number) => {
+    await removeParticipant(participantId);
   };
 
-  const handleAddEffect = (participant: typeof participants[0]) => {
-    setSelectedEffect({
-      participantId: participant.id,
-      entityType: participant.entity_type,
-      entityId: participant.entity_id,
-    });
+  const handleEditParticipant = (participant: typeof participants[0]) => {
+    setEditingParticipant({ participant });
   };
 
-  const handleEffectSubmit = async (effectId: number, durationTurns?: number) => {
-    if (!selectedEffect) return;
-    await useCombatStore.getState().addEffect(
-      selectedEffect.entityType,
-      selectedEffect.entityId,
-      effectId,
-      durationTurns
-    );
-    setSelectedEffect(null);
+  const handleEntityUpdated = async () => {
+    await fetchActiveSession(); // перезагружаем бой, чтобы обновить характеристики в карточке
+    setEditingParticipant(null);
   };
 
   if (loading) {
@@ -104,36 +94,36 @@ export const CombatPage = () => {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">⚔️ Бой</h1>
-        <div className="flex gap-3">
+    <div className="p-4 md:p-6 max-w-7xl mx-auto">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+        <h1 className="text-2xl md:text-3xl font-bold text-text-primary">⚔️ Бой</h1>
+        <div className="flex flex-wrap gap-2">
           {!session ? (
             <button
               onClick={startNewSession}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+              className="flex-1 sm:flex-none px-4 py-2 btn-primary"
             >
               Начать битву
             </button>
           ) : (
-            <>              
+            <>
               <button
                 onClick={() => setShowAddModal(true)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                className="flex-1 sm:flex-none px-4 py-2 btn-secondary"
               >
                 + Добавить участника
               </button>
               <button
                 onClick={nextTurn}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
+                className="flex-1 sm:flex-none px-4 py-2 btn-secondary"
+              >
                 Передать ход
               </button>
               <button
-                onClick={endRound}
-                className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
+                onClick={advanceDay}
+                className="flex-1 sm:flex-none px-4 py-2 btn-secondary"
               >
-                Завершить раунд
+                Завершить день
               </button>
             </>
           )}
@@ -141,11 +131,11 @@ export const CombatPage = () => {
       </div>
 
       {!session ? (
-        <div className="text-center py-12 text-gray-500">
+        <div className="text-center py-12 text-text-muted bg-card rounded-lg border border-border-color p-4">
           Нет активной битвы. Нажмите «Начать битву»
         </div>
       ) : participants.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
+        <div className="text-center py-12 text-text-muted bg-card rounded-lg border border-border-color p-4">
           Нет участников. Добавьте игроков или NPC
         </div>
       ) : (
@@ -162,111 +152,42 @@ export const CombatPage = () => {
               <CombatantCard
                 participant={participant}
                 isCurrentTurn={participant.is_current_turn}
-                onHealthChange={(newHealth) => handleHealthChange(participant, newHealth)}
-                onAddEffect={() => handleAddEffect(participant)}
-                onRemove={() => removeParticipant(participant.id)}
-                onUseAbility={async (abilityId) => {
-                    if (participant.entity_type === "npc") {
-                    await callUseAbility(participant.entity_type, participant.entity_id, abilityId);
-                    } else {
-                    alert("Игрок сам использует свои способности через свой интерфейс");
-                    }
-                }}
-                />
+                onRemove={() => handleRemoveParticipant(participant.id)}
+                onEdit={() => handleEditParticipant(participant)}
+                onMoveUp={idx > 0 ? () => moveParticipant(idx, "up") : undefined}
+                onMoveDown={idx < participants.length - 1 ? () => moveParticipant(idx, "down") : undefined}
+              />
             </div>
           ))}
         </div>
       )}
 
-      {/* Модалка добавления участника */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-md w-full p-6">
-            <h2 className="text-xl font-bold mb-4">Добавить участника</h2>
-            <div className="mb-4">
-              <h3 className="font-semibold mb-2">Игроки</h3>
-              {availablePlayers.length === 0 ? (
-                <p className="text-gray-500">Нет доступных игроков</p>
-              ) : (
-                availablePlayers.map((p) => (
-                  <button
-                    key={p.id}
-                    onClick={() => handleAddParticipant("player", p.id)}
-                    className="block w-full text-left p-2 hover:bg-gray-100 rounded"
-                  >
-                    {p.name} (❤️ {p.health}/{p.max_health})
-                  </button>
-                ))
-              )}
-            </div>
-            <div className="mb-4">
-              <h3 className="font-semibold mb-2">NPC</h3>
-              {availableNpcs.length === 0 ? (
-                <p className="text-gray-500">Нет доступных NPC</p>
-              ) : (
-                availableNpcs.map((n) => (
-                  <button
-                    key={n.id}
-                    onClick={() => handleAddParticipant("npc", n.id)}
-                    className="block w-full text-left p-2 hover:bg-gray-100 rounded"
-                  >
-                    {n.name} (❤️ {n.health}/{n.max_health})
-                  </button>
-                ))
-              )}
-            </div>
-            <button
-              onClick={() => setShowAddModal(false)}
-              className="mt-2 px-4 py-2 bg-gray-300 rounded"
-            >
-              Закрыть
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Красивая модалка добавления участника */}
+      <AddCombatantModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        availablePlayers={availablePlayers}
+        availableNpcs={availableNpcs}
+        onAddPlayer={(playerId) => handleAddParticipant("player", playerId)}
+        onAddNpc={(npcId) => handleAddParticipant("npc", npcId)}
+      />
 
-      {/* Модалка добавления эффекта */}
-      {selectedEffect && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl max-w-md w-full p-6">
-            <h2 className="text-xl font-bold mb-4">Добавить эффект</h2>
-            <input
-                type="text"
-                placeholder="Поиск по названию или тегам..."
-                value={effectSearch}
-                onChange={(e) => setEffectSearch(e.target.value)}
-                className="w-full px-3 py-2 border rounded mb-3"
-            />
-            <div className="max-h-96 overflow-y-auto">
-                {filteredEffects.map((effect) => (
-                <div key={effect.id} className="mb-2 p-2 border rounded">
-                    <div className="font-semibold">{effect.name}</div>
-                    <div className="text-sm text-gray-600">{effect.description}</div>
-                    {effect.tags && effect.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-1">
-                        {effect.tags.map(tag => (
-                        <span key={tag} className="text-xs bg-gray-100 px-1 rounded">#{tag}</span>
-                        ))}
-                    </div>
-                    )}
-                    <div className="text-xs text-gray-500 mt-1">
-                    {effect.duration_turns ? `${effect.duration_turns} ходов` : "Постоянный"}
-                    </div>
-                    <button
-                    onClick={() => handleEffectSubmit(effect.id, effect.duration_turns ?? undefined)}
-                    className="mt-2 px-3 py-1 bg-purple-600 text-white text-sm rounded"
-                    >
-                    Применить
-                    </button>
-                </div>
-                ))}
-            </div>
-            <button onClick={() => setSelectedEffect(null)} className="mt-4 px-4 py-2 bg-gray-300 rounded">
-                Отмена
-            </button>
-            </div>
-        </div>
-        )}
+      {/* Модалка редактирования игрока/NPC */}
+      {editingParticipant && (
+        editingParticipant.participant.entity_type === "player" ? (
+          <EditPlayerModal
+            player={editingParticipant.participant.entity as PlayerType}
+            onClose={() => setEditingParticipant(null)}
+            onPlayerUpdated={handleEntityUpdated}
+          />
+        ) : (
+          <EditNpcModal
+            npc={editingParticipant.participant.entity as NpcType}
+            onClose={() => setEditingParticipant(null)}
+            onNpcUpdated={handleEntityUpdated}
+          />
+        )
+      )}
     </div>
   );
 };

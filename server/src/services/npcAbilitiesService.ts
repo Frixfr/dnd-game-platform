@@ -1,14 +1,26 @@
+// server/src/services/npcAbilitiesService.ts
 import { db } from "../db/index.js";
+import { applyInstantHealthChange } from "../utils/helpers.js";
 
 export const npcAbilitiesService = {
-  async getAll(filters: {
-    npc_id?: number;
-    ability_id?: number;
-    is_active?: boolean;
-    with_details?: boolean;
-  }) {
+  async getAll(
+    roomId: number,
+    filters: {
+      npc_id?: number;
+      ability_id?: number;
+      is_active?: boolean;
+      with_details?: boolean;
+    },
+  ) {
     let query = db("npc_abilities").select("*");
-    if (filters.npc_id) query = query.where("npc_id", filters.npc_id);
+    if (filters.npc_id) {
+      // Проверяем, что NPC принадлежит комнате
+      const npc = await db("npcs")
+        .where({ id: filters.npc_id, room_id: roomId })
+        .first();
+      if (!npc) throw new Error("NPC не найден в этой комнате");
+      query = query.where("npc_id", filters.npc_id);
+    }
     if (filters.ability_id)
       query = query.where("ability_id", filters.ability_id);
     if (filters.is_active !== undefined)
@@ -24,11 +36,18 @@ export const npcAbilitiesService = {
     return rows;
   },
 
-  async create(npc_id: number, ability_id: number, is_active: boolean) {
-    const npc = await db("npcs").where("id", npc_id).first();
-    if (!npc) throw new Error("NPC not found");
-    const ability = await db("abilities").where("id", ability_id).first();
-    if (!ability) throw new Error("Ability not found");
+  async create(
+    roomId: number,
+    npc_id: number,
+    ability_id: number,
+    is_active: boolean,
+  ) {
+    const npc = await db("npcs").where({ id: npc_id, room_id: roomId }).first();
+    if (!npc) throw new Error("NPC не найден в этой комнате");
+    const ability = await db("abilities")
+      .where({ id: ability_id, room_id: roomId })
+      .first();
+    if (!ability) throw new Error("Способность не найдена в этой комнате");
 
     const existing = await db("npc_abilities")
       .where({ npc_id, ability_id })
@@ -91,7 +110,9 @@ export const npcAbilitiesService = {
     return result;
   },
 
-  async delete(npc_id: number, ability_id: number) {
+  async delete(roomId: number, npc_id: number, ability_id: number) {
+    const npc = await db("npcs").where({ id: npc_id, room_id: roomId }).first();
+    if (!npc) throw new Error("NPC не найден в этой комнате");
     const ability = await db("abilities").where("id", ability_id).first();
     const deleted = await db("npc_abilities")
       .where({ npc_id, ability_id })
@@ -105,7 +126,14 @@ export const npcAbilitiesService = {
     return true;
   },
 
-  async toggleActive(npc_id: number, ability_id: number, is_active: boolean) {
+  async toggleActive(
+    roomId: number,
+    npc_id: number,
+    ability_id: number,
+    is_active: boolean,
+  ) {
+    const npc = await db("npcs").where({ id: npc_id, room_id: roomId }).first();
+    if (!npc) throw new Error("NPC не найден в этой комнате");
     const ability = await db("abilities").where("id", ability_id).first();
     if (!ability) throw new Error("Ability not found");
     const [updated] = await db("npc_abilities")
@@ -150,9 +178,12 @@ export const npcAbilitiesService = {
   },
 
   async useAbility(
+    roomId: number,
     npcId: number,
     abilityId: number,
   ): Promise<{ success: boolean; message: string; effect?: any }> {
+    const npc = await db("npcs").where({ id: npcId, room_id: roomId }).first();
+    if (!npc) throw new Error("NPC не найден в этой комнате");
     const npcAbility = await db("npc_abilities")
       .where({ npc_id: npcId, ability_id: abilityId })
       .first();
@@ -164,7 +195,6 @@ export const npcAbilitiesService = {
     if (ability.ability_type !== "active")
       throw new Error("Можно использовать только активные способности");
 
-    // Проверка кулдауна
     const remainingCooldown = npcAbility.remaining_cooldown_turns || 0;
     if (remainingCooldown > 0) {
       throw new Error(
@@ -172,23 +202,94 @@ export const npcAbilitiesService = {
       );
     }
 
-    // Применяем эффект способности (если есть)
     let effectResult = null;
+    let isInstant = false;
     if (ability.effect_id) {
       const effect = await db("effects")
         .where({ id: ability.effect_id })
         .first();
       if (effect) {
-        // Добавляем эффект NPC
-        await db("npc_active_effects").insert({
-          npc_id: npcId,
-          effect_id: ability.effect_id,
-          source_type: "ability",
-          source_id: abilityId,
-          remaining_turns: effect.duration_turns,
-          remaining_days: effect.duration_days,
-        });
         effectResult = effect;
+        isInstant = effect.is_instant || false;
+
+        if (isInstant) {
+          // ---- Мгновенный эффект: применяем изменение здоровья ----
+          // Получаем все активные эффекты NPC (кроме текущего)
+          const allActiveEffects = await db("npc_active_effects")
+            .where({ npc_id: npcId })
+            .join("effects", "npc_active_effects.effect_id", "effects.id")
+            .select("effects.*");
+
+          // Получаем пассивные эффекты от предметов
+          const npcItems = await db("npc_items")
+            .where({ npc_id: npcId })
+            .join("items", "npc_items.item_id", "items.id")
+            .select("items.id");
+          const itemIds = npcItems.map((row) => row.id);
+          let passiveEffects: any[] = [];
+          if (itemIds.length > 0) {
+            passiveEffects = await db("item_effects")
+              .whereIn("item_id", itemIds)
+              .where({ effect_type: "passive" })
+              .join("effects", "item_effects.effect_id", "effects.id")
+              .select("effects.*");
+          }
+
+          // Получаем эффекты расы
+          let raceEffects: any[] = [];
+          if (npc.race_id) {
+            const raceEffectsRaw = await db("race_effects")
+              .where("race_id", npc.race_id)
+              .join("effects", "race_effects.effect_id", "effects.id")
+              .select("effects.*");
+            raceEffects = raceEffectsRaw;
+          }
+
+          // Считаем бонус к max_health
+          let maxHealthBonus = 0;
+          const allEffects = [
+            ...allActiveEffects,
+            ...passiveEffects,
+            ...raceEffects,
+          ];
+          for (const e of allEffects) {
+            if (
+              e.attribute === "max_health" &&
+              typeof e.modifier === "number"
+            ) {
+              maxHealthBonus += e.modifier;
+            }
+          }
+          if (
+            effect.attribute === "max_health" &&
+            typeof effect.modifier === "number"
+          ) {
+            maxHealthBonus += effect.modifier;
+          }
+          const effectiveMaxHealth = npc.max_health + maxHealthBonus;
+
+          // Применяем изменение здоровья
+          const newHealth = applyInstantHealthChange(
+            npc.health,
+            { attribute: effect.attribute, modifier: effect.modifier },
+            effectiveMaxHealth,
+          );
+          if (newHealth !== null && newHealth !== npc.health) {
+            await db("npcs").where("id", npcId).update({ health: newHealth });
+          }
+
+          // Не создаём запись в active_effects
+        } else {
+          // ---- Обычный эффект: создаём запись ----
+          await db("npc_active_effects").insert({
+            npc_id: npcId,
+            effect_id: ability.effect_id,
+            source_type: "ability",
+            source_id: abilityId,
+            remaining_turns: effect.duration_turns,
+            remaining_days: effect.duration_days,
+          });
+        }
       }
     }
 

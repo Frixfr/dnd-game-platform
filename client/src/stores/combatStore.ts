@@ -1,12 +1,24 @@
+// client/src/stores/combatStore.ts
 import { create } from "zustand";
 import type { CombatSession, CombatParticipantWithDetails } from "../types";
 import { socket } from "../lib/socket";
+
+let combatSocketHandlers: {
+  onCombatUpdated: (data: {
+    session: CombatSession;
+    participants: CombatParticipantWithDetails[];
+  }) => void;
+} | null = null;
+let combatSocketInitialized = false;
 
 interface CombatStore {
   session: CombatSession | null;
   participants: CombatParticipantWithDetails[];
   loading: boolean;
+  roomId: number | null;
   initializeSocket: () => void;
+  disconnectSocket: () => void;
+  setRoomId: (roomId: number | null) => void;
   fetchActiveSession: () => Promise<void>;
   startNewSession: () => Promise<void>;
   addParticipant: (
@@ -33,29 +45,50 @@ interface CombatStore {
     entityId: number,
     abilityId: number,
   ) => Promise<void>;
+  advanceDay: () => Promise<void>;
 }
-
-let combatSocketInitialized = false;
 
 export const useCombatStore = create<CombatStore>((set, get) => ({
   session: null,
   participants: [],
   loading: false,
+  roomId: null,
 
   initializeSocket: () => {
     if (combatSocketInitialized) return;
     combatSocketInitialized = true;
 
-    socket.on(
-      "combat:updated",
-      (data: {
-        session: CombatSession;
-        participants: CombatParticipantWithDetails[];
-      }) => {
-        console.log("Combat updated", data);
-        set({ session: data.session, participants: data.participants });
-      },
-    );
+    const onCombatUpdated = (data: {
+      session: CombatSession;
+      participants: CombatParticipantWithDetails[];
+    }) => {
+      console.log("Combat updated", data);
+      set({ session: data.session, participants: data.participants });
+    };
+
+    socket.on("combat:updated", onCombatUpdated);
+    combatSocketHandlers = { onCombatUpdated };
+
+    const roomId = get().roomId;
+    if (roomId !== null && roomId !== undefined) {
+      socket.emit("join-room", { roomId });
+    }
+  },
+
+  disconnectSocket: () => {
+    if (!combatSocketInitialized || !combatSocketHandlers) return;
+    const { onCombatUpdated } = combatSocketHandlers;
+    socket.off("combat:updated", onCombatUpdated);
+    combatSocketInitialized = false;
+    combatSocketHandlers = null;
+    console.log("CombatStore socket handlers removed");
+  },
+
+  setRoomId: (roomId) => {
+    set({ roomId });
+    if (socket.connected) {
+      socket.emit("join-room", { roomId });
+    }
   },
 
   fetchActiveSession: async () => {
@@ -210,6 +243,16 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
       }
     } catch (error) {
       console.error("Ошибка использования способности:", error);
+    }
+  },
+
+  advanceDay: async () => {
+    try {
+      const res = await fetch("/api/combat/advance-day", { method: "POST" });
+      if (!res.ok) throw new Error("Ошибка при завершении дня");
+    } catch (error) {
+      console.error(error);
+      alert("Не удалось завершить день");
     }
   },
 }));

@@ -60,36 +60,36 @@ export const MapsPage = () => {
   };
 
   return (
-    <div className="p-6 h-full flex flex-col">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">Карты</h1>
+    <div className="p-4 md:p-6 h-full flex flex-col">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
+        <h1 className="text-xl md:text-2xl font-bold text-text-primary">Карты</h1>
         <button
           onClick={() => setShowCreateModal(true)}
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          className="btn-primary w-full sm:w-auto"
         >
           + Загрузить карту
         </button>
       </div>
 
-      <div className="flex gap-6 flex-1 min-h-0">
-        {/* Список карт */}
-        <div className="w-64 bg-white rounded shadow p-4 overflow-y-auto">
-          <h2 className="font-semibold mb-2">Список карт</h2>
-          {loading && <p>Загрузка...</p>}
+      <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 flex-1 min-h-0">
+        {/* Список карт: горизонтальная лента на мобиле, колонка на десктопе */}
+        <div className="bg-card rounded-lg border border-border-color shadow p-3 lg:p-4 lg:w-64 lg:overflow-y-auto flex lg:block gap-3 overflow-x-auto scrollbar-thin pb-2 lg:pb-0">
+          <h2 className="font-semibold mb-2 text-text-primary hidden lg:block">Список карт</h2>
+          {loading && <p className="text-text-secondary">Загрузка...</p>}
           {maps.map((map) => (
             <div
               key={map.id}
-              className={`p-2 mb-2 rounded cursor-pointer flex justify-between items-center ${currentMap?.id === map.id ? "bg-blue-100 border-l-4 border-blue-500" : "hover:bg-gray-100"}`}
+              className={`p-2 lg:mb-2 rounded cursor-pointer flex justify-between items-center gap-2 flex-shrink-0 lg:w-auto min-w-[200px] lg:min-w-0 ${currentMap?.id === map.id ? "bg-bg-secondary border-l-4 border-accent-red" : "hover:bg-bg-secondary"}`}
               onClick={() => handleSelectMap(map.id)}
             >
-              <span className="truncate">{map.name}</span>
-              <div className="flex gap-1">
+              <span className="truncate text-text-primary">{map.name}</span>
+              <div className="flex gap-1 flex-shrink-0">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     handleToggleShow(map as MapWithTokensType);
                   }}
-                  className={`text-xs px-2 py-1 rounded ${map.show_to_players ? "bg-green-500 text-white" : "bg-gray-300"}`}
+                  className={`text-xs px-2 py-1 rounded ${map.show_to_players ? "bg-green-500/20 text-green-400" : "bg-bg-tertiary text-text-secondary"}`}
                 >
                   {map.show_to_players ? "Показ" : "Скрыта"}
                 </button>
@@ -98,22 +98,22 @@ export const MapsPage = () => {
                     e.stopPropagation();
                     setDeleteConfirm(map.id);
                   }}
-                  className="text-xs bg-red-500 text-white px-2 py-1 rounded"
+                  className="text-xs bg-accent-red text-white px-2 py-1 rounded hover:bg-red-700"
                 >
                   ×
                 </button>
               </div>
             </div>
           ))}
-          {maps.length === 0 && <p className="text-gray-500">Нет карт</p>}
+          {maps.length === 0 && <p className="text-text-secondary">Нет карт</p>}
         </div>
 
         {/* Редактор карты */}
-        <div className="flex-1 bg-gray-100 rounded shadow overflow-hidden">
+        <div className="flex-1 min-h-[50vh] lg:min-h-0 bg-bg-secondary rounded-lg border border-border-color shadow overflow-hidden">
           {currentMap ? (
-            <MapEditor map={currentMap} />
+            <MapEditor mapId={currentMap.id} />
           ) : (
-            <div className="flex items-center justify-center h-full text-gray-500">
+            <div className="flex items-center justify-center h-full text-text-secondary p-4 text-center">
               Выберите карту для редактирования
             </div>
           )}
@@ -122,27 +122,27 @@ export const MapsPage = () => {
 
       {/* Модалка создания */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded shadow-lg w-96">
-            <h2 className="text-xl mb-4">Новая карта</h2>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="modal-content w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <h2 className="text-xl mb-4 text-text-primary">Новая карта</h2>
             <input
               type="text"
               placeholder="Название"
-              className="w-full border p-2 mb-3"
+              className="form-input mb-3"
               value={newMapName}
               onChange={(e) => setNewMapName(e.target.value)}
             />
             <input
               type="file"
               accept="image/*"
-              className="w-full mb-3"
+              className="w-full mb-3 text-text-primary file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-accent-red file:text-white hover:file:bg-red-700"
               onChange={(e) => setNewMapFile(e.target.files?.[0] || null)}
             />
-            <div className="flex justify-end gap-2">
-              <button onClick={() => setShowCreateModal(false)} className="px-4 py-2 bg-gray-300 rounded">
+            <div className="flex justify-end gap-2 mt-4">
+              <button onClick={() => setShowCreateModal(false)} className="btn-secondary">
                 Отмена
               </button>
-              <button onClick={handleCreate} className="px-4 py-2 bg-blue-500 text-white rounded">
+              <button onClick={handleCreate} className="btn-primary">
                 Создать
               </button>
             </div>

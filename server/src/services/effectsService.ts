@@ -1,4 +1,4 @@
-// Файл: server/src/services/effectsService.ts (полностью)
+// Файл: server/src/services/effectsService.ts
 import { db } from "../db/index.js";
 import type { Effect, PaginatedResponse } from "../types/index.js";
 
@@ -16,11 +16,13 @@ function parseTags(effect: any): Effect {
 }
 
 export const effectsService = {
+  // ADDED roomId support
   async getAll(
+    roomId: number,
     page?: number,
     limit?: number,
   ): Promise<Effect[] | PaginatedResponse<Effect>> {
-    let query = db("effects").select("*");
+    let query = db("effects").select("*").where("room_id", roomId); // ADDED filter
 
     if (page === undefined || limit === undefined) {
       const effects = await query;
@@ -42,13 +44,18 @@ export const effectsService = {
     return { data, total, page, limit };
   },
 
-  async getById(id: string): Promise<Effect | null> {
-    const effect = await db("effects").where({ id }).first();
+  // ADDED roomId support
+  async getById(roomId: number, id: string): Promise<Effect | null> {
+    const effect = await db("effects").where({ id, room_id: roomId }).first(); // ADDED room_id check
     return effect ? parseTags(effect) : null;
   },
 
-  async create(data: Omit<Effect, "id">): Promise<Effect> {
-    const insertData: any = { ...data };
+  // ADDED roomId support
+  async create(
+    roomId: number,
+    data: Omit<Effect, "id" | "room_id">,
+  ): Promise<Effect> {
+    const insertData: any = { ...data, room_id: roomId }; // ADDED room_id
     if (insertData.tags) {
       insertData.tags = JSON.stringify(insertData.tags);
     } else {
@@ -58,7 +65,16 @@ export const effectsService = {
     return parseTags(effect);
   },
 
-  async update(id: string, data: Partial<Effect>): Promise<Effect | null> {
+  // ADDED roomId support
+  async update(
+    roomId: number,
+    id: string,
+    data: Partial<Omit<Effect, "id" | "room_id">>,
+  ): Promise<Effect | null> {
+    // Проверяем, что эффект принадлежит комнате
+    const existing = await db("effects").where({ id, room_id: roomId }).first();
+    if (!existing) return null;
+
     const updateData: any = { ...data };
     if (updateData.tags !== undefined) {
       updateData.tags = JSON.stringify(updateData.tags);
@@ -70,7 +86,12 @@ export const effectsService = {
     return updated ? parseTags(updated) : null;
   },
 
-  async delete(id: string): Promise<boolean> {
+  // ADDED roomId support
+  async delete(roomId: number, id: string): Promise<boolean> {
+    // Проверяем, что эффект принадлежит комнате
+    const effect = await db("effects").where({ id, room_id: roomId }).first();
+    if (!effect) return false;
+
     // Проверка использования в способностях
     const usedInAbility = await db("abilities").where("effect_id", id).first();
     if (usedInAbility) throw new Error("Effect is in use");

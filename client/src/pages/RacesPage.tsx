@@ -47,17 +47,24 @@ export const RacesPage = () => {
   };
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
+    <div className="p-4 md:p-6 max-w-6xl mx-auto">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Расы</h1>
-          <p className="text-gray-600 mt-1">Всего рас: {races.length}</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-text-primary">Расы</h1>
+          <p className="text-text-secondary mt-1">Всего рас: {races.length}</p>
         </div>
-        <button onClick={() => setIsCreateOpen(true)}>+ Создать расу</button>
+        <button
+          onClick={() => setIsCreateOpen(true)}
+          className="btn-primary w-full sm:w-auto"
+        >
+          + Создать расу
+        </button>
       </div>
 
       {races.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">Нет созданных рас. Нажмите кнопку выше для создания первой.</div>
+        <div className="text-center py-12 text-text-secondary bg-card rounded-lg border border-border-color p-8">
+          Нет созданных рас. Нажмите кнопку выше для создания первой.
+        </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {races.map((race) => (

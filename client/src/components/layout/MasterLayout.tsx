@@ -1,56 +1,87 @@
+// client/src/components/layout/MasterLayout.tsx
 import React, { useState, useEffect } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
-import LogsButton from "../ui/LogsButton";
+import LogsButton from '../ui/LogsButton';
+import { MasterRequestsListener } from './MasterRequestsListener';
+import { useAbilityStore } from '../../stores/abilityStore';
+import { useCombatStore } from '../../stores/combatStore';
+import { useEffectStore } from '../../stores/effectStore';
+import { useItemStore } from '../../stores/itemStore';
+import { useLogStore } from '../../stores/logStore';
+import { useMapStore } from '../../stores/mapStore';
+import { useRaceStore } from '../../stores/raceStore';
+import { usePlayerStore } from '../../stores/playerStore';
+import { useNpcStore } from '../../stores/npcStore';
+import { useRoomStore } from '../../stores/roomStore';
 
 const MasterLayout: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const navigate = useNavigate();
+
+  const { currentRoom, leaveRoom, logout } = useRoomStore();
+
+  useEffect(() => {
+    usePlayerStore.getState().initializeSocket();
+    useNpcStore.getState().initializeSocket();
+    useRaceStore.getState().initializeSocket();
+    useAbilityStore.getState().initializeSocket();
+    useEffectStore.getState().initializeSocket();
+    useItemStore.getState().initializeSocket();
+    useMapStore.getState().initializeSocket();
+    useCombatStore.getState().initializeSocket();
+    useLogStore.getState().initializeSocket();
+  }, []);
 
   useEffect(() => {
     const handleResize = () => {
       const mobile = window.innerWidth < 768;
       setIsMobile(mobile);
-      // На десктопе всегда показываем сайдбар (можно открытым)
       if (!mobile) setIsSidebarOpen(true);
       else setIsSidebarOpen(false);
     };
     window.addEventListener('resize', handleResize);
-    handleResize(); // вызвать сразу
+    handleResize();
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   const toggleSidebar = () => setIsSidebarOpen(prev => !prev);
   const closeSidebar = () => setIsSidebarOpen(false);
 
-  return (
-    <div className="flex h-screen bg-slate-50 relative">
-      {/* Оверлей для мобильных устройств */}
-      {isMobile && isSidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-30"
-          onClick={closeSidebar}
-        />
-      )}
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
 
-      {/* Сайдбар: на десктопе статический, на мобильных выезжающий */}
-      <div
-        className={`
-          fixed md:relative z-40 transition-transform duration-300 ease-in-out
-          ${isMobile && !isSidebarOpen ? '-translate-x-full' : 'translate-x-0'}
-        `}
-      >
+  const handleLeaveRoom = () => {
+    leaveRoom();
+    navigate('/rooms');
+  };
+
+  return (
+    <div className="flex h-screen bg-[var(--color-bg-primary)] relative">
+      <MasterRequestsListener />
+      <LogsButton />
+      {isMobile && isSidebarOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30" onClick={closeSidebar} />
+      )}
+      <div className={`fixed md:relative z-40 transition-transform duration-300 ease-in-out ${isMobile && !isSidebarOpen ? '-translate-x-full' : 'translate-x-0'}`}>
         <Sidebar onClose={closeSidebar} isMobile={isMobile} />
       </div>
-
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header toggleSidebar={toggleSidebar} isMobile={isMobile} />
-        <main className="flex-1 overflow-y-auto p-6">
+        <Header
+          toggleSidebar={toggleSidebar}
+          isMobile={isMobile}
+          onLogout={handleLogout}
+          roomName={currentRoom?.name}
+          onLeaveRoom={handleLeaveRoom}
+        />
+        <main className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6">
           <Outlet />
         </main>
       </div>
-      <LogsButton />
     </div>
   );
 };

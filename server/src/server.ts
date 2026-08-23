@@ -1,6 +1,6 @@
 // server/src/server.ts
 
-import app, { startApp } from "./app.js";
+import { startApp } from "./app.js";
 
 const PORT = Number(process.env.PORT) || 5000; // преобразуем в число
 const HOST = process.env.HOST || "0.0.0.0";

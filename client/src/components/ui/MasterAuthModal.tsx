@@ -1,25 +1,32 @@
-// Обновлённый MasterAuthModal: теперь принимает onSuccess вместо прямого редиректа.
+// client/src/components/ui/MasterAuthModal.tsx
 import React, { useState } from 'react';
 import Modal from './Modal';
-
-const MASTER_PASSWORD = 'dm123'; // ← По-прежнему хардкод (разрешено ТЗ)
+import { useRoomStore } from '../../stores/roomStore';
 
 interface MasterAuthModalProps {
   onClose: () => void;
-  onSuccess: () => void; // ← Колбэк для родителя после успешной аутентификации
+  onSuccess: () => void;
 }
 
 const MasterAuthModal: React.FC<MasterAuthModalProps> = ({ onClose, onSuccess }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === MASTER_PASSWORD) {
-      onSuccess(); // Уведомляем родителя — он сам решает, куда перейти
-      // Это делает компонент переиспользуемым и тестируемым.
-    } else {
-      setError('Неверный пароль');
+    setError('');
+    setIsLoading(true);
+
+    try {
+      await useRoomStore.getState().loginAsMaster(password);
+      onSuccess();
+    } catch {
+      // Ошибка уже сохранена в сторе, берём оттуда
+      const storeError = useRoomStore.getState().error;
+      setError(storeError || 'Неверный пароль или ошибка сети');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -27,7 +34,7 @@ const MasterAuthModal: React.FC<MasterAuthModalProps> = ({ onClose, onSuccess })
     <Modal onClose={onClose} title="Вход для мастера">
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label htmlFor="master-password" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="master-password" className="block text-sm font-medium text-[#F2E9E4]">
             Пароль
           </label>
           <input
@@ -35,24 +42,26 @@ const MasterAuthModal: React.FC<MasterAuthModalProps> = ({ onClose, onSuccess })
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+            className="mt-1 block w-full px-3 py-2 border border-[#F2E9E4]/30 rounded-md shadow-sm focus:outline-none focus:ring-[#FF0026] focus:border-[#FF0026] bg-[#0A1F44] text-[#F2E9E4]"
+            disabled={isLoading}
           />
         </div>
-        {error && <p className="text-red-600 text-sm">{error}</p>}
-        <div className="flex justify-end space-x-3">          
-            <button
+        {error && <p className="text-[#FF0026] text-sm">{error}</p>}
+        <div className="flex justify-end space-x-3">
+          <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-slate-700 bg-slate-200 rounded hover:bg-slate-300 transition-colors"
-            >
+            className="px-4 py-2 text-[#F2E9E4] bg-[#0A1F44]/80 border border-[#F2E9E4]/30 rounded hover:bg-[#0A1F44] transition-colors"
+          >
             Отмена
-            </button>
-            <button
+          </button>
+          <button
             type="submit"
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-            >
-            Войти
-            </button>
+            disabled={isLoading}
+            className="px-4 py-2 bg-[#FF0026] text-white rounded hover:bg-[#FF0026]/90 transition-colors disabled:opacity-50"
+          >
+            {isLoading ? 'Вход...' : 'Войти'}
+          </button>
         </div>
       </form>
     </Modal>

@@ -25,7 +25,7 @@ export const PublicMapPage = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-900 text-white">
+      <div className="flex items-center justify-center h-screen bg-bg-primary text-text-primary">
         Загрузка карты...
       </div>
     );
@@ -33,17 +33,17 @@ export const PublicMapPage = () => {
 
   if (!activeMap) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-900 text-white">
+      <div className="flex items-center justify-center h-screen bg-bg-primary text-text-primary">
         <div className="text-center">
           <p className="text-xl mb-2">Карта ещё не открыта</p>
-          <p className="text-sm text-gray-400">Мастер скоро покажет карту игрокам</p>
+          <p className="text-sm text-text-secondary">Мастер скоро покажет карту игрокам</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="w-full h-screen bg-gray-900 overflow-hidden">
+    <div className="w-full h-screen bg-bg-primary overflow-hidden">
       <MapViewer map={activeMap} />
     </div>
   );

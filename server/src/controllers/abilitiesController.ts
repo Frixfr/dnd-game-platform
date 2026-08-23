@@ -6,13 +6,14 @@ import { getIO } from "../socket/index.js";
 export const abilitiesController = {
   async getAll(req: Request, res: Response) {
     try {
+      const roomId = req.roomId!;
       const page = req.query.page
         ? parseInt(req.query.page as string, 10)
         : undefined;
       const limit = req.query.limit
         ? parseInt(req.query.limit as string, 10)
         : undefined;
-      const result = await abilitiesService.getAll(page, limit);
+      const result = await abilitiesService.getAll(roomId, page, limit);
       res.json(result);
     } catch (error) {
       console.error(error);
@@ -22,8 +23,9 @@ export const abilitiesController = {
 
   async getOne(req: Request, res: Response) {
     try {
+      const roomId = req.roomId!;
       const id = String(req.params.id);
-      const ability = await abilitiesService.getById(id);
+      const ability = await abilitiesService.getById(roomId, id);
       if (!ability)
         return res.status(404).json({ error: "Способность не найдена" });
       res.json(ability);
@@ -34,6 +36,7 @@ export const abilitiesController = {
   },
 
   async create(req: Request, res: Response) {
+    const roomId = req.roomId!;
     const {
       name,
       description = "",
@@ -76,7 +79,7 @@ export const abilitiesController = {
     }
 
     try {
-      const ability = await abilitiesService.create({
+      const ability = await abilitiesService.create(roomId, {
         name: name.trim(),
         description: description || null,
         ability_type,
@@ -98,11 +101,13 @@ export const abilitiesController = {
   },
 
   async update(req: Request, res: Response) {
+    const roomId = req.roomId!;
     const id = String(req.params.id);
     const updateData = req.body;
     delete updateData.id;
     delete updateData.created_at;
     delete updateData.updated_at;
+    delete updateData.room_id; // не разрешаем менять комнату
 
     if (Object.keys(updateData).length === 0) {
       return res.status(400).json({ error: "Нет данных для обновления" });
@@ -122,7 +127,7 @@ export const abilitiesController = {
     }
 
     try {
-      const updated = await abilitiesService.update(id, updateData);
+      const updated = await abilitiesService.update(roomId, id, updateData);
       if (!updated)
         return res.status(404).json({ error: "Способность не найдена" });
       getIO().emit("ability:updated", updated);
@@ -142,9 +147,10 @@ export const abilitiesController = {
   },
 
   async delete(req: Request, res: Response) {
+    const roomId = req.roomId!;
     const id = String(req.params.id);
     try {
-      const deleted = await abilitiesService.delete(id);
+      const deleted = await abilitiesService.delete(roomId, id);
       if (!deleted)
         return res.status(404).json({ error: "Способность не найдена" });
       getIO().emit("ability:deleted", { id: Number(id) });
@@ -160,7 +166,10 @@ export const abilitiesController = {
     }
   },
 
+  // Этот метод использует playerAbilitiesService, который пока не требует roomId,
+  // но мы передадим roomId для будущей совместимости (сервис будет доработан позже)
   async useAbility(req: Request, res: Response) {
+    const roomId = req.roomId!;
     const abilityId = Number(req.params.id);
     const { playerId } = req.body;
 
@@ -169,8 +178,9 @@ export const abilitiesController = {
     }
 
     try {
-      // Заменяем abilitiesService.useAbility на playerAbilitiesService.useAbility
+      // TODO: после доработки playerAbilitiesService передавать roomId
       const result = await playerAbilitiesService.useAbility(
+        roomId,
         Number(playerId),
         abilityId,
       );

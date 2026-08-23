@@ -1,13 +1,14 @@
-// Минималистичное модальное окно в сине-серой палитре
+// client/src/components/ui/Modal.tsx - Новый дизайн
 import React, { useEffect } from 'react';
 
 interface ModalProps {
   children: React.ReactNode;
   onClose: () => void;
   title?: string;
+  maxWidth?: string;
 }
 
-const Modal: React.FC<ModalProps> = ({ children, onClose, title }) => {
+const Modal: React.FC<ModalProps> = ({ children, onClose, title, maxWidth = 'max-w-2xl' }) => {
   useEffect(() => {
     document.body.style.overflow = 'hidden';
     return () => {
@@ -23,16 +24,16 @@ const Modal: React.FC<ModalProps> = ({ children, onClose, title }) => {
 
   return (
     <div
-      className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 modal-overlay flex items-center justify-center z-50 p-4"
       onClick={handleOverlayClick}
     >
       <div
-        className="bg-white rounded-xl shadow-xl w-full max-w-sm border border-slate-200"
+        className={`modal-content w-full ${maxWidth} max-h-[90vh] overflow-y-auto`}
         onClick={(e) => e.stopPropagation()}
       >
         {title && (
-          <div className="px-6 py-4 border-b border-slate-200">
-            <h2 className="text-xl font-semibold text-slate-800">{title}</h2>
+          <div className="modal-header px-6 py-4">
+            <h2 className="text-xl font-semibold modal-title">{title}</h2>
           </div>
         )}
         <div className="p-6">{children}</div>

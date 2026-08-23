@@ -1,35 +1,60 @@
 // client/src/pages/PlayerInventoryPage.tsx
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { ItemCard } from '../components/ui/ItemCard';
 import ConfirmModal from '../components/ui/ConfirmModal';
 import { TransferItemModal } from '../components/ui/TransferItemModal';
 import { usePlayerStore } from '../stores/playerStore';
+import { usePlayerSessionStore } from '../stores/playerSessionStore';
 import { useNotification } from '../hooks/useNotification';
-import type { PlayerItemExtended, EffectType, RarityType } from '../types';
+import type { EffectType, RarityType, PlayerItemExtended } from '../types';
 
-interface PlayerDetailsResponse {
-  items: Array<{
-    player_item_id: number;
-    id: number;
-    name: string;
-    description: string | null;
-    rarity: string;
-    base_quantity: number;
-    quantity: number;
-    is_equipped: number | boolean;
-    is_deletable: boolean;
-    is_usable: boolean;
-    infinite_uses: boolean;
-    active_effects?: EffectType[];
-    passive_effects?: EffectType[];
-  }>;
+interface InventoryItem {
+  id: number;
+  player_item_id: number;
+  name: string;
+  description: string | null;
+  rarity: RarityType;
+  base_quantity: number;
+  quantity: number;
+  is_equipped: boolean;
+  is_deletable: boolean;
+  is_usable: boolean;
+  infinite_uses: boolean;
+  active_effects?: EffectType[];
+  passive_effects?: EffectType[];
+  active_effect_id: null;
+  passive_effect_id: null;
+  created_at: string;
+  updated_at: string;
 }
+
+const mapPlayerItemToInventoryItem = (item: PlayerItemExtended): InventoryItem => ({
+  id: item.id,
+  player_item_id: item.player_item_id ?? item.id,
+  name: item.name,
+  description: item.description,
+  rarity: item.rarity,
+  base_quantity: item.base_quantity,
+  quantity: item.quantity,
+  is_equipped: item.is_equipped,
+  is_deletable: item.is_deletable,
+  is_usable: item.is_usable,
+  infinite_uses: item.infinite_uses,
+  active_effects: item.active_effects,
+  passive_effects: item.passive_effects,
+  active_effect_id: null,
+  passive_effect_id: null,
+  created_at: item.created_at,
+  updated_at: item.updated_at,
+});
 
 export const PlayerInventoryPage = () => {
   const { playerId } = useParams();
-  const [items, setItems] = useState<PlayerItemExtended[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { selectedPlayer } = usePlayerSessionStore();
+  const { executeUseItem, executeDiscardItem, executeTransferItem } = usePlayerStore();
+  const { showError, showSuccess } = useNotification();
+
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
     playerItemId: number | null;
@@ -50,56 +75,30 @@ export const PlayerInventoryPage = () => {
     itemName: '',
     currentQuantity: 0,
   });
+  const [discardQuantity, setDiscardQuantity] = useState<number>(1);
+  const [showQuantityModal, setShowQuantityModal] = useState(false);
+  const [pendingDiscard, setPendingDiscard] = useState<{ playerItemId: number; itemName: string; maxQuantity: number } | null>(null);
 
-  const { executeUseItem, executeDiscardItem, executeTransferItem } = usePlayerStore();
-  const { showError, showSuccess } = useNotification();
-
-  const fetchInventory = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/players/${playerId}/details`);
-      if (!res.ok) throw new Error('Ошибка загрузки');
-      const data: PlayerDetailsResponse = await res.json();
-      const mapped: PlayerItemExtended[] = (data.items || []).map((item) => ({
-        id: item.id,
-        player_item_id: item.player_item_id,
-        name: item.name,
-        description: item.description,
-        rarity: (item.rarity as RarityType) || 'common',
-        base_quantity: item.base_quantity,
-        quantity: item.quantity,
-        is_equipped: item.is_equipped === 1 || item.is_equipped === true ? 1 : 0,
-        is_deletable: item.is_deletable,
-        is_usable: item.is_usable,
-        infinite_uses: item.infinite_uses,
-        active_effects: item.active_effects || [],
-        passive_effects: item.passive_effects || [],
-        active_effect_id: null,
-        passive_effect_id: null,
-        active_effect: null,
-        passive_effect: null,
-        created_at: '',
-        updated_at: '',
-      }));
-      setItems(mapped);
-    } catch {
-      showError('Не удалось загрузить инвентарь');
-    } finally {
-      setLoading(false);
-    }
-  }, [playerId, showError]);
-
-  useEffect(() => {
-    fetchInventory();
-  }, [fetchInventory]);
+  const loading = !selectedPlayer || selectedPlayer.id !== Number(playerId);
+  const items: InventoryItem[] = (selectedPlayer?.items || []).map(mapPlayerItemToInventoryItem);
 
   const handleUse = async (playerItemId: number, itemName: string) => {
     try {
       await executeUseItem(Number(playerId), playerItemId);
       showSuccess(`"${itemName}" использован`);
-      await fetchInventory();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Неизвестная ошибка';
       showError(message);
+    }
+  };
+
+  const handleDiscardClick = (playerItemId: number, itemName: string, currentQuantity: number) => {
+    if (currentQuantity > 1) {
+      setPendingDiscard({ playerItemId, itemName, maxQuantity: currentQuantity });
+      setDiscardQuantity(1);
+      setShowQuantityModal(true);
+    } else {
+      setConfirmModal({ isOpen: true, playerItemId, itemName });
     }
   };
 
@@ -108,7 +107,6 @@ export const PlayerInventoryPage = () => {
     try {
       await executeDiscardItem(Number(playerId), confirmModal.playerItemId);
       showSuccess(`"${confirmModal.itemName}" выброшен`);
-      await fetchInventory();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Неизвестная ошибка';
       showError(message);
@@ -117,12 +115,26 @@ export const PlayerInventoryPage = () => {
     }
   };
 
+  const handleDiscardWithQuantity = async () => {
+    if (!pendingDiscard) return;
+    try {
+      await executeDiscardItem(Number(playerId), pendingDiscard.playerItemId, discardQuantity);
+      showSuccess(`"${pendingDiscard.itemName}" выброшен в количестве ${discardQuantity}`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Неизвестная ошибка';
+      showError(message);
+    } finally {
+      setShowQuantityModal(false);
+      setPendingDiscard(null);
+      setDiscardQuantity(1);
+    }
+  };
+
   const handleTransfer = async (targetPlayerId: number, quantity: number) => {
     if (!transferModal.playerItemId) return;
     try {
       await executeTransferItem(Number(playerId), transferModal.playerItemId, targetPlayerId, quantity);
       showSuccess(`"${transferModal.itemName}" передан в количестве ${quantity}`);
-      await fetchInventory();
       setTransferModal({ isOpen: false, playerItemId: null, itemName: '', currentQuantity: 0 });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Неизвестная ошибка';
@@ -131,22 +143,22 @@ export const PlayerInventoryPage = () => {
     }
   };
 
-  if (loading) return <div className="text-center py-12">Загрузка инвентаря...</div>;
+  if (loading) return <div className="text-center py-12 text-text-primary">Загрузка инвентаря...</div>;
 
   return (
     <div className="max-w-4xl mx-auto">
       {items.length === 0 ? (
-        <p className="text-center text-gray-500 py-12">Инвентарь пуст</p>
+        <p className="text-center text-text-secondary py-12">Инвентарь пуст</p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {items.map((item) => (
             <div key={item.player_item_id} className="relative">
-              <ItemCard item={item} />
+              <ItemCard item={item} showId={false} />
               <div className="flex gap-2 mt-2 justify-end">
-                {item.is_usable && (item.infinite_uses || (item.quantity && item.quantity > 0)) && (
+                {item.is_usable && (item.infinite_uses || item.quantity > 0) && (
                   <button
                     onClick={() => handleUse(item.player_item_id, item.name)}
-                    className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700"
+                    className="px-3 py-1 text-sm btn-secondary"
                   >
                     Использовать
                   </button>
@@ -154,8 +166,8 @@ export const PlayerInventoryPage = () => {
                 {item.is_deletable && !item.is_equipped && (
                   <>
                     <button
-                      onClick={() => setConfirmModal({ isOpen: true, playerItemId: item.player_item_id, itemName: item.name })}
-                      className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700"
+                      onClick={() => handleDiscardClick(item.player_item_id, item.name, item.quantity)}
+                      className="px-3 py-1 text-sm btn-danger"
                     >
                       Выбросить
                     </button>
@@ -164,9 +176,9 @@ export const PlayerInventoryPage = () => {
                         isOpen: true,
                         playerItemId: item.player_item_id,
                         itemName: item.name,
-                        currentQuantity: item.quantity
+                        currentQuantity: item.quantity,
                       })}
-                      className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                      className="px-3 py-1 text-sm btn-primary"
                     >
                       Передать
                     </button>
@@ -185,6 +197,27 @@ export const PlayerInventoryPage = () => {
         title="Подтверждение"
         message={`Вы уверены, что хотите выбросить "${confirmModal.itemName}"?`}
       />
+
+      {showQuantityModal && pendingDiscard && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="modal-content max-w-md w-full">
+            <h3 className="text-xl font-bold mb-4 text-text-primary">Выбросить предмет</h3>
+            <p className="mb-2 text-text-secondary">Выберите количество для "{pendingDiscard.itemName}" (до {pendingDiscard.maxQuantity})</p>
+            <input
+              type="number"
+              min={1}
+              max={pendingDiscard.maxQuantity}
+              value={discardQuantity}
+              onChange={(e) => setDiscardQuantity(Math.min(pendingDiscard.maxQuantity, Math.max(1, parseInt(e.target.value) || 1)))}
+              className="form-input mb-4"
+            />
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setShowQuantityModal(false)} className="btn-secondary">Отмена</button>
+              <button onClick={handleDiscardWithQuantity} className="btn-danger">Выбросить</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {transferModal.isOpen && (
         <TransferItemModal

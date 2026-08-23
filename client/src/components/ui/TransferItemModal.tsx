@@ -65,7 +65,7 @@ export const TransferItemModal = ({
     <Modal onClose={onClose} title={`Передать "${itemName}"`}>
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-[#F2E9E4] mb-1">
             Количество (доступно: {currentQuantity})
           </label>
           <input
@@ -74,17 +74,17 @@ export const TransferItemModal = ({
             max={currentQuantity}
             value={quantity}
             onChange={e => setQuantity(Math.min(currentQuantity, Math.max(1, parseInt(e.target.value) || 1)))}
-            className="w-full p-2 border border-gray-300 rounded-md"
+            className="w-full p-2 border border-[#F2E9E4]/30 rounded-md bg-[#0A1F44] text-[#F2E9E4]"
           />
         </div>
 
         {players.length === 0 ? (
-          <p className="text-sm text-gray-500">Нет онлайн-игроков для передачи</p>
+          <p className="text-sm text-[#F2E9E4]/60">Нет онлайн-игроков для передачи</p>
         ) : (
           <select
             value={selectedId || ''}
             onChange={e => setSelectedId(Number(e.target.value))}
-            className="w-full p-2 border border-gray-300 rounded-md"
+            className="w-full p-2 border border-[#F2E9E4]/30 rounded-md bg-[#0A1F44] text-[#F2E9E4]"
           >
             {players.map(p => (
               <option key={p.id} value={p.id}>{p.name}</option>
@@ -93,13 +93,13 @@ export const TransferItemModal = ({
         )}
 
         <div className="flex justify-end gap-2">
-          <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md">
+          <button onClick={onClose} className="px-4 py-2 text-[#F2E9E4] hover:bg-[#0A1F44]/80 rounded-md border border-[#F2E9E4]/30">
             Отмена
           </button>
           <button
             onClick={handleTransfer}
             disabled={!selectedId || loading}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+            className="px-4 py-2 bg-[#FF0026] text-white rounded-md hover:bg-[#FF0026]/90 disabled:opacity-50"
           >
             {loading ? 'Передача...' : 'Передать'}
           </button>

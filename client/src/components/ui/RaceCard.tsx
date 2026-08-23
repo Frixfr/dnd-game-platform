@@ -1,5 +1,5 @@
 // client/src/components/ui/RaceCard.tsx
-import type { RaceType } from '../../types';
+import type { RaceType, EffectType } from '../../types';
 
 interface RaceCardProps {
   race: RaceType;
@@ -13,53 +13,66 @@ export const RaceCard = ({ race, onClick, onDelete }: RaceCardProps) => {
     if (onDelete) onDelete();
   };
 
-  // Вспомогательная функция для отображения эффектов
-  const renderEffects = () => {
-    if (!race.effects || race.effects.length === 0) {
-      return <span className="text-gray-400">Нет эффектов</span>;
-    }
-    // Показываем первые 3 названия эффектов
-    const effectNames = race.effects.slice(0, 3).map(e => e.name).join(', ');
-    const remainder = race.effects.length - 3;
-    return (
-      <div className="text-sm text-gray-600">
-        {effectNames}
-        {remainder > 0 && <span className="text-gray-400"> +{remainder}</span>}
-      </div>
-    );
-  };
+  const effects = race.effects || [];
 
   return (
     <div
       onClick={onClick}
-      className="group bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer overflow-hidden border border-gray-100 hover:border-gray-200"
+      className="group bg-card rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer overflow-hidden border border-border-color hover:border-accent-red/30"
     >
       <div className="relative h-2 bg-gradient-to-r from-purple-400 to-pink-500" />
 
       <div className="p-5">
         <div className="flex items-start justify-between mb-3">
-          <h3 className="text-xl font-bold text-gray-800 tracking-tight">{race.name}</h3>
+          <h3 className="text-xl font-bold text-text-primary tracking-tight">{race.name}</h3>
           <button
             onClick={handleDelete}
-            className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors text-xl font-bold"
-            title="Удалить"
+            className="w-7 h-7 flex items-center justify-center text-text-secondary hover:text-accent-red hover:bg-accent-red/10 rounded-full transition-colors text-xl font-bold"
+            title="Удалить расу"
           >
             ×
           </button>
         </div>
 
-        <p className="text-gray-600 text-sm mb-4 line-clamp-3 min-h-[3rem]">
+        <p className="text-text-secondary text-sm mb-4 line-clamp-3 min-h-[3rem]">
           {race.description || 'Нет описания'}
         </p>
 
-        <div className="flex items-center justify-between bg-gray-50 rounded-xl p-3 border border-gray-100">
-          <div className="flex items-center gap-2">
+        <div className="bg-bg-secondary rounded-xl p-3 border border-border-color">
+          <div className="flex items-center gap-2 mb-2">
             <span className="text-lg">✨</span>
-            <span className="text-sm text-gray-600">Эффекты</span>
+            <span className="text-sm font-medium text-text-primary">Эффекты расы</span>
+            {effects.length > 0 && (
+              <span className="text-xs bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded-full ml-auto">
+                {effects.length}
+              </span>
+            )}
           </div>
-          <div className="text-right">
-            {renderEffects()}
-          </div>
+          
+          {effects.length === 0 ? (
+            <div className="text-sm text-text-secondary italic">Нет эффектов</div>
+          ) : (
+            <div className="space-y-1.5">
+              {effects.slice(0, 3).map((effect: EffectType) => (
+                <div key={effect.id} className="text-sm text-text-primary flex items-start gap-1">
+                  <span className="text-purple-400 shrink-0">•</span>
+                  <span>
+                    <span className="font-medium">{effect.name}</span>
+                    {effect.attribute && (
+                      <span className="text-text-secondary text-xs ml-1">
+                        ({effect.attribute} {effect.modifier > 0 ? `+${effect.modifier}` : effect.modifier})
+                      </span>
+                    )}
+                  </span>
+                </div>
+              ))}
+              {effects.length > 3 && (
+                <div className="text-xs text-text-secondary mt-1">
+                  + ещё {effects.length - 3} эффект(ов)
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

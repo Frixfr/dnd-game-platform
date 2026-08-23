@@ -1,5 +1,5 @@
 // client/src/components/ui/EditPlayerModal.tsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { PlayerType, RaceType, EffectType, PlayerItemExtended, PlayerAbilityExtended } from '../../types';
 import { usePlayerStore } from '../../stores/playerStore';
 import { PlayerStatsForm } from './PlayerStatsForm';
@@ -8,6 +8,8 @@ import { PlayerAbilitiesManager } from './PlayerAbilitiesManager';
 import { PlayerEffectsManager } from './PlayerEffectsManager';
 import { useMediaQuery } from './useMediaQuery';
 import { useErrorHandler } from '../../hooks/useErrorHandler';
+import { useConfirm } from '../../hooks/useConfirm';
+import { socket } from '../../lib/socket';
 
 interface EditPlayerModalProps {
   player: PlayerType;
@@ -20,6 +22,7 @@ type MainTab = 'stats' | 'items' | 'abilities' | 'effects';
 export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayerModalProps) => {
   const isMobile = useMediaQuery('(max-width: 768px)');
   const { showError } = useErrorHandler();
+  const { confirm, ConfirmModalComponent } = useConfirm();
   const [formData, setFormData] = useState<PlayerType>(() => ({
     ...player,
     items: [],
@@ -36,12 +39,34 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
   const [selectedRaceEffects, setSelectedRaceEffects] = useState<EffectType[]>([]);
   const { fetchPlayers } = usePlayerStore();
 
-  // Загрузка списка рас
+  const loadFullPlayer = useCallback(async (signal: AbortSignal) => {
+    setLoadingDetails(true);
+    try {
+      const response = await fetch(`/api/players/${player.id}/details`, { signal });
+      if (!response.ok) throw new Error('Ошибка загрузки');
+      const fullPlayer = await response.json();
+      setFormData({
+        ...fullPlayer,
+        items: fullPlayer.items || [],
+        abilities: fullPlayer.abilities || [],
+        active_effects: fullPlayer.active_effects || []
+      });
+      if (fullPlayer.avatar_url) setAvatarPreview(fullPlayer.avatar_url);
+    } catch (err) {
+      if ((err as Error).name === 'AbortError') return;
+      showError('Не удалось загрузить данные игрока');
+    } finally {
+      setLoadingDetails(false);
+    }
+  }, [player.id, showError]);
+
   useEffect(() => {
-    fetch('/api/races').then(res => res.json()).then(setRaces);
+    fetch('/api/races')
+      .then(res => res.json())
+      .then(setRaces)
+      .catch(() => {});
   }, []);
 
-  // Загрузка эффектов расы при изменении race_id
   useEffect(() => {
     if (formData.race_id) {
       fetch(`/api/races/${formData.race_id}`)
@@ -56,46 +81,35 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
     }
   }, [formData.race_id]);
 
-  // Загрузка полных данных игрока
   useEffect(() => {
-    const loadFullPlayer = async () => {
-      setLoadingDetails(true);
-      try {
-        const response = await fetch(`/api/players/${player.id}/details`);
-        if (!response.ok) throw new Error('Ошибка загрузки');
-        const fullPlayer = await response.json();
+    const abortController = new AbortController();
+    loadFullPlayer(abortController.signal);
+    return () => abortController.abort();
+  }, [loadFullPlayer]);
+
+  useEffect(() => {
+    const handlePlayerUpdate = (updatedPlayer: PlayerType) => {
+      if (updatedPlayer.id === player.id) {
         setFormData({
-          ...fullPlayer,
-          items: fullPlayer.items || [],
-          abilities: fullPlayer.abilities || [],
-          active_effects: fullPlayer.active_effects || []
+          ...updatedPlayer,
+          items: updatedPlayer.items || [],
+          abilities: updatedPlayer.abilities || [],
+          active_effects: updatedPlayer.active_effects || []
         });
-        if (fullPlayer.avatar_url) setAvatarPreview(fullPlayer.avatar_url);
-      } catch {
-        showError('Не удалось загрузить данные игрока');
-      } finally {
-        setLoadingDetails(false);
+        if (updatedPlayer.avatar_url) setAvatarPreview(updatedPlayer.avatar_url);
+        fetchPlayers();
       }
     };
-    loadFullPlayer();
-  }, [player.id, showError]);
+    socket.on('player:updated', handlePlayerUpdate);
+    return () => {
+      socket.off('player:updated', handlePlayerUpdate);
+    };
+  }, [player.id, fetchPlayers]);
 
-  const updatePlayerData = async () => {
-    try {
-      const response = await fetch(`/api/players/${player.id}/details`);
-      if (!response.ok) throw new Error();
-      const updated = await response.json();
-      setFormData({
-        ...updated,
-        items: updated.items || [],
-        abilities: updated.abilities || [],
-        active_effects: updated.active_effects || []
-      });
-      await fetchPlayers();
-    } catch {
-      showError('Не удалось обновить данные игрока');
-    }
-  };
+  const updatePlayerData = useCallback(async () => {
+    const abortController = new AbortController();
+    await loadFullPlayer(abortController.signal);
+  }, [loadFullPlayer]);
 
   const uploadAvatar = async (file: File) => {
     setUploadingAvatar(true);
@@ -117,18 +131,22 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
     }
   };
 
-  const deleteAvatar = async () => {
-    if (!confirm("Удалить аватарку?")) return;
-    try {
-      const response = await fetch(`/api/players/${player.id}/avatar`, {
-        method: "DELETE",
-      });
-      if (!response.ok) throw new Error("Ошибка удаления");
-      setAvatarPreview(null);
-      await updatePlayerData();
-    } catch {
-      showError("Не удалось удалить аватарку");
-    }
+  const deleteAvatar = () => {
+    confirm({
+      message: "Удалить аватарку?",
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/players/${player.id}/avatar`, {
+            method: "DELETE",
+          });
+          if (!response.ok) throw new Error("Ошибка удаления");
+          setAvatarPreview(null);
+          await updatePlayerData();
+        } catch {
+          showError("Не удалось удалить аватарку");
+        }
+      }
+    });
   };
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -161,19 +179,23 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
     }
   };
 
-  const handleDeletePlayer = async () => {
-    if (!confirm('Удалить игрока навсегда?')) return;
-    setDeleting(true);
-    try {
-      const response = await fetch(`/api/players/${player.id}`, { method: 'DELETE' });
-      if (!response.ok) throw new Error();
-      await fetchPlayers();
-      onClose();
-    } catch {
-      showError('Ошибка удаления');
-    } finally {
-      setDeleting(false);
-    }
+  const handleDeletePlayer = () => {
+    confirm({
+      message: 'Удалить игрока навсегда?',
+      onConfirm: async () => {
+        setDeleting(true);
+        try {
+          const response = await fetch(`/api/players/${player.id}`, { method: 'DELETE' });
+          if (!response.ok) throw new Error();
+          await fetchPlayers();
+          onClose();
+        } catch {
+          showError('Ошибка удаления');
+        } finally {
+          setDeleting(false);
+        }
+      }
+    });
   };
 
   const renderRightContent = () => {
@@ -192,6 +214,7 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
             onSubmit={handleSubmit}
             onDelete={handleDeletePlayer}
             deleting={deleting}
+            onClose={onClose}
           />
         );
       case 'items':
@@ -212,13 +235,15 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
             showError={showError}
           />
         );
-      case 'effects': {  // ← фигурные скобки
+      case 'effects': {
         const itemPassiveEffects = (formData.items || []).flatMap(item => item.passive_effects || []);
+        const raceName = races.find(r => r.id === formData.race_id)?.name || null;
         return (
           <PlayerEffectsManager
             playerId={player.id}
             activeEffects={formData.active_effects || []}
             raceEffects={selectedRaceEffects}
+            raceName={raceName}
             itemPassiveEffects={itemPassiveEffects}
             onDataChanged={updatePlayerData}
             showError={showError}
@@ -232,21 +257,21 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
 
   if (loadingDetails) {
     return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white p-6 rounded-xl w-full max-w-sm text-center">Загрузка данных игрока...</div>
+      <div className="fixed inset-0 bg-midnight-blue/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="modal-content w-full max-w-sm text-center">Загрузка данных игрока...</div>
       </div>
     );
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 md:p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[95vh] flex flex-col md:flex-row overflow-hidden" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-midnight-blue/80 backdrop-blur-sm flex items-center justify-center z-50 p-2 md:p-4" onClick={onClose}>
+      <div className="modal-content w-full max-w-4xl max-h-[95vh] flex flex-col md:flex-row overflow-hidden" onClick={(e) => e.stopPropagation()}>
         {isMobile ? (
-          <div className="border-b border-gray-200 p-3 bg-gray-50">
+          <div className="border-b border-border-color p-3 bg-bg-secondary">
             <select
               value={activeMainTab}
               onChange={(e) => setActiveMainTab(e.target.value as MainTab)}
-              className="w-full py-3 px-4 text-base border rounded-xl bg-white shadow-sm"
+              className="w-full py-3 px-4 text-base border border-border-color rounded-xl bg-bg-card text-text-primary shadow-sm focus:outline-none focus:ring-2 focus:ring-accent-red"
             >
               <option value="stats">📋 Основное</option>
               <option value="items">📦 Предметы</option>
@@ -255,11 +280,11 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
             </select>
           </div>
         ) : (
-          <div className="w-56 bg-gray-50 border-r border-gray-200 p-4 flex-col gap-2">
-            <button onClick={() => setActiveMainTab('stats')} className={`flex items-center gap-3 px-4 py-2 rounded-xl text-left transition ${activeMainTab === 'stats' ? 'bg-blue-500 text-white shadow' : 'hover:bg-gray-100 text-gray-700'}`}><span className="text-xl">📋</span> Основное</button>
-            <button onClick={() => setActiveMainTab('items')} className={`flex items-center gap-3 px-4 py-2 rounded-xl text-left transition ${activeMainTab === 'items' ? 'bg-blue-500 text-white shadow' : 'hover:bg-gray-100 text-gray-700'}`}><span className="text-xl">📦</span> Предметы</button>
-            <button onClick={() => setActiveMainTab('abilities')} className={`flex items-center gap-3 px-4 py-2 rounded-xl text-left transition ${activeMainTab === 'abilities' ? 'bg-blue-500 text-white shadow' : 'hover:bg-gray-100 text-gray-700'}`}><span className="text-xl">✨</span> Способности</button>
-            <button onClick={() => setActiveMainTab('effects')} className={`flex items-center gap-3 px-4 py-2 rounded-xl text-left transition ${activeMainTab === 'effects' ? 'bg-blue-500 text-white shadow' : 'hover:bg-gray-100 text-gray-700'}`}><span className="text-xl">🌀</span> Эффекты</button>
+          <div className="w-56 bg-bg-secondary border-r border-border-color p-4 flex flex-col gap-2">
+            <button onClick={() => setActiveMainTab('stats')} className={`flex items-center gap-3 px-4 py-2 rounded-xl text-left transition ${activeMainTab === 'stats' ? 'bg-accent-red text-white shadow-lg' : 'hover:bg-bg-tertiary text-text-primary'}`}><span className="text-xl">📋</span> Основное</button>
+            <button onClick={() => setActiveMainTab('items')} className={`flex items-center gap-3 px-4 py-2 rounded-xl text-left transition ${activeMainTab === 'items' ? 'bg-accent-red text-white shadow-lg' : 'hover:bg-bg-tertiary text-text-primary'}`}><span className="text-xl">📦</span> Предметы</button>
+            <button onClick={() => setActiveMainTab('abilities')} className={`flex items-center gap-3 px-4 py-2 rounded-xl text-left transition ${activeMainTab === 'abilities' ? 'bg-accent-red text-white shadow-lg' : 'hover:bg-bg-tertiary text-text-primary'}`}><span className="text-xl">✨</span> Способности</button>
+            <button onClick={() => setActiveMainTab('effects')} className={`flex items-center gap-3 px-4 py-2 rounded-xl text-left transition ${activeMainTab === 'effects' ? 'bg-accent-red text-white shadow-lg' : 'hover:bg-bg-tertiary text-text-primary'}`}><span className="text-xl">🌀</span> Эффекты</button>
           </div>
         )}
 
@@ -267,6 +292,7 @@ export const EditPlayerModal = ({ player, onClose, onPlayerUpdated }: EditPlayer
           {renderRightContent()}
         </div>
       </div>
+      {ConfirmModalComponent}
     </div>
   );
 };

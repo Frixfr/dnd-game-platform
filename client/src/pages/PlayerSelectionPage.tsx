@@ -15,19 +15,22 @@ export const PlayerSelectionPage = () => {
   const { setSelectedPlayer: setSessionPlayer } = usePlayerSessionStore();
 
   useEffect(() => {
+    const abortController = new AbortController();
     const fetchAvailablePlayers = async () => {
       try {
-        const response = await fetch('/api/players?available_for_selection=true');
+        const response = await fetch('/api/players?available_for_selection=true', { signal: abortController.signal });
         if (!response.ok) throw new Error('Ошибка загрузки');
         const data = await response.json();
         setPlayers(data);
       } catch (err) {
+        if ((err as Error).name === 'AbortError') return;
         setError(err instanceof Error ? err.message : 'Неизвестная ошибка');
       } finally {
         setLoading(false);
       }
     };
     fetchAvailablePlayers();
+    return () => abortController.abort();
   }, []);
 
   const handleSelectPlayer = (player: PlayerType) => {
@@ -60,36 +63,36 @@ export const PlayerSelectionPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
-        <div className="text-center">Загрузка доступных персонажей...</div>
+      <div className="min-h-screen bg-bg-primary flex items-center justify-center">
+        <div className="text-center text-text-primary">Загрузка доступных персонажей...</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
-        <div className="text-center text-red-600">Ошибка: {error}</div>
+      <div className="min-h-screen bg-bg-primary flex items-center justify-center">
+        <div className="text-center text-accent-red">Ошибка: {error}</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
+    <div className="min-h-screen bg-bg-primary p-6">
       <div className="max-w-6xl mx-auto">
         <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">Выберите своего героя</h1>
-          <p className="text-slate-600">
+          <h1 className="text-3xl font-bold text-text-primary mb-2">Выберите своего героя</h1>
+          <p className="text-text-secondary">
             Кликните по карточке, затем задайте пароль для входа в будущем.
           </p>
         </div>
 
         {players.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-xl shadow">
-            <p className="text-lg text-gray-500">Нет доступных персонажей. Обратитесь к мастеру.</p>
+          <div className="text-center py-12 bg-card rounded-xl border border-border-color shadow">
+            <p className="text-lg text-text-secondary">Нет доступных персонажей. Обратитесь к мастеру.</p>
             <button
               onClick={() => navigate('/')}
-              className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              className="mt-4 btn-primary"
             >
               Назад
             </button>

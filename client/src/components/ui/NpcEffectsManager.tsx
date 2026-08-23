@@ -1,0 +1,279 @@
+// client/src/components/ui/NpcEffectsManager.tsx
+import { useState, useEffect, useCallback } from 'react';
+import type { EffectType } from '../../types';
+import type { FullNPCData } from '../../types';
+import { EffectCard } from './EffectCard';
+import { useConfirm } from '../../hooks/useConfirm';
+
+type NpcEffect = FullNPCData['active_effects'][0];
+
+interface NpcEffectsManagerProps {
+  npcId: number;
+  activeEffects: NpcEffect[];
+  raceEffects: EffectType[];
+  raceName?: string | null;
+  itemPassiveEffects: (EffectType & { source_item_name: string })[];
+  onDataChanged: () => Promise<void>;
+  showError: (msg: string) => void;
+}
+
+type EffectsSubTab = 'list' | 'add';
+
+export const NpcEffectsManager = ({
+  npcId,
+  activeEffects,
+  raceEffects,
+  raceName,
+  itemPassiveEffects,
+  onDataChanged,
+  showError
+}: NpcEffectsManagerProps) => {
+  const { confirm, ConfirmModalComponent } = useConfirm();
+  const [effectsSubTab, setEffectsSubTab] = useState<EffectsSubTab>('list');
+  const [allEffects, setAllEffects] = useState<EffectType[]>([]);
+  const [effectsLoading, setEffectsLoading] = useState(false);
+  const [selectedEffects, setSelectedEffects] = useState<number[]>([]);
+  const [effectSearch, setEffectSearch] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const loadAllEffects = useCallback(async () => {
+    setEffectsLoading(true);
+    try {
+      const response = await fetch('/api/effects');
+      if (!response.ok) throw new Error();
+      setAllEffects(await response.json());
+    } catch {
+      showError('Не удалось загрузить эффекты');
+    } finally {
+      setEffectsLoading(false);
+    }
+  }, [showError]);
+
+  useEffect(() => {
+    if (effectsSubTab === 'add') loadAllEffects();
+  }, [effectsSubTab, loadAllEffects]);
+
+  const handleRemoveEffect = (effectId: number) => {
+    confirm({
+      message: 'Удалить эффект?',
+      onConfirm: async () => {
+        try {
+          await fetch(`/api/npcs/${npcId}/effects/${effectId}`, { method: 'DELETE' });
+          await onDataChanged();
+        } catch {
+          showError('Ошибка удаления');
+        }
+      }
+    });
+  };
+
+  const handleAddEffects = async () => {
+    if (selectedEffects.length === 0) { showError('Выберите эффекты'); return; }
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/npcs/${npcId}/effects/batch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ effect_ids: selectedEffects })
+      });
+      if (!response.ok) throw new Error();
+      setSelectedEffects([]);
+      await onDataChanged();
+      setEffectsSubTab('list');
+    } catch {
+      showError('Ошибка добавления');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const renderCurrentEffects = () => {
+    const passiveAbilityEffects = activeEffects.filter(
+      (effect) => effect.source_type === 'ability' && effect.remaining_turns === null && effect.remaining_days === null
+    );
+    const temporaryEffects = activeEffects.filter((effect) => {
+      if (effect.source_type === 'ability' && effect.remaining_turns === null && effect.remaining_days === null) return false;
+      if ((effect.remaining_turns !== null && effect.remaining_turns <= 0) ||
+          (effect.remaining_days !== null && effect.remaining_days <= 0)) return false;
+      return true;
+    });
+
+    const hasEffects =
+      passiveAbilityEffects.length > 0 ||
+      temporaryEffects.length > 0 ||
+      raceEffects.length > 0 ||
+      itemPassiveEffects.length > 0;
+
+    if (!hasEffects) {
+      return <p className="text-center text-[#F2E9E4]/60 py-8">🌀 Нет эффектов</p>;
+    }
+
+    return (
+      <div className="space-y-6 max-h-[60vh] overflow-y-auto">
+        {raceEffects.length > 0 && (
+          <div>
+            <h3 className="text-md font-semibold text-purple-700 mb-2 flex items-center gap-2">
+              <span className="text-xl">🌿</span> Эффекты расы
+            </h3>
+            <div className="space-y-3">
+              {raceEffects.map((effect, idx) => (
+                <EffectCard
+                  key={`race-${effect.id}-${idx}`}
+                  effect={effect}
+                  sourceType="race"
+                  sourceName={raceName || 'Раса'}
+                  showDescription
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {itemPassiveEffects.length > 0 && (
+          <div>
+            <h3 className="text-md font-semibold text-blue-700 mb-2 flex items-center gap-2">
+              <span className="text-xl">📦</span> Пассивные эффекты предметов
+            </h3>
+            <div className="space-y-3">
+              {itemPassiveEffects.map((effect, idx) => (
+                <EffectCard
+                  key={`item-passive-${effect.id}-${idx}`}
+                  effect={effect}
+                  sourceType="item"
+                  sourceName={effect.source_item_name}
+                  showDescription
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {passiveAbilityEffects.length > 0 && (
+          <div>
+            <h3 className="text-md font-semibold text-indigo-700 mb-2 flex items-center gap-2">
+              <span className="text-xl">⚡</span> Пассивные способности
+            </h3>
+            <div className="space-y-3">
+              {passiveAbilityEffects.map((effect, idx) => (
+                <EffectCard
+                  key={`passive-ability-${effect.id}-${idx}`}
+                  effect={effect}
+                  sourceType="ability"
+                  sourceName={effect.source_name}
+                  showDescription
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {temporaryEffects.length > 0 && (
+          <div>
+            <h3 className="text-md font-semibold text-[#F2E9E4] mb-2 flex items-center gap-2">
+              <span className="text-xl">🌀</span> Временные эффекты
+            </h3>
+            <div className="space-y-3">
+              {temporaryEffects.map((effect, idx) => (
+                <EffectCard
+                  key={`temporary-${effect.id}-${idx}`}
+                  effect={effect}
+                  sourceType={effect.source_type}
+                  sourceName={effect.source_name}
+                  showDescription
+                  onDelete={() => handleRemoveEffect(effect.id)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderAddEffects = () => {
+    const filtered = allEffects.filter(e => e.name.toLowerCase().includes(effectSearch.toLowerCase()));
+    const ownedIds = new Set(activeEffects.map(e => e.id));
+    return (
+      <div className="space-y-4">
+        <input
+          type="text"
+          placeholder="🔍 Поиск эффектов..."
+          value={effectSearch}
+          onChange={e => setEffectSearch(e.target.value)}
+          className="form-input w-full"
+        />
+        {effectsLoading ? (
+          <p>Загрузка...</p>
+        ) : (
+          <div className="space-y-2 max-h-[50vh] overflow-y-auto">
+            {filtered.map(effect => {
+              const owned = ownedIds.has(effect.id);
+              return (
+                <div key={effect.id} className="card p-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                  <div>
+                    <p className="font-medium text-text-primary">{effect.name}</p>
+                    <p className="text-xs text-text-secondary">
+                      {effect.attribute} {effect.modifier > 0 ? `+${effect.modifier}` : effect.modifier}
+                    </p>
+                  </div>
+                  {!owned ? (
+                    <button
+                      onClick={() =>
+                        setSelectedEffects(prev =>
+                          prev.includes(effect.id) ? prev.filter(id => id !== effect.id) : [...prev, effect.id]
+                        )
+                      }
+                      className={`px-3 py-1 rounded-xl ${selectedEffects.includes(effect.id) ? 'btn-primary' : 'btn-secondary'}`}
+                    >
+                      {selectedEffects.includes(effect.id) ? '✓ Выбран' : 'Выбрать'}
+                    </button>
+                  ) : (
+                    <span className="text-green-400 text-sm">✓ Уже есть</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <div className="pt-2 flex flex-col sm:flex-row justify-between items-center gap-2 border-t border-border-color">
+          <span className="text-text-primary">Выбрано: {selectedEffects.length}</span>
+          <button
+            onClick={handleAddEffects}
+            disabled={selectedEffects.length === 0 || loading}
+            className="w-full sm:w-auto px-4 py-2 btn-primary"
+          >
+            Добавить выбранные
+          </button>
+        </div>
+        <button onClick={() => setEffectsSubTab('list')} className="mt-2 text-sm text-text-secondary hover:text-text-primary transition-colors">
+          ← Назад к списку
+        </button>
+      </div>
+    );
+  };
+
+  return (
+    <div>
+      {effectsSubTab === 'list' ? (
+        <div>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold text-text-primary">🌀 Эффекты NPC</h3>
+            <button
+              onClick={() => {
+                setEffectsSubTab('add');
+                setSelectedEffects([]);
+              }}
+              className="px-3 py-1 btn-secondary text-sm"
+            >
+              ➕ Добавить эффект
+            </button>
+          </div>
+          {renderCurrentEffects()}
+        </div>
+      ) : (
+        renderAddEffects()
+      )}
+      {ConfirmModalComponent}
+    </div>
+  );
+};

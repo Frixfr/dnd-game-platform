@@ -4,11 +4,15 @@ import { combatService } from "../services/combatService.js";
 export const combatController = {
   async getActiveSession(req: Request, res: Response) {
     try {
-      const session = await combatService.getActiveSession();
+      const roomId = req.roomId!;
+      const session = await combatService.getActiveSession(roomId);
       if (!session) {
         return res.json({ success: true, session: null, participants: [] });
       }
-      const fullData = await combatService.getFullCombatData(session.id);
+      const fullData = await combatService.getFullCombatData(
+        roomId,
+        session.id,
+      );
       res.json({ success: true, ...fullData });
     } catch (error) {
       console.error(error);
@@ -18,9 +22,9 @@ export const combatController = {
 
   async startNewSession(req: Request, res: Response) {
     try {
-      const session = await combatService.startNewSession();
-      // FIX: added emitCombatUpdate
-      if (session) await combatService.emitCombatUpdate(session.id);
+      const roomId = req.roomId!;
+      const session = await combatService.startNewSession(roomId);
+      if (session) await combatService.emitCombatUpdate(roomId, session.id);
       res.json({ success: true, session });
     } catch (error) {
       console.error(error);
@@ -29,17 +33,19 @@ export const combatController = {
   },
 
   async addParticipant(req: Request, res: Response) {
-    const { sessionId, entityType, entityId } = req.body;
-    if (!sessionId || !entityType || !entityId) {
-      return res.status(400).json({ error: "Недостаточно данных" });
-    }
     try {
+      const roomId = req.roomId!;
+      const { sessionId, entityType, entityId } = req.body;
+      if (!sessionId || !entityType || !entityId) {
+        return res.status(400).json({ error: "Недостаточно данных" });
+      }
       const participant = await combatService.addParticipant(
+        roomId,
         sessionId,
         entityType,
         entityId,
       );
-      await combatService.emitCombatUpdate(sessionId);
+      await combatService.emitCombatUpdate(roomId, sessionId);
       res.json({ success: true, participant });
     } catch (error) {
       console.error(error);
@@ -48,11 +54,12 @@ export const combatController = {
   },
 
   async removeParticipant(req: Request, res: Response) {
-    const { participantId } = req.params;
     try {
-      await combatService.removeParticipant(Number(participantId));
-      const session = await combatService.getActiveSession();
-      if (session) await combatService.emitCombatUpdate(session.id);
+      const roomId = req.roomId!;
+      const participantId = Number(req.params.participantId);
+      await combatService.removeParticipant(roomId, participantId);
+      const session = await combatService.getActiveSession(roomId);
+      if (session) await combatService.emitCombatUpdate(roomId, session.id);
       res.json({ success: true });
     } catch (error) {
       console.error(error);
@@ -61,14 +68,18 @@ export const combatController = {
   },
 
   async reorderParticipants(req: Request, res: Response) {
-    const { sessionId, participantIds } = req.body;
-    if (!sessionId || !Array.isArray(participantIds)) {
-      return res.status(400).json({ error: "Некорректные данные" });
-    }
     try {
-      await combatService.reorderParticipants(sessionId, participantIds);
-      // FIX: added emitCombatUpdate
-      await combatService.emitCombatUpdate(sessionId);
+      const roomId = req.roomId!;
+      const { sessionId, participantIds } = req.body;
+      if (!sessionId || !Array.isArray(participantIds)) {
+        return res.status(400).json({ error: "Некорректные данные" });
+      }
+      await combatService.reorderParticipants(
+        roomId,
+        sessionId,
+        participantIds,
+      );
+      await combatService.emitCombatUpdate(roomId, sessionId);
       res.json({ success: true });
     } catch (error) {
       console.error(error);
@@ -77,13 +88,13 @@ export const combatController = {
   },
 
   async endRound(req: Request, res: Response) {
-    const { sessionId } = req.body;
-    if (!sessionId)
-      return res.status(400).json({ error: "sessionId обязателен" });
     try {
-      await combatService.endRound(sessionId);
-      // FIX: added emitCombatUpdate
-      await combatService.emitCombatUpdate(sessionId);
+      const roomId = req.roomId!;
+      const { sessionId } = req.body;
+      if (!sessionId)
+        return res.status(400).json({ error: "sessionId обязателен" });
+      await combatService.endRound(roomId, sessionId);
+      await combatService.emitCombatUpdate(roomId, sessionId);
       res.json({ success: true });
     } catch (error) {
       console.error(error);
@@ -92,14 +103,20 @@ export const combatController = {
   },
 
   async updateHealth(req: Request, res: Response) {
-    const { sessionId, entityType, entityId, health } = req.body;
-    if (!sessionId || !entityType || !entityId || health === undefined) {
-      return res.status(400).json({ error: "Недостаточно данных" });
-    }
     try {
-      await combatService.updateHealth(sessionId, entityType, entityId, health);
-      // FIX: added emitCombatUpdate
-      await combatService.emitCombatUpdate(sessionId);
+      const roomId = req.roomId!;
+      const { sessionId, entityType, entityId, health } = req.body;
+      if (!sessionId || !entityType || !entityId || health === undefined) {
+        return res.status(400).json({ error: "Недостаточно данных" });
+      }
+      await combatService.updateHealth(
+        roomId,
+        sessionId,
+        entityType,
+        entityId,
+        health,
+      );
+      await combatService.emitCombatUpdate(roomId, sessionId);
       res.json({ success: true });
     } catch (error) {
       console.error(error);
@@ -108,13 +125,13 @@ export const combatController = {
   },
 
   async nextTurn(req: Request, res: Response) {
-    const { sessionId } = req.body;
-    if (!sessionId)
-      return res.status(400).json({ error: "sessionId обязателен" });
     try {
-      await combatService.nextTurn(sessionId);
-      // FIX: added emitCombatUpdate
-      await combatService.emitCombatUpdate(sessionId);
+      const roomId = req.roomId!;
+      const { sessionId } = req.body;
+      if (!sessionId)
+        return res.status(400).json({ error: "sessionId обязателен" });
+      await combatService.nextTurn(roomId, sessionId);
+      await combatService.emitCombatUpdate(roomId, sessionId);
       res.json({ success: true });
     } catch (error) {
       console.error(error);
@@ -123,21 +140,22 @@ export const combatController = {
   },
 
   async addEffect(req: Request, res: Response) {
-    const { sessionId, entityType, entityId, effectId, durationTurns } =
-      req.body;
-    if (!sessionId || !entityType || !entityId || !effectId) {
-      return res.status(400).json({ error: "Недостаточно данных" });
-    }
     try {
+      const roomId = req.roomId!;
+      const { sessionId, entityType, entityId, effectId, durationTurns } =
+        req.body;
+      if (!sessionId || !entityType || !entityId || !effectId) {
+        return res.status(400).json({ error: "Недостаточно данных" });
+      }
       await combatService.addEffectToParticipant(
+        roomId,
         sessionId,
         entityType,
         entityId,
         effectId,
         durationTurns,
       );
-      // FIX: added emitCombatUpdate
-      await combatService.emitCombatUpdate(sessionId);
+      await combatService.emitCombatUpdate(roomId, sessionId);
       res.json({ success: true });
     } catch (error) {
       console.error(error);
@@ -146,19 +164,20 @@ export const combatController = {
   },
 
   async useAbility(req: Request, res: Response) {
-    const { sessionId, entityType, entityId, abilityId } = req.body;
-    if (!sessionId || !entityType || !entityId || !abilityId) {
-      return res.status(400).json({ error: "Недостаточно данных" });
-    }
     try {
+      const roomId = req.roomId!;
+      const { sessionId, entityType, entityId, abilityId } = req.body;
+      if (!sessionId || !entityType || !entityId || !abilityId) {
+        return res.status(400).json({ error: "Недостаточно данных" });
+      }
       await combatService.useAbility(
+        roomId,
         sessionId,
         entityType,
         entityId,
         abilityId,
       );
-      // FIX: added emitCombatUpdate
-      await combatService.emitCombatUpdate(sessionId);
+      await combatService.emitCombatUpdate(roomId, sessionId);
       res.json({ success: true });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -167,7 +186,8 @@ export const combatController = {
 
   async advanceDay(req: Request, res: Response) {
     try {
-      await combatService.advanceDay();
+      const roomId = req.roomId!;
+      await combatService.advanceDay(roomId);
       res.json({
         success: true,
         message: "День завершён, эффекты и кулдауны обновлены",

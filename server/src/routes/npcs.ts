@@ -33,5 +33,6 @@ router.post(
   npcsController.uploadAvatar,
 );
 router.delete("/:id/avatar", npcsController.deleteAvatar);
+router.post("/:id/duplicate", npcsController.duplicate);
 
 export default router;

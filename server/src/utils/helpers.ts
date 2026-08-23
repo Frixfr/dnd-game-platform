@@ -51,9 +51,35 @@ export function calculateFinalStatsGeneric<
 > {
   const finalStats = { ...entity };
 
+  // Сначала считаем все модификаторы для max_health
+  let maxHealthModifier = 0;
+  
+  activeEffects.forEach((effect) => {
+    if (effect.attribute === "max_health" && typeof effect.modifier === "number") {
+      maxHealthModifier += effect.modifier;
+    }
+  });
+
+  passiveEffectsFromItems.forEach((effect) => {
+    if (effect.attribute === "max_health" && typeof effect.modifier === "number") {
+      maxHealthModifier += effect.modifier;
+    }
+  });
+
+  // Применяем модификатор к max_health
+  finalStats.max_health = (entity.max_health + maxHealthModifier) as T["max_health"];
+
+  // health НЕ обрабатываем здесь - лечение/урон применяются сразу в момент создания эффекта
+  // и сохраняются в базе данных игрока/NPC. Здесь мы только рассчитываем max_health.
+
+  // Теперь применяем остальные модификаторы (кроме health и max_health)
   activeEffects.forEach((effect) => {
     if (effect.attribute && typeof effect.modifier === "number") {
       const attr = effect.attribute as keyof typeof finalStats;
+      // Пропускаем health и max_health - они обрабатываются отдельно
+      if (attr === "health" || attr === "max_health") {
+        return;
+      }
       const current = finalStats[attr];
       // Убеждаемся, что текущее значение - число
       if (typeof current === "number") {
@@ -65,6 +91,9 @@ export function calculateFinalStatsGeneric<
   passiveEffectsFromItems.forEach((effect) => {
     if (effect.attribute && typeof effect.modifier === "number") {
       const attr = effect.attribute as keyof typeof finalStats;
+      if (attr === "health" || attr === "max_health") {
+        return;
+      }
       const current = finalStats[attr];
       if (typeof current === "number") {
         finalStats[attr] = (current + effect.modifier) as T[keyof T];
@@ -129,7 +158,7 @@ export async function getFullPlayerData(
     const player = await db("players").where("id", playerId).first();
     if (!player) return null;
 
-    // Способности
+    // ----- Способности (без изменений) -----
     const abilitiesRaw = await db("player_abilities")
       .where("player_id", playerId)
       .where("is_active", true)
@@ -189,7 +218,7 @@ export async function getFullPlayerData(
       return { ...ability, effect };
     });
 
-    // Предметы
+    // ----- Предметы (изменено: добавляем source_item_name в passive_effects) -----
     const itemsRaw = await db("player_items")
       .where("player_id", playerId)
       .join("items", "player_items.item_id", "items.id")
@@ -213,16 +242,22 @@ export async function getFullPlayerData(
     const items = await Promise.all(
       itemsRaw.map(async (item: any) => {
         const effects = await itemsService.getItemEffects(item.id);
+        const passive_effects = effects
+          .filter((e) => e.effect_type === "passive")
+          .map((e) => ({
+            ...e,
+            source_item_name: item.name, // добавляем имя предмета
+          }));
         return {
           ...item,
-          player_item_id: item.player_item_id, // ← явно сохраняем
+          player_item_id: item.player_item_id,
           active_effects: effects.filter((e) => e.effect_type === "active"),
-          passive_effects: effects.filter((e) => e.effect_type === "passive"),
+          passive_effects,
         };
       }),
     );
 
-    // Активные эффекты
+    // ----- Активные эффекты (добавляем source_name) -----
     const activeEffectsRaw = await db("player_active_effects")
       .where("player_id", playerId)
       .where(function () {
@@ -249,12 +284,34 @@ export async function getFullPlayerData(
         "player_active_effects.applied_at",
       );
 
-    const activeEffects = activeEffectsRaw.map((row: any) => ({
-      ...row,
-      tags: safeJsonParse(row.tags, []),
-    }));
+    // Добавляем source_name для каждого активного эффекта
+    const activeEffects = await Promise.all(
+      activeEffectsRaw.map(async (row: any) => {
+        let sourceName: string | null = null;
+        if (row.source_type === "ability" && row.source_id) {
+          const ability = await db("abilities")
+            .select("name")
+            .where("id", row.source_id)
+            .first();
+          sourceName = ability?.name || "Способность";
+        } else if (row.source_type === "item" && row.source_id) {
+          const item = await db("items")
+            .select("name")
+            .where("id", row.source_id)
+            .first();
+          sourceName = item?.name || "Предмет";
+        } else if (row.source_type === "admin") {
+          sourceName = "Мастер";
+        }
+        return {
+          ...row,
+          source_name: sourceName,
+          tags: safeJsonParse(row.tags, []),
+        };
+      }),
+    );
 
-    // Эффекты расы
+    // ----- Эффекты расы (отдельно, для передачи на фронт) -----
     let raceEffects: Effect[] = [];
     let raceData: {
       id: number;
@@ -281,6 +338,7 @@ export async function getFullPlayerData(
       }
     }
 
+    // ----- Сбор всех эффектов для расчёта финальных статов -----
     const allActiveEffects = [...activeEffects, ...raceEffects];
     const allPassiveEffects = items.flatMap((item) => item.passive_effects);
 
@@ -304,6 +362,7 @@ export async function getFullPlayerData(
   }
 }
 
+// Аналогичные изменения для getFullNpcData — повторяем ту же логику
 export async function getFullNpcData(
   npcId: string | number,
 ): Promise<FullNPCData | null> {
@@ -311,7 +370,7 @@ export async function getFullNpcData(
     const npc = await db("npcs").where("id", npcId).first();
     if (!npc) return null;
 
-    // Способности
+    // Способности (без изменений)
     const abilitiesRaw = await db("npc_abilities")
       .where("npc_id", npcId)
       .where("is_active", true)
@@ -371,7 +430,7 @@ export async function getFullNpcData(
       return { ...ability, effect };
     });
 
-    // Предметы
+    // Предметы с source_item_name
     const itemsRaw = await db("npc_items")
       .where("npc_id", npcId)
       .join("items", "npc_items.item_id", "items.id")
@@ -389,20 +448,27 @@ export async function getFullNpcData(
         "npc_items.quantity",
         "npc_items.is_equipped",
         "npc_items.obtained_at",
+        "npc_items.id as npc_item_id",
       );
 
     const items = await Promise.all(
       itemsRaw.map(async (item: any) => {
         const effects = await itemsService.getItemEffects(item.id);
+        const passive_effects = effects
+          .filter((e) => e.effect_type === "passive")
+          .map((e) => ({
+            ...e,
+            source_item_name: item.name,
+          }));
         return {
           ...item,
           active_effects: effects.filter((e) => e.effect_type === "active"),
-          passive_effects: effects.filter((e) => e.effect_type === "passive"),
+          passive_effects,
         };
       }),
     );
 
-    // Активные эффекты
+    // Активные эффекты с source_name
     const activeEffectsRaw = await db("npc_active_effects")
       .where("npc_id", npcId)
       .where(function () {
@@ -429,10 +495,31 @@ export async function getFullNpcData(
         "npc_active_effects.applied_at",
       );
 
-    const activeEffects = activeEffectsRaw.map((row: any) => ({
-      ...row,
-      tags: safeJsonParse(row.tags, []),
-    }));
+    const activeEffects = await Promise.all(
+      activeEffectsRaw.map(async (row: any) => {
+        let sourceName: string | null = null;
+        if (row.source_type === "ability" && row.source_id) {
+          const ability = await db("abilities")
+            .select("name")
+            .where("id", row.source_id)
+            .first();
+          sourceName = ability?.name || "Способность";
+        } else if (row.source_type === "item" && row.source_id) {
+          const item = await db("items")
+            .select("name")
+            .where("id", row.source_id)
+            .first();
+          sourceName = item?.name || "Предмет";
+        } else if (row.source_type === "admin") {
+          sourceName = "Мастер";
+        }
+        return {
+          ...row,
+          source_name: sourceName,
+          tags: safeJsonParse(row.tags, []),
+        };
+      }),
+    );
 
     // Эффекты расы
     let raceEffects: Effect[] = [];
@@ -503,4 +590,23 @@ export async function ensureFrightenedEffect(): Promise<Effect> {
     console.log("Эффект 'Испуг' создан автоматически");
   }
   return effect;
+}
+
+/**
+ * Применяет мгновенное изменение health/max_health от эффекта.
+ * Возвращает новое значение HP (или null, если эффект не затрагивает здоровье).
+ * Используется для мгновенных эффектов (is_instant), которые не создают запись в active_effects.
+ */
+export function applyInstantHealthChange(
+  currentHealth: number,
+  effect: { attribute: string | null; modifier: number },
+  effectiveMaxHealth: number,
+): number | null {
+  if (effect.attribute === "max_health" && typeof effect.modifier === "number") {
+    return Math.min(currentHealth + effect.modifier, effectiveMaxHealth);
+  }
+  if (effect.attribute === "health" && typeof effect.modifier === "number") {
+    return Math.max(0, Math.min(currentHealth + effect.modifier, effectiveMaxHealth));
+  }
+  return null;
 }

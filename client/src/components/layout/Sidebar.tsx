@@ -12,26 +12,29 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, isMobile }) => {
   };
 
   return (
-    <aside className="w-64 h-full bg-white border-r border-slate-200 flex flex-col shadow-lg md:shadow-none">
-      <div className="p-6">
-        <h2 className="text-xl font-bold text-slate-800">DnD Platform</h2>
+    <aside className="w-64 h-full bg-bg-secondary border-r border-border-color flex flex-col shadow-lg md:shadow-none">
+      <div className="p-6 border-b border-border-color">
+        <h2 className="text-xl font-bold text-text-primary">
+          DnD Platform
+        </h2>
       </div>
-      <nav className="mt-6 flex-1 px-4">
-        <ul className="space-y-2">
+      <nav className="mt-4 flex-1 px-3">
+        <ul className="space-y-1.5">
           <li>
             <NavLink
               to="/master"
               end
               onClick={handleLinkClick}
               className={({ isActive }) =>
-                `block px-4 py-2 rounded transition-colors ${
+                `flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 ${
                   isActive
-                    ? 'bg-blue-100 text-blue-700 font-medium'
-                    : 'text-slate-700 hover:bg-slate-100'
+                    ? 'bg-accent-red/20 text-accent-red border border-accent-red/30 shadow-md'
+                    : 'text-text-secondary hover:bg-bg-card-hover hover:text-text-primary'
                 }`
               }
             >
-              👥 Игроки
+              <span className="text-lg">👥</span>
+              <span className="font-medium">Игроки</span>
             </NavLink>
           </li>
           <li>
@@ -39,14 +42,15 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, isMobile }) => {
               to="/master/abilities"
               onClick={handleLinkClick}
               className={({ isActive }) =>
-                `block px-4 py-2 rounded transition-colors ${
+                `flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 ${
                   isActive
-                    ? 'bg-blue-100 text-blue-700 font-medium'
-                    : 'text-slate-700 hover:bg-slate-100'
+                    ? 'bg-accent-red/20 text-accent-red border border-accent-red/30 shadow-md'
+                    : 'text-text-secondary hover:bg-bg-card-hover hover:text-text-primary'
                 }`
               }
             >
-              ⚡ Способности
+              <span className="text-lg">⚡</span>
+              <span className="font-medium">Способности</span>
             </NavLink>
           </li>
           <li>
@@ -54,14 +58,15 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, isMobile }) => {
               to="/master/items"
               onClick={handleLinkClick}
               className={({ isActive }) =>
-                `block px-4 py-2 rounded transition-colors ${
+                `flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 ${
                   isActive
-                    ? 'bg-blue-100 text-blue-700 font-medium'
-                    : 'text-slate-700 hover:bg-slate-100'
+                    ? 'bg-accent-red/20 text-accent-red border border-accent-red/30 shadow-md'
+                    : 'text-text-secondary hover:bg-bg-card-hover hover:text-text-primary'
                 }`
               }
             >
-              🎒 Предметы
+              <span className="text-lg">🎒</span>
+              <span className="font-medium">Предметы</span>
             </NavLink>
           </li>
           <li>
@@ -69,14 +74,15 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, isMobile }) => {
               to="/master/effects"
               onClick={handleLinkClick}
               className={({ isActive }) =>
-                `block px-4 py-2 rounded transition-colors ${
+                `flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 ${
                   isActive
-                    ? 'bg-blue-100 text-blue-700 font-medium'
-                    : 'text-slate-700 hover:bg-slate-100'
+                    ? 'bg-accent-red/20 text-accent-red border border-accent-red/30 shadow-md'
+                    : 'text-text-secondary hover:bg-bg-card-hover hover:text-text-primary'
                 }`
               }
             >
-              ✨ Эффекты
+              <span className="text-lg">✨</span>
+              <span className="font-medium">Эффекты</span>
             </NavLink>
           </li>
           <li>
@@ -84,23 +90,31 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, isMobile }) => {
               to="/master/npcs"
               onClick={handleLinkClick}
               className={({ isActive }) =>
-                `block px-4 py-2 rounded transition-colors ${
+                `flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 ${
                   isActive
-                    ? 'bg-blue-100 text-blue-700 font-medium'
-                    : 'text-slate-700 hover:bg-slate-100'
+                    ? 'bg-accent-red/20 text-accent-red border border-accent-red/30 shadow-md'
+                    : 'text-text-secondary hover:bg-bg-card-hover hover:text-text-primary'
                 }`
               }
             >
-              🧟 NPC
+              <span className="text-lg">🧟</span>
+              <span className="font-medium">NPC</span>
             </NavLink>
           </li>
           <li>
             <NavLink
               to="/master/races"
               onClick={handleLinkClick}
-              className={({ isActive }) => `block px-4 py-2 rounded transition-colors ${isActive ? 'bg-blue-100 text-blue-700 font-medium' : 'text-slate-700 hover:bg-slate-100'}`}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 ${
+                  isActive
+                    ? 'bg-accent-red/20 text-accent-red border border-accent-red/30 shadow-md'
+                    : 'text-text-secondary hover:bg-bg-card-hover hover:text-text-primary'
+                }`
+              }
             >
-              🌍 Расы
+              <span className="text-lg">🌍</span>
+              <span className="font-medium">Расы</span>
             </NavLink>
           </li>
           <li>
@@ -108,14 +122,15 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, isMobile }) => {
               to="/master/combat"
               onClick={handleLinkClick}
               className={({ isActive }) =>
-                `block px-4 py-2 rounded transition-colors ${
+                `flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 ${
                   isActive
-                    ? 'bg-blue-100 text-blue-700 font-medium'
-                    : 'text-slate-700 hover:bg-slate-100'
+                    ? 'bg-accent-red/20 text-accent-red border border-accent-red/30 shadow-md'
+                    : 'text-text-secondary hover:bg-bg-card-hover hover:text-text-primary'
                 }`
               }
             >
-              ⚔️ Бой
+              <span className="text-lg">⚔️</span>
+              <span className="font-medium">Бой</span>
             </NavLink>
           </li>
           <li>
@@ -123,18 +138,22 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, isMobile }) => {
               to="/master/maps"
               onClick={handleLinkClick}
               className={({ isActive }) =>
-                `block px-4 py-2 rounded transition-colors ${
+                `flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 ${
                   isActive
-                    ? 'bg-blue-100 text-blue-700 font-medium'
-                    : 'text-slate-700 hover:bg-slate-100'
+                    ? 'bg-accent-red/20 text-accent-red border border-accent-red/30 shadow-md'
+                    : 'text-text-secondary hover:bg-bg-card-hover hover:text-text-primary'
                 }`
               }
             >
-              🗺️ Карты
+              <span className="text-lg">🗺️</span>
+              <span className="font-medium">Карты</span>
             </NavLink>
           </li>
         </ul>
       </nav>
+      <div className="p-4 border-t border-border-color text-center text-xs text-text-muted">
+        Master Dashboard v1.0
+      </div>
     </aside>
   );
 };

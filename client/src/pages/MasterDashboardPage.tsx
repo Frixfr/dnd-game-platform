@@ -1,4 +1,4 @@
-// client/src/pages/MasterDashboardPage.tsx
+// client/src/pages/MasterDashboardPage.tsx - Обновленный дизайн
 
 import { useState, useEffect } from 'react';
 import { PlayerCard } from '../components/ui/PlayerCard';
@@ -9,6 +9,7 @@ import { usePlayerStore } from '../stores/playerStore';
 import type { PlayerType } from '../types';
 import ConfirmModal from '../components/ui/ConfirmModal';
 import { useErrorHandler } from '../hooks/useErrorHandler';
+import { Users, Plus } from 'lucide-react';
 
 export const MasterDashboardPage = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -73,6 +74,7 @@ export const MasterDashboardPage = () => {
     try {
       const response = await fetch(`/api/players/${playerToDelete.id}`, { method: 'DELETE' });
       if (!response.ok) throw new Error('Ошибка удаления');
+      await fetchPlayers(currentPage, limit);
     } catch (error) {
       console.error(error);
       showError('Не удалось удалить игрока');
@@ -85,31 +87,43 @@ export const MasterDashboardPage = () => {
   const totalPages = Math.ceil(playersTotal / limit);
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
+    <div className="p-4 md:p-6 max-w-7xl mx-auto animate-fade-in">
+      {/* Заголовок страницы */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 pb-6 border-b border-border-color">
         <div>
-          <h1 className="text-3xl font-bold">Панель игроков</h1>
-          <p className="text-gray-600 mt-1">
-            Всего игроков: <span className="font-semibold">{playersTotal}</span>
+          <div className="flex items-center gap-3 mb-2">
+            <Users size={28} className="text-accent-red" />
+            <h1 className="text-2xl md:text-3xl font-bold text-text-primary">
+              Панель игроков
+            </h1>
+          </div>
+          <p className="text-text-secondary">
+            Всего игроков: <span className="font-semibold text-accent-red">{playersTotal}</span>
           </p>
         </div>
         <button
           onClick={() => setIsCreateModalOpen(true)}
-          className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
+          className="flex items-center justify-center gap-2 px-5 py-2.5 btn-primary w-full sm:w-auto"
         >
-          + Создать игрока
+          <Plus size={20} />
+          <span>Создать игрока</span>
         </button>
       </div>
 
+      {/* Контент */}
       {loading ? (
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-          <p className="mt-2 text-gray-600">Загрузка игроков...</p>
+        <div className="flex flex-col items-center justify-center py-20">
+          <div className="relative">
+            <div className="absolute inset-0 bg-accent-red/20 blur-xl rounded-full" />
+            <div className="w-12 h-12 border-4 border-accent-red/30 border-t-accent-red rounded-full animate-spin relative z-10" />
+          </div>
+          <p className="mt-4 text-text-secondary">Загрузка игроков...</p>
         </div>
       ) : players.length === 0 ? (
-        <div className="text-center py-12 text-gray-500 bg-gray-50 rounded-lg">
-          <p className="text-lg mb-2">Нет созданных игроков</p>
-          <p className="mb-4">Нажмите кнопку выше для создания первого игрока</p>
+        <div className="text-center py-20 bg-bg-secondary rounded-2xl border border-border-color">
+          <Users size={48} className="mx-auto text-text-muted mb-4" />
+          <p className="text-lg text-text-secondary mb-2">Нет созданных игроков</p>
+          <p className="text-text-muted mb-6">Нажмите кнопку выше для создания первого игрока</p>
         </div>
       ) : (
         <>
@@ -123,14 +137,17 @@ export const MasterDashboardPage = () => {
               />
             ))}
           </div>
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={(page) => fetchPlayers(page, limit)}
-          />
+          <div className="mt-8">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={(page) => fetchPlayers(page, limit)}
+            />
+          </div>
         </>
       )}
 
+      {/* Модальные окна */}
       {isCreateModalOpen && <CreatePlayerModal onClose={() => setIsCreateModalOpen(false)} />}
 
       {isEditModalOpen && selectedPlayer && (

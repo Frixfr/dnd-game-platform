@@ -2,7 +2,7 @@
 
 import { db } from "../db/index.js";
 import { getFullPlayerData, calculateFinalStats } from "../utils/helpers.js";
-import { getIO } from "../socket/index.js";
+import { getIO, emitPlayerUpdate } from "../socket/index.js";
 import { playerAbilitiesService } from "./playerAbilitiesService.js";
 import type {
   Player,
@@ -13,13 +13,16 @@ import { playerItemsService } from "./playerItemsService.js";
 import { logsService } from "./logsService.js";
 
 export const playersService = {
+  // === ВСЕ МЕТОДЫ ПРИНИМАЮТ roomId как первый параметр ===
+
   async getAll(
+    roomId: number,
     card_shown_only?: boolean,
     available_for_selection?: boolean,
     page?: number,
     limit?: number,
   ): Promise<Player[] | PaginatedResponse<Player>> {
-    let query = db("players").select("*");
+    let query = db("players").select("*").where("room_id", roomId);
     if (card_shown_only) {
       query = query.where("is_card_shown", true);
     }
@@ -27,12 +30,10 @@ export const playersService = {
       query = query.where("is_card_shown", true).whereNull("access_password");
     }
 
-    // Если page и limit не переданы – возвращаем массив (для обратной совместимости)
     if (page === undefined || limit === undefined) {
       return query;
     }
 
-    // Пагинация
     const offset = (page - 1) * limit;
     const totalQuery = query
       .clone()
@@ -47,15 +48,12 @@ export const playersService = {
     return { data, total, page, limit };
   },
 
-  async getAllFull(): Promise<FullPlayerData[]> {
-    // 1. Загружаем всех игроков
-    const players = await db("players").select("*");
-
+  async getAllFull(roomId: number): Promise<FullPlayerData[]> {
+    const players = await db("players").select("*").where("room_id", roomId);
     if (players.length === 0) return [];
 
     const playerIds = players.map((p) => p.id);
 
-    // 2. Загружаем способности всех игроков с эффектами
     const abilitiesRaw = await db("player_abilities")
       .whereIn("player_id", playerIds)
       .where("is_active", true)
@@ -85,7 +83,6 @@ export const playersService = {
         "effects.is_permanent as effect_is_permanent",
       );
 
-    // Группируем способности по player_id
     const abilitiesByPlayer: Record<number, any[]> = {};
     for (const row of abilitiesRaw) {
       const playerId = row.player_id;
@@ -116,7 +113,6 @@ export const playersService = {
       abilitiesByPlayer[playerId].push({ ...ability, effect });
     }
 
-    // 3. Загружаем предметы всех игроков с эффектами
     const itemsRaw = await db("player_items")
       .whereIn("player_id", playerIds)
       .join("items", "player_items.item_id", "items.id")
@@ -204,7 +200,6 @@ export const playersService = {
       });
     }
 
-    // 4. Загружаем активные эффекты всех игроков
     const activeEffectsRaw = await db("player_active_effects")
       .whereIn("player_id", playerIds)
       .where(function () {
@@ -239,7 +234,6 @@ export const playersService = {
       activeEffectsByPlayer[playerId].push({ ...row });
     }
 
-    // 5. Загружаем расы и их эффекты для всех игроков (у кого есть race_id)
     const playersWithRace = players.filter((p) => p.race_id !== null);
     let raceDataById: Record<
       number,
@@ -248,20 +242,19 @@ export const playersService = {
 
     if (playersWithRace.length > 0) {
       const raceIds = [...new Set(playersWithRace.map((p) => p.race_id!))];
-      const races = await db("races").whereIn("id", raceIds).select("*");
-
-      // Загружаем эффекты для всех рас
+      const races = await db("races")
+        .whereIn("id", raceIds)
+        .andWhere("room_id", roomId)
+        .select("*");
       const raceEffectsRaw = await db("race_effects")
         .whereIn("race_id", raceIds)
         .join("effects", "race_effects.effect_id", "effects.id")
         .select("race_effects.race_id", "effects.*");
-
       const effectsByRace: Record<number, any[]> = {};
       for (const re of raceEffectsRaw) {
         if (!effectsByRace[re.race_id]) effectsByRace[re.race_id] = [];
         effectsByRace[re.race_id].push(re);
       }
-
       for (const race of races) {
         raceDataById[race.id] = {
           id: race.id,
@@ -272,7 +265,6 @@ export const playersService = {
       }
     }
 
-    // 6. Собираем FullPlayerData для каждого игрока
     const result: FullPlayerData[] = [];
     for (const player of players) {
       const abilities = abilitiesByPlayer[player.id] || [];
@@ -280,20 +272,13 @@ export const playersService = {
       const activeEffects = activeEffectsByPlayer[player.id] || [];
 
       let raceEffects: any[] = [];
-      let raceData: {
-        id: number;
-        name: string;
-        description: string | null;
-        effects: any[];
-      } | null = null;
-
+      let raceData: any = null;
       if (player.race_id && raceDataById[player.race_id]) {
         raceData = raceDataById[player.race_id];
         raceEffects = raceData.effects;
       }
 
       const allActiveEffects = [...activeEffects, ...raceEffects];
-      // Собираем все пассивные эффекты из всех предметов (игнорируем is_equipped)
       const allPassiveEffects = items.flatMap((item) => {
         if (item.passive_effect) return [item.passive_effect];
         return [];
@@ -313,16 +298,16 @@ export const playersService = {
         race: raceData ? { ...raceData, effects: raceEffects } : null,
       });
     }
-
     return result;
   },
 
   async getAllFullPaginated(
+    roomId: number,
     page: number,
     limit: number,
     card_shown_only?: boolean,
   ): Promise<PaginatedResponse<FullPlayerData>> {
-    let query = db("players").select("*");
+    let query = db("players").select("*").where("room_id", roomId);
     if (card_shown_only) {
       query = query.where("is_card_shown", true);
     }
@@ -344,7 +329,6 @@ export const playersService = {
 
     const playerIds = players.map((p) => p.id);
 
-    // Способности (аналогично getAllFull, но только для выбранных игроков)
     const abilitiesRaw = await db("player_abilities")
       .whereIn("player_id", playerIds)
       .where("is_active", true)
@@ -404,7 +388,6 @@ export const playersService = {
       abilitiesByPlayer[playerId].push({ ...ability, effect });
     }
 
-    // Предметы (с учётом item_effects)
     const itemsRaw = await db("player_items")
       .whereIn("player_id", playerIds)
       .join("items", "player_items.item_id", "items.id")
@@ -422,7 +405,6 @@ export const playersService = {
         "player_items.obtained_at",
       );
 
-    // Загружаем эффекты для всех предметов
     const allItemIds = itemsRaw.map((i) => i.id);
     const itemEffectsRaw = await db("item_effects")
       .whereIn("item_id", allItemIds)
@@ -480,8 +462,7 @@ export const playersService = {
       });
     }
 
-    // Активные эффекты
-    const activeEffectsRaw = await db("player_active_effects")
+    const activeEffectsRawPag = await db("player_active_effects")
       .whereIn("player_id", playerIds)
       .where(function () {
         this.where("remaining_turns", ">", 0)
@@ -508,60 +489,61 @@ export const playersService = {
         "player_active_effects.applied_at",
       );
 
-    const activeEffectsByPlayer: Record<number, any[]> = {};
-    for (const row of activeEffectsRaw) {
+    const activeEffectsByPlayerPag: Record<number, any[]> = {};
+    for (const row of activeEffectsRawPag) {
       const playerId = row.player_id;
-      if (!activeEffectsByPlayer[playerId])
-        activeEffectsByPlayer[playerId] = [];
-      activeEffectsByPlayer[playerId].push({
+      if (!activeEffectsByPlayerPag[playerId])
+        activeEffectsByPlayerPag[playerId] = [];
+      activeEffectsByPlayerPag[playerId].push({
         ...row,
         tags: row.tags ? JSON.parse(row.tags) : [],
       });
     }
 
-    // Расы и эффекты рас
-    const playersWithRace = players.filter((p) => p.race_id !== null);
-    let raceDataById: Record<
+    const playersWithRacePag = players.filter((p) => p.race_id !== null);
+    let raceDataByIdPag: Record<
       number,
       { id: number; name: string; description: string | null; effects: any[] }
     > = {};
 
-    if (playersWithRace.length > 0) {
-      const raceIds = [...new Set(playersWithRace.map((p) => p.race_id!))];
-      const races = await db("races").whereIn("id", raceIds).select("*");
-      const raceEffectsRaw = await db("race_effects")
+    if (playersWithRacePag.length > 0) {
+      const raceIds = [...new Set(playersWithRacePag.map((p) => p.race_id!))];
+      const races = await db("races")
+        .whereIn("id", raceIds)
+        .andWhere("room_id", roomId)
+        .select("*");
+      const raceEffectsRawPag = await db("race_effects")
         .whereIn("race_id", raceIds)
         .join("effects", "race_effects.effect_id", "effects.id")
         .select("race_effects.race_id", "effects.*");
-      const effectsByRace: Record<number, any[]> = {};
-      for (const re of raceEffectsRaw) {
-        if (!effectsByRace[re.race_id]) effectsByRace[re.race_id] = [];
-        effectsByRace[re.race_id].push({
+      const effectsByRacePag: Record<number, any[]> = {};
+      for (const re of raceEffectsRawPag) {
+        if (!effectsByRacePag[re.race_id]) effectsByRacePag[re.race_id] = [];
+        effectsByRacePag[re.race_id].push({
           ...re,
           tags: re.tags ? JSON.parse(re.tags) : [],
         });
       }
       for (const race of races) {
-        raceDataById[race.id] = {
+        raceDataByIdPag[race.id] = {
           id: race.id,
           name: race.name,
           description: race.description,
-          effects: effectsByRace[race.id] || [],
+          effects: effectsByRacePag[race.id] || [],
         };
       }
     }
 
-    // Сборка FullPlayerData для каждого игрока
     const result: FullPlayerData[] = [];
     for (const player of players) {
       const abilities = abilitiesByPlayer[player.id] || [];
       const items = itemsByPlayer[player.id] || [];
-      const activeEffects = activeEffectsByPlayer[player.id] || [];
+      const activeEffects = activeEffectsByPlayerPag[player.id] || [];
 
       let raceEffects: any[] = [];
       let raceData: any = null;
-      if (player.race_id && raceDataById[player.race_id]) {
-        raceData = raceDataById[player.race_id];
+      if (player.race_id && raceDataByIdPag[player.race_id]) {
+        raceData = raceDataByIdPag[player.race_id];
         raceEffects = raceData.effects;
       }
 
@@ -586,67 +568,102 @@ export const playersService = {
     return { data: result, total, page, limit };
   },
 
-  async getById(id: number): Promise<Player | null> {
-    return db("players").where({ id }).first();
+  async getById(roomId: number, id: number): Promise<Player | null> {
+    return db("players").where({ id, room_id: roomId }).first();
   },
 
-  async getFullDetails(id: number): Promise<FullPlayerData | null> {
-    return getFullPlayerData(id.toString());
+  async getFullDetails(
+    roomId: number,
+    id: number,
+  ): Promise<FullPlayerData | null> {
+    return getFullPlayerData(String(id)); // getFullPlayerData уже использует room_id из игрока
   },
 
   async loginWithPassword(password: string): Promise<Player | null> {
+    // Не требует roomId — используется при входе игрока, игроки видят только активную комнату
     const player = await db("players")
       .where({ access_password: password })
       .first();
     return player || null;
   },
 
-  async create(data: Omit<Player, "id" | "created_at">): Promise<Player> {
+  async create(
+    roomId: number,
+    data: Omit<Player, "id" | "created_at" | "room_id">,
+  ): Promise<Player> {
     const [player] = await db("players")
       .insert({
         ...data,
+        room_id: roomId,
         access_password: data.access_password ?? null,
       })
       .returning("*");
+    await emitPlayerUpdate(player.id);
     return player;
   },
 
-  async update(id: number, data: Partial<Player>): Promise<Player | null> {
-    // Нормализация access_password: пустая строка → null
+  async update(
+    roomId: number,
+    id: number,
+    data: Partial<Player>,
+  ): Promise<Player | null> {
+    // Сначала проверим, что игрок принадлежит комнате
+    const existing = await db("players").where({ id, room_id: roomId }).first();
+    if (!existing) return null;
+
     if (data.access_password === "") {
       data.access_password = null;
     }
-
-    // Проверка уникальности пароля, если устанавливается новый пароль (не null)
     if (data.access_password !== undefined && data.access_password !== null) {
-      const existing = await db("players")
+      const existingWithPass = await db("players")
         .where({ access_password: data.access_password })
         .whereNotNull("access_password")
         .whereNot("id", id)
         .first();
-      if (existing) {
+      if (existingWithPass) {
         throw new Error("Этот пароль уже используется другим игроком");
       }
+    }
+
+    if (data.health !== undefined && typeof data.health === "number") {
+      let newHealth = data.health;
+      const fullData = await getFullPlayerData(String(id));
+      if (fullData) {
+        const effectiveMaxHealth = fullData.final_stats.max_health;
+        if (newHealth > effectiveMaxHealth) {
+          newHealth = effectiveMaxHealth;
+        }
+      } else {
+        if (newHealth > existing.max_health) {
+          newHealth = existing.max_health;
+        }
+      }
+      if (newHealth < 0) newHealth = 0;
+      data.health = newHealth;
     }
 
     const [updated] = await db("players")
       .where({ id })
       .update(data)
       .returning("*");
+    if (updated) await emitPlayerUpdate(id);
     return updated || null;
   },
 
-  async delete(id: number): Promise<boolean> {
-    const deleted = await db("players").where({ id }).delete();
+  async delete(roomId: number, id: number): Promise<boolean> {
+    const deleted = await db("players").where({ id, room_id: roomId }).delete();
+    if (deleted) getIO().to(`room:${roomId}`).emit("player:deleted", id);
     return deleted > 0;
   },
 
-  // Batch операции
   async addItemsBatch(
+    roomId: number,
     playerId: number,
     items: { item_id: number; quantity: number }[],
   ) {
-    const player = await db("players").where("id", playerId).first();
+    const player = await db("players")
+      .where({ id: playerId, room_id: roomId })
+      .first();
     if (!player) throw new Error("Игрок не найден");
 
     const results = [];
@@ -689,23 +706,22 @@ export const playersService = {
         });
       }
     }
+    await emitPlayerUpdate(playerId);
     return { success: true, message: "Операция завершена", results };
   },
 
   async setPassword(
+    roomId: number,
     playerId: number,
     password: string,
   ): Promise<Player | null> {
-    // Проверяем, существует ли игрок
-    const player = await db("players").where({ id: playerId }).first();
+    const player = await db("players")
+      .where({ id: playerId, room_id: roomId })
+      .first();
     if (!player) throw new Error("Игрок не найден");
-
-    // Проверяем, что пароль ещё не установлен
     if (player.access_password !== null) {
       throw new Error("Пароль уже установлен для этого игрока");
     }
-
-    // Проверяем уникальность пароля среди всех игроков (где пароль не null)
     const existing = await db("players")
       .where({ access_password: password })
       .whereNotNull("access_password")
@@ -713,25 +729,29 @@ export const playersService = {
     if (existing) {
       throw new Error("Этот пароль уже используется другим игроком");
     }
-
-    // Устанавливаем пароль
     const [updated] = await db("players")
       .where({ id: playerId })
       .update({ access_password: password })
       .returning("*");
+    if (updated) await emitPlayerUpdate(playerId);
     return updated || null;
   },
 
-  async addAbilitiesBatch(playerId: number, abilityIds: number[]) {
-    const player = await db("players").where("id", playerId).first();
+  async addAbilitiesBatch(
+    roomId: number,
+    playerId: number,
+    abilityIds: number[],
+  ) {
+    const player = await db("players")
+      .where({ id: playerId, room_id: roomId })
+      .first();
     if (!player) throw new Error("Игрок не найден");
 
     const results = [];
     for (const ability_id of abilityIds) {
       try {
-        // Используем единый сервис для добавления способности игроку
-        // По умолчанию is_active = true
         const playerAbility = await playerAbilitiesService.create(
+          roomId,
           playerId,
           ability_id,
           true,
@@ -750,17 +770,18 @@ export const playersService = {
         });
       }
     }
-    const successful = results.filter((r) => r.success).length;
-    const failed = results.length - successful;
+    await emitPlayerUpdate(playerId);
     return {
       success: true,
-      message: `Успешно: ${successful}, ошибок: ${failed}`,
+      message: `Успешно: ${results.filter((r) => r.success).length}, ошибок: ${results.filter((r) => !r.success).length}`,
       results,
     };
   },
 
-  async addEffectsBatch(playerId: number, effectIds: number[]) {
-    const player = await db("players").where("id", playerId).first();
+  async addEffectsBatch(roomId: number, playerId: number, effectIds: number[]) {
+    const player = await db("players")
+      .where({ id: playerId, room_id: roomId })
+      .first();
     if (!player) throw new Error("Игрок не найден");
 
     const results = [];
@@ -799,66 +820,105 @@ export const playersService = {
         data: newEffect,
       });
     }
+    await emitPlayerUpdate(playerId);
     return { success: true, message: "Операция завершена", results };
   },
 
-  async removeItem(playerId: number, itemId: number) {
+  async removeItem(roomId: number, playerId: number, itemId: number) {
+    const player = await db("players")
+      .where({ id: playerId, room_id: roomId })
+      .first();
+    if (!player) throw new Error("Игрок не найден");
     const deleted = await db("player_items")
       .where({ player_id: playerId, item_id: itemId })
       .delete();
     if (deleted === 0) throw new Error("Предмет не найден у игрока");
+    await emitPlayerUpdate(playerId);
     return true;
   },
 
-  async removeAbility(playerId: number, abilityId: number) {
-    // Используем сервис для удаления связи (он сам удалит эффект, если способность пассивная)
-    await playerAbilitiesService.delete(playerId, abilityId);
+  async removeAbility(roomId: number, playerId: number, abilityId: number) {
+    // Проверяем, что игрок принадлежит комнате
+    const player = await db("players")
+      .where({ id: playerId, room_id: roomId })
+      .first();
+    if (!player) throw new Error("Игрок не найден");
+
+    await playerAbilitiesService.delete(roomId, playerId, abilityId);
+    await emitPlayerUpdate(playerId);
     return true;
   },
 
-  async removeEffect(playerId: number, effectId: number) {
+  async removeEffect(roomId: number, playerId: number, effectId: number) {
+    const player = await db("players")
+      .where({ id: playerId, room_id: roomId })
+      .first();
+    if (!player) throw new Error("Игрок не найден");
     const deleted = await db("player_active_effects")
       .where({ player_id: playerId, effect_id: effectId, source_type: "admin" })
       .delete();
     if (deleted === 0)
       throw new Error("Эффект не найден или не может быть удален");
+    await emitPlayerUpdate(playerId);
     return true;
   },
 
-  async toggleEquip(playerId: number, itemId: number, is_equipped: boolean) {
+  async toggleEquip(
+    roomId: number,
+    playerId: number,
+    itemId: number,
+    is_equipped: boolean,
+  ) {
+    const player = await db("players")
+      .where({ id: playerId, room_id: roomId })
+      .first();
+    if (!player) throw new Error("Игрок не найден");
     const [updated] = await db("player_items")
       .where({ player_id: playerId, item_id: itemId })
       .update({ is_equipped })
       .returning("*");
     if (!updated) throw new Error("Предмет не найден");
+    await emitPlayerUpdate(playerId);
     return updated;
   },
 
-  async toggleAbility(playerId: number, abilityId: number, is_active: boolean) {
-    // Используем единый метод toggleActive из playerAbilitiesService
+  async toggleAbility(
+    roomId: number,
+    playerId: number,
+    abilityId: number,
+    is_active: boolean,
+  ) {
+    const player = await db("players")
+      .where({ id: playerId, room_id: roomId })
+      .first();
+    if (!player) throw new Error("Игрок не найден");
     const updated = await playerAbilitiesService.toggleActive(
+      roomId,
       playerId,
       abilityId,
       is_active,
     );
+    await emitPlayerUpdate(playerId);
     return updated;
   },
 
   async updateAvatar(
+    roomId: number,
     id: number,
     avatarUrl: string | null,
   ): Promise<Player | null> {
     const [updated] = await db("players")
-      .where({ id })
+      .where({ id, room_id: roomId })
       .update({ avatar_url: avatarUrl })
       .returning("*");
+    if (updated) await emitPlayerUpdate(id);
     return updated || null;
   },
 
-  async deleteAvatar(id: number): Promise<Player | null> {
-    // Получаем старый URL, чтобы удалить файл
-    const player = await db("players").where({ id }).first();
-    if (player?.avatar_url) {
+  async deleteAvatar(roomId: number, id: number): Promise<Player | null> {
+    const player = await db("players").where({ id, room_id: roomId }).first();
+    if (!player) return null;
+    if (player.avatar_url) {
       const fs = await import("fs");
       const path = await import("path");
       const filePath = path.join(process.cwd(), player.avatar_url);
@@ -870,11 +930,14 @@ export const playersService = {
       .where({ id })
       .update({ avatar_url: null })
       .returning("*");
+    if (updated) await emitPlayerUpdate(id);
     return updated || null;
   },
 
-  async useItem(playerId: number, playerItemId: number) {
-    const player = await db("players").where({ id: playerId }).first();
+  async useItem(roomId: number, playerId: number, playerItemId: number) {
+    const player = await db("players")
+      .where({ id: playerId, room_id: roomId })
+      .first();
     if (!player) throw new Error("Игрок не найден");
 
     const playerItem = await db("player_items")
@@ -884,7 +947,11 @@ export const playersService = {
     const item = await db("items").where({ id: playerItem.item_id }).first();
     if (!item) throw new Error("Предмет не найден");
 
-    const result = await playerItemsService.useItem(playerId, playerItemId);
+    const result = await playerItemsService.useItem(
+      roomId,
+      playerId,
+      playerItemId,
+    );
 
     await logsService.create({
       action_type: "item_use",
@@ -896,15 +963,46 @@ export const playersService = {
         item_id: item.id,
         quantity_before: playerItem.quantity,
       }),
+      room_id: roomId,
     });
 
-    // --- Добавлено: отправка обновления игрока через сокет ---
-    const fullPlayer = await getFullPlayerData(String(playerId));
-    if (fullPlayer) {
-      getIO().emit("player:updated", fullPlayer);
-    }
-    // ------------------------------------------------------
-
+    await emitPlayerUpdate(playerId);
     return result;
+  },
+
+  async useAbility(
+    roomId: number,
+    playerId: number,
+    abilityId: number,
+  ): Promise<{ success: boolean; message: string; effect?: any }> {
+    // Проверяем, что игрок принадлежит комнате
+    const player = await db("players")
+      .where({ id: playerId, room_id: roomId })
+      .first();
+    if (!player) throw new Error("Игрок не найден");
+
+    return playerAbilitiesService.useAbility(roomId, playerId, abilityId);
+  },
+
+  async getAllWithFilters(
+    roomId: number,
+    filters: {
+      online?: boolean;
+      is_card_shown?: boolean;
+      excludeId?: number;
+    },
+  ) {
+    let query = db("players").select("*").where("room_id", roomId);
+    if (filters.online !== undefined) {
+      query = query.where("is_online", filters.online);
+    }
+    if (filters.is_card_shown !== undefined) {
+      query = query.where("is_card_shown", filters.is_card_shown);
+    }
+    if (filters.excludeId) {
+      query = query.whereNot("id", filters.excludeId);
+    }
+    const rows = await query.orderBy("name");
+    return rows;
   },
 };

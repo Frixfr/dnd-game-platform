@@ -1,8 +1,10 @@
+// server/src/controllers/playersController.ts
+
 import { Request, Response } from "express";
 import { playersService } from "../services/playersService.js";
 import { getIO } from "../socket/index.js";
 
-// Разрешённые поля для обновления игрока (соответствуют схеме таблицы players)
+// Разрешённые поля для обновления игрока
 const ALLOWED_UPDATE_FIELDS = new Set([
   "name",
   "gender",
@@ -21,15 +23,44 @@ const ALLOWED_UPDATE_FIELDS = new Set([
   "is_card_shown",
   "race_id",
   "access_password",
+  "notes",
 ]);
 
 export const playersController = {
   async getAll(req: Request, res: Response) {
     try {
-      const full = req.query.full === "true";
+      const roomId = req.roomId;
+      if (roomId === undefined) {
+        return res.status(401).json({ error: "Не указана комната" });
+      }
 
+      const full = req.query.full === "true";
+      const online =
+        req.query.online === "true"
+          ? true
+          : req.query.online === "false"
+            ? false
+            : undefined;
+      const excludeId = req.query.excludeId
+        ? parseInt(req.query.excludeId as string, 10)
+        : undefined;
+
+      // Специальный режим для получения списка онлайн-игроков
+      if (online !== undefined || excludeId !== undefined) {
+        const filters: {
+          online?: boolean;
+          is_card_shown?: boolean;
+          excludeId?: number;
+        } = {};
+        if (online !== undefined) filters.online = online;
+        if (excludeId !== undefined) filters.excludeId = excludeId;
+        const players = await playersService.getAllWithFilters(roomId, filters);
+        res.json(players);
+        return;
+      }
+
+      // Обычный режим с пагинацией и фильтрацией
       if (full) {
-        // Полные данные с пагинацией
         const page = req.query.page
           ? parseInt(req.query.page as string, 10)
           : 1;
@@ -38,6 +69,7 @@ export const playersController = {
           : 20;
         const card_shown_only = req.query.card_shown === "true";
         const result = await playersService.getAllFullPaginated(
+          roomId,
           page,
           limit,
           card_shown_only,
@@ -57,6 +89,7 @@ export const playersController = {
         : undefined;
 
       const result = await playersService.getAll(
+        roomId,
         card_shown_only,
         available_for_selection,
         page,
@@ -70,16 +103,19 @@ export const playersController = {
   },
 
   async loginByPassword(req: Request, res: Response) {
-    const { password } = req.body;
+    const { password, roomId } = req.body;
     if (!password || typeof password !== "string") {
       return res.status(400).json({ error: "Пароль обязателен" });
     }
     try {
-      const player = await playersService.loginWithPassword(password);
+      const player = await playersService.loginWithPassword(password, roomId);
       if (!player) {
         return res.status(401).json({ error: "Неверный пароль" });
       }
-      const fullPlayer = await playersService.getFullDetails(player.id);
+      const fullPlayer = await playersService.getFullDetails(
+        player.room_id,
+        player.id,
+      );
       res.json({ success: true, player: fullPlayer });
     } catch (error) {
       console.error(error);
@@ -90,6 +126,11 @@ export const playersController = {
   async setPassword(req: Request, res: Response) {
     const id = Number(req.params.id);
     if (isNaN(id)) return res.status(400).json({ error: "Некорректный ID" });
+
+    const roomId = req.roomId;
+    if (roomId === undefined) {
+      return res.status(401).json({ error: "Не указана комната" });
+    }
 
     const { password } = req.body;
     if (
@@ -107,14 +148,14 @@ export const playersController = {
 
     try {
       const updatedPlayer = await playersService.setPassword(
+        roomId,
         id,
         password.trim(),
       );
       if (!updatedPlayer)
         return res.status(404).json({ error: "Игрок не найден" });
 
-      // После установки пароля загружаем полные данные и эмитим обновление
-      const fullPlayer = await playersService.getFullDetails(id);
+      const fullPlayer = await playersService.getFullDetails(roomId, id);
       getIO().emit("player:updated", fullPlayer);
       res.json({ success: true, player: fullPlayer });
     } catch (error: any) {
@@ -133,7 +174,11 @@ export const playersController = {
     try {
       const id = Number(req.params.id);
       if (isNaN(id)) return res.status(400).json({ error: "Некорректный ID" });
-      const player = await playersService.getById(id);
+      const roomId = req.roomId;
+      if (roomId === undefined) {
+        return res.status(401).json({ error: "Не указана комната" });
+      }
+      const player = await playersService.getById(roomId, id);
       if (!player) return res.status(404).json({ error: "Игрок не найден" });
       res.json({ success: true, player });
     } catch (error) {
@@ -145,7 +190,11 @@ export const playersController = {
     try {
       const id = Number(req.params.id);
       if (isNaN(id)) return res.status(400).json({ error: "Некорректный ID" });
-      const fullData = await playersService.getFullDetails(id);
+      const roomId = req.roomId;
+      if (roomId === undefined) {
+        return res.status(401).json({ error: "Не указана комната" });
+      }
+      const fullData = await playersService.getFullDetails(roomId, id);
       if (!fullData) return res.status(404).json({ error: "Игрок не найден" });
       res.json(fullData);
     } catch (error) {
@@ -155,6 +204,11 @@ export const playersController = {
   },
 
   async create(req: Request, res: Response) {
+    const roomId = req.roomId;
+    if (roomId === undefined) {
+      return res.status(401).json({ error: "Не указана комната" });
+    }
+
     const {
       name,
       gender = "male",
@@ -197,7 +251,7 @@ export const playersController = {
     }
 
     try {
-      const newPlayer = await playersService.create({
+      const newPlayer = await playersService.create(roomId, {
         name: name.trim(),
         gender,
         health,
@@ -213,7 +267,7 @@ export const playersController = {
         in_battle: false,
         is_online: Boolean(is_online),
         is_card_shown: Boolean(is_card_shown),
-        race_id: null, // добавлено
+        race_id: null,
         access_password: req.body.access_password || null,
       });
       getIO().emit("player:created", newPlayer);
@@ -237,12 +291,15 @@ export const playersController = {
   async update(req: Request, res: Response) {
     const id = Number(req.params.id);
     if (isNaN(id)) return res.status(400).json({ error: "Некорректный ID" });
+    const roomId = req.roomId;
+    if (roomId === undefined) {
+      return res.status(401).json({ error: "Не указана комната" });
+    }
 
     const updateData = req.body;
     delete updateData.id;
     delete updateData.created_at;
 
-    // Фильтруем только разрешённые поля
     const filteredData: any = {};
     for (const key of Object.keys(updateData)) {
       if (ALLOWED_UPDATE_FIELDS.has(key)) {
@@ -257,11 +314,14 @@ export const playersController = {
     }
 
     try {
-      const updatedPlayer = await playersService.update(id, filteredData);
+      const updatedPlayer = await playersService.update(
+        roomId,
+        id,
+        filteredData,
+      );
       if (!updatedPlayer)
         return res.status(404).json({ error: "Игрок не найден" });
-      // --- ИЗМЕНЕНИЕ: получаем полные данные и эмитим их ---
-      const fullPlayer = await playersService.getFullDetails(id);
+      const fullPlayer = await playersService.getFullDetails(roomId, id);
       if (fullPlayer) getIO().emit("player:updated", fullPlayer);
       res.json({ success: true, player: fullPlayer || updatedPlayer });
     } catch (error: unknown) {
@@ -285,8 +345,12 @@ export const playersController = {
   async delete(req: Request, res: Response) {
     const id = Number(req.params.id);
     if (isNaN(id)) return res.status(400).json({ error: "Некорректный ID" });
+    const roomId = req.roomId;
+    if (roomId === undefined) {
+      return res.status(401).json({ error: "Не указана комната" });
+    }
     try {
-      const deleted = await playersService.delete(id);
+      const deleted = await playersService.delete(roomId, id);
       if (!deleted) return res.status(404).json({ error: "Игрок не найден" });
       getIO().emit("player:deleted", id);
       res.json({ success: true, message: "Игрок удален", deleted_id: id });
@@ -302,13 +366,21 @@ export const playersController = {
     if (isNaN(playerId)) {
       return res.status(400).json({ error: "Некорректный ID игрока" });
     }
+    const roomId = req.roomId;
+    if (roomId === undefined) {
+      return res.status(401).json({ error: "Не указана комната" });
+    }
     const { items } = req.body;
     if (!Array.isArray(items)) {
       return res.status(400).json({ error: "items должен быть массивом" });
     }
     try {
-      const result = await playersService.addItemsBatch(playerId, items);
-      const fullPlayer = await playersService.getFullDetails(playerId);
+      const result = await playersService.addItemsBatch(
+        roomId,
+        playerId,
+        items,
+      );
+      const fullPlayer = await playersService.getFullDetails(roomId, playerId);
       if (fullPlayer) getIO().emit("player:updated", fullPlayer);
       res.json(result);
     } catch (error: unknown) {
@@ -325,6 +397,10 @@ export const playersController = {
     if (isNaN(playerId)) {
       return res.status(400).json({ error: "Некорректный ID игрока" });
     }
+    const roomId = req.roomId;
+    if (roomId === undefined) {
+      return res.status(401).json({ error: "Не указана комната" });
+    }
     const { ability_ids } = req.body;
     if (!Array.isArray(ability_ids)) {
       return res
@@ -333,10 +409,11 @@ export const playersController = {
     }
     try {
       const result = await playersService.addAbilitiesBatch(
+        roomId,
         playerId,
         ability_ids,
       );
-      const fullPlayer = await playersService.getFullDetails(playerId);
+      const fullPlayer = await playersService.getFullDetails(roomId, playerId);
       if (fullPlayer) getIO().emit("player:updated", fullPlayer);
       res.json(result);
     } catch (error: unknown) {
@@ -353,13 +430,21 @@ export const playersController = {
     if (isNaN(playerId)) {
       return res.status(400).json({ error: "Некорректный ID игрока" });
     }
+    const roomId = req.roomId;
+    if (roomId === undefined) {
+      return res.status(401).json({ error: "Не указана комната" });
+    }
     const { effect_ids } = req.body;
     if (!Array.isArray(effect_ids)) {
       return res.status(400).json({ error: "effect_ids должен быть массивом" });
     }
     try {
-      const result = await playersService.addEffectsBatch(playerId, effect_ids);
-      const fullPlayer = await playersService.getFullDetails(playerId);
+      const result = await playersService.addEffectsBatch(
+        roomId,
+        playerId,
+        effect_ids,
+      );
+      const fullPlayer = await playersService.getFullDetails(roomId, playerId);
       if (fullPlayer) getIO().emit("player:updated", fullPlayer);
       res.json(result);
     } catch (error: unknown) {
@@ -377,13 +462,17 @@ export const playersController = {
     if (isNaN(playerId) || isNaN(itemId)) {
       return res.status(400).json({ error: "Некорректные ID" });
     }
+    const roomId = req.roomId;
+    if (roomId === undefined) {
+      return res.status(401).json({ error: "Не указана комната" });
+    }
     try {
-      await playersService.removeItem(playerId, itemId);
+      await playersService.removeItem(roomId, playerId, itemId);
       getIO().emit("player_item:deleted", {
         player_id: playerId,
         item_id: itemId,
       });
-      const fullPlayer = await playersService.getFullDetails(playerId);
+      const fullPlayer = await playersService.getFullDetails(roomId, playerId);
       if (fullPlayer) getIO().emit("player:updated", fullPlayer);
       res.json({ success: true, message: "Предмет удален" });
     } catch (error: unknown) {
@@ -401,13 +490,17 @@ export const playersController = {
     if (isNaN(playerId) || isNaN(abilityId)) {
       return res.status(400).json({ error: "Некорректные ID" });
     }
+    const roomId = req.roomId;
+    if (roomId === undefined) {
+      return res.status(401).json({ error: "Не указана комната" });
+    }
     try {
-      await playersService.removeAbility(playerId, abilityId);
+      await playersService.removeAbility(roomId, playerId, abilityId);
       getIO().emit("player_ability:deleted", {
         player_id: playerId,
         ability_id: abilityId,
       });
-      const fullPlayer = await playersService.getFullDetails(playerId);
+      const fullPlayer = await playersService.getFullDetails(roomId, playerId);
       if (fullPlayer) getIO().emit("player:updated", fullPlayer);
       res.json({ success: true, message: "Способность удалена" });
     } catch (error: unknown) {
@@ -425,13 +518,17 @@ export const playersController = {
     if (isNaN(playerId) || isNaN(effectId)) {
       return res.status(400).json({ error: "Некорректные ID" });
     }
+    const roomId = req.roomId;
+    if (roomId === undefined) {
+      return res.status(401).json({ error: "Не указана комната" });
+    }
     try {
-      await playersService.removeEffect(playerId, effectId);
+      await playersService.removeEffect(roomId, playerId, effectId);
       getIO().emit("player_effect:deleted", {
         player_id: playerId,
         effect_id: effectId,
       });
-      const fullPlayer = await playersService.getFullDetails(playerId);
+      const fullPlayer = await playersService.getFullDetails(roomId, playerId);
       if (fullPlayer) getIO().emit("player:updated", fullPlayer);
       res.json({ success: true, message: "Эффект удален" });
     } catch (error: unknown) {
@@ -453,14 +550,19 @@ export const playersController = {
     if (typeof is_equipped !== "boolean") {
       return res.status(400).json({ error: "is_equipped должен быть boolean" });
     }
+    const roomId = req.roomId;
+    if (roomId === undefined) {
+      return res.status(401).json({ error: "Не указана комната" });
+    }
     try {
       const updated = await playersService.toggleEquip(
+        roomId,
         playerId,
         itemId,
         is_equipped,
       );
       getIO().emit("player_item:updated", updated);
-      const fullPlayer = await playersService.getFullDetails(playerId);
+      const fullPlayer = await playersService.getFullDetails(roomId, playerId);
       if (fullPlayer) getIO().emit("player:updated", fullPlayer);
       res.json({ success: true, player_item: updated });
     } catch (error: unknown) {
@@ -479,16 +581,21 @@ export const playersController = {
     if (isNaN(playerId) || isNaN(abilityId)) {
       return res.status(400).json({ error: "Некорректные ID" });
     }
+    const roomId = req.roomId;
+    if (roomId === undefined) {
+      return res.status(401).json({ error: "Не указана комната" });
+    }
     const isActiveValue =
       typeof is_active === "boolean" ? is_active : Boolean(is_active);
     try {
       const updated = await playersService.toggleAbility(
+        roomId,
         playerId,
         abilityId,
         isActiveValue,
       );
       getIO().emit("player_ability:updated", updated);
-      const fullPlayer = await playersService.getFullDetails(playerId);
+      const fullPlayer = await playersService.getFullDetails(roomId, playerId);
       if (fullPlayer) getIO().emit("player:updated", fullPlayer);
       res.json({ success: true, player_ability: updated });
     } catch (error: unknown) {
@@ -506,10 +613,13 @@ export const playersController = {
     if (isNaN(playerId) || isNaN(itemId)) {
       return res.status(400).json({ error: "Некорректные ID" });
     }
+    const roomId = req.roomId;
+    if (roomId === undefined) {
+      return res.status(401).json({ error: "Не указана комната" });
+    }
     try {
-      const result = await playersService.useItem(playerId, itemId);
-      // --- ИЗМЕНЕНИЕ: после использования предмета эмитим полные данные игрока ---
-      const fullPlayer = await playersService.getFullDetails(playerId);
+      const result = await playersService.useItem(roomId, playerId, itemId);
+      const fullPlayer = await playersService.getFullDetails(roomId, playerId);
       if (fullPlayer) getIO().emit("player:updated", fullPlayer);
       res.json(result);
     } catch (error: any) {
@@ -518,17 +628,44 @@ export const playersController = {
     }
   },
 
+  async useAbility(req: Request, res: Response) {
+    const playerId = Number(req.params.playerId);
+    const abilityId = Number(req.params.abilityId);
+    if (isNaN(playerId) || isNaN(abilityId)) {
+      return res.status(400).json({ error: "Некорректные ID" });
+    }
+    const roomId = req.roomId;
+    if (roomId === undefined) {
+      return res.status(401).json({ error: "Не указана комната" });
+    }
+    try {
+      const result = await playersService.useAbility(
+        roomId,
+        playerId,
+        abilityId,
+      );
+      const fullPlayer = await playersService.getFullDetails(roomId, playerId);
+      if (fullPlayer) getIO().emit("player:updated", fullPlayer);
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  },
+
   async uploadAvatar(req: Request, res: Response) {
     const id = Number(req.params.id);
     if (isNaN(id)) return res.status(400).json({ error: "Некорректный ID" });
+    const roomId = req.roomId;
+    if (roomId === undefined) {
+      return res.status(401).json({ error: "Не указана комната" });
+    }
     if (!req.file) return res.status(400).json({ error: "Файл не загружен" });
 
     try {
       const avatarUrl = `/uploads/avatars/${req.file.filename}`;
-      const updated = await playersService.updateAvatar(id, avatarUrl);
+      const updated = await playersService.updateAvatar(roomId, id, avatarUrl);
       if (!updated) return res.status(404).json({ error: "Игрок не найден" });
-      // --- ИЗМЕНЕНИЕ: эмитим полные данные ---
-      const fullPlayer = await playersService.getFullDetails(id);
+      const fullPlayer = await playersService.getFullDetails(roomId, id);
       if (fullPlayer) getIO().emit("player:updated", fullPlayer);
       res.json({ success: true, player: fullPlayer || updated, avatarUrl });
     } catch (error) {
@@ -540,11 +677,14 @@ export const playersController = {
   async deleteAvatar(req: Request, res: Response) {
     const id = Number(req.params.id);
     if (isNaN(id)) return res.status(400).json({ error: "Некорректный ID" });
+    const roomId = req.roomId;
+    if (roomId === undefined) {
+      return res.status(401).json({ error: "Не указана комната" });
+    }
     try {
-      const updated = await playersService.deleteAvatar(id);
+      const updated = await playersService.deleteAvatar(roomId, id);
       if (!updated) return res.status(404).json({ error: "Игрок не найден" });
-      // --- ИЗМЕНЕНИЕ: эмитим полные данные ---
-      const fullPlayer = await playersService.getFullDetails(id);
+      const fullPlayer = await playersService.getFullDetails(roomId, id);
       if (fullPlayer) getIO().emit("player:updated", fullPlayer);
       res.json({ success: true, player: fullPlayer || updated });
     } catch (error) {

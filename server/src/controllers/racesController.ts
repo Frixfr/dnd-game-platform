@@ -5,7 +5,8 @@ import { getIO } from "../socket/index.js";
 export const racesController = {
   async getAll(req: Request, res: Response) {
     try {
-      const races = await racesService.getAll();
+      const roomId = req.roomId!;
+      const races = await racesService.getAll(roomId);
       res.json(races);
     } catch (error) {
       console.error(error);
@@ -15,8 +16,9 @@ export const racesController = {
 
   async getOne(req: Request, res: Response) {
     try {
+      const roomId = req.roomId!;
       const id = String(req.params.id);
-      const race = await racesService.getWithEffects(id);
+      const race = await racesService.getWithEffects(roomId, id);
       if (!race) return res.status(404).json({ error: "Раса не найдена" });
       res.json({ success: true, race });
     } catch (error) {
@@ -26,6 +28,7 @@ export const racesController = {
   },
 
   async create(req: Request, res: Response) {
+    const roomId = req.roomId!;
     const { name, description = "", effect_ids = [] } = req.body;
     if (!name || typeof name !== "string" || name.trim().length === 0) {
       return res.status(400).json({ error: "Название обязательно" });
@@ -37,6 +40,7 @@ export const racesController = {
     }
     try {
       const race = await racesService.create(
+        roomId,
         { name: name.trim(), description: description || null },
         effect_ids,
       );
@@ -57,6 +61,7 @@ export const racesController = {
   },
 
   async update(req: Request, res: Response) {
+    const roomId = req.roomId!;
     const id = String(req.params.id);
     const { name, description, effect_ids } = req.body;
     if (
@@ -70,7 +75,14 @@ export const racesController = {
       if (name !== undefined) updateData.name = name.trim();
       if (description !== undefined)
         updateData.description = description || null;
-      const updated = await racesService.update(id, updateData, effect_ids);
+      // Не разрешаем менять комнату
+      delete updateData.room_id;
+      const updated = await racesService.update(
+        roomId,
+        id,
+        updateData,
+        effect_ids,
+      );
       if (!updated) return res.status(404).json({ error: "Раса не найдена" });
       getIO().emit("race:updated", updated);
       res.json({ success: true, race: updated });
@@ -89,9 +101,10 @@ export const racesController = {
   },
 
   async delete(req: Request, res: Response) {
+    const roomId = req.roomId!;
     const id = String(req.params.id);
     try {
-      const deleted = await racesService.delete(id);
+      const deleted = await racesService.delete(roomId, id);
       if (!deleted) return res.status(404).json({ error: "Раса не найдена" });
       getIO().emit("race:deleted", { id: Number(id) });
       res.json({ success: true, message: "Раса удалена" });

@@ -43,5 +43,9 @@ router.put(
   "/:playerId/abilities/:abilityId/toggle",
   playersController.toggleAbility,
 );
+router.post(
+  "/:playerId/abilities/:abilityId/use",
+  playersController.useAbility,
+);
 
 export default router;

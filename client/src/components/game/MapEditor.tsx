@@ -1,194 +1,246 @@
 // client/src/components/game/MapEditor.tsx
-import React, { useRef, useState, useEffect } from "react";
-import { useMapStore } from "../../stores/mapStore";
-import { socket } from "../../lib/socket";
-import type { MapWithTokensType, MapTokenType, AvailableEntities } from "../../types";
+import React, { useRef, useState, useEffect, useCallback } from 'react';
+import { useMapStore } from '../../stores/mapStore';
+import { socket } from '../../lib/socket';
+import type { MapWithTokensType, AvailableEntities } from '../../types';
+import { useCanvasMap } from '../../hooks/useCanvasMap';
 
-interface MapEditorProps {
+interface MapEditorInnerProps {
   map: MapWithTokensType;
+  entities: AvailableEntities | null;
+  onUpdateToken: (
+    entity_type: string,
+    entity_id: number,
+    x: number,
+    y: number,
+    scale?: number,
+    is_grayscale?: boolean,
+  ) => void;
+  onDeleteToken: (entity_type: string, entity_id: number) => void;
 }
 
-export const MapEditor: React.FC<MapEditorProps> = ({ map }) => {
-  const { updateToken, deleteToken, getAvailableEntities } = useMapStore();
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [entities, setEntities] = useState<AvailableEntities | null>(null);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; token: MapTokenType } | null>(null);
-
-
-
-  // Подписка на комнату карты для получения обновлений в реальном времени
-  useEffect(() => {
-    socket.emit("join-map", map.id);
-    return () => {
-        socket.emit("leave-map", map.id);
-    };
-    }, [map.id]);
+// Внутренний компонент, который рендерится только когда есть map
+const MapEditorInner: React.FC<MapEditorInnerProps> = ({ map, entities, onUpdateToken, onDeleteToken }) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [contextMenu, setContextMenu] = useState<{
+    token: MapWithTokensType['tokens'][0];
+    x: number;
+    y: number;
+  } | null>(null);
 
   useEffect(() => {
-    getAvailableEntities().then(setEntities);
-  }, [getAvailableEntities]);
+    const handleClickOutside = () => setContextMenu(null);
+    window.addEventListener('click', handleClickOutside);
+    return () => window.removeEventListener('click', handleClickOutside);
+  }, []);
 
-  const handleImageClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!containerRef.current) return;
-    const rect = containerRef.current.getBoundingClientRect();
-    const clickX = (e.clientX - rect.left) / rect.width;
-    const clickY = (e.clientY - rect.top) / rect.height;
+  const handleCanvasContextMenu = useCallback(async (relX: number, relY: number) => {
+    console.log('[MapEditor] Right click on canvas', { relX, relY, originalWidth: map.original_width, originalHeight: map.original_height });
     if (!entities) return;
-
-    const entityTypeRaw = window.prompt("Добавить игрока (player) или NPC (npc)?", "player");
+    const entityTypeRaw = window.prompt('Добавить игрока (player) или NPC (npc)?', 'player');
     if (!entityTypeRaw) return;
-    if (entityTypeRaw !== "player" && entityTypeRaw !== "npc") {
+    if (entityTypeRaw !== 'player' && entityTypeRaw !== 'npc') {
       alert("Некорректный тип. Введите 'player' или 'npc'");
       return;
     }
-    const entityType = entityTypeRaw as "player" | "npc";
+    const entityType = entityTypeRaw as 'player' | 'npc';
 
-    const list = entityType === "player" ? entities.players : entities.npcs;
-    const names = list.map(e => `${e.id}: ${e.name}`).join("\n");
+    const list = entityType === 'player' ? entities.players : entities.npcs;
+    const names = list.map(e => `${e.id}: ${e.name}`).join('\n');
     const input = window.prompt(`Введите ID сущности:\n${names}`);
     if (!input) return;
     const entityId = parseInt(input);
     const found = list.find(e => e.id === entityId);
     if (!found) {
-      alert("Сущность не найдена");
+      alert('Сущность не найдена');
       return;
     }
 
-    updateToken(map.id, {
-      entity_type: entityType,
-      entity_id: entityId,
-      x: clickX,
-      y: clickY,
-      is_grayscale: false,
-      scale: 1,
-    });
+    const absX = relX * map.original_width;
+    const absY = relY * map.original_height;
+    console.log('[MapEditor] Creating token at absolute coords', { absX, absY });
+    onUpdateToken(entityType, entityId, absX, absY, 1, false);
+  }, [entities, map.original_width, map.original_height, onUpdateToken]);
+
+  const handleTokenContextMenu = useCallback((
+    token: MapWithTokensType['tokens'][0],
+    clientX: number,
+    clientY: number,
+  ) => {
+    setContextMenu({ token, x: clientX, y: clientY });
+  }, []);
+
+  const handleTokenDrag = useCallback((token: MapWithTokensType['tokens'][0], newAbsX: number, newAbsY: number) => {
+    onUpdateToken(token.entity_type, token.entity_id, newAbsX, newAbsY, token.scale, token.is_grayscale);
+  }, [onUpdateToken]);
+
+  const increaseScale = () => {
+    if (!contextMenu) return;
+    const newScale = Math.min(2, contextMenu.token.scale + 0.1);
+    onUpdateToken(
+      contextMenu.token.entity_type,
+      contextMenu.token.entity_id,
+      contextMenu.token.x,
+      contextMenu.token.y,
+      newScale,
+      contextMenu.token.is_grayscale,
+    );
+    setContextMenu(null);
   };
 
-  const handleTokenDrag = (token: MapTokenType, e: React.MouseEvent) => {
-    if (!containerRef.current) return;
-    const startX = e.clientX;
-    const startY = e.clientY;
-    const startTokenX = token.x;
-    const startTokenY = token.y;
-
-    const onMouseMove = (moveEvent: MouseEvent) => {
-      const dx = moveEvent.clientX - startX;
-      const dy = moveEvent.clientY - startY;
-      const rect = containerRef.current!.getBoundingClientRect();
-      const newX = Math.min(1, Math.max(0, startTokenX + dx / rect.width));
-      const newY = Math.min(1, Math.max(0, startTokenY + dy / rect.height));
-      updateToken(map.id, {
-        entity_type: token.entity_type,
-        entity_id: token.entity_id,
-        x: newX,
-        y: newY,
-        is_grayscale: token.is_grayscale,
-        scale: token.scale,
-      });
-    };
-
-    const onMouseUp = () => {
-      document.removeEventListener("mousemove", onMouseMove);
-      document.removeEventListener("mouseup", onMouseUp);
-    };
-
-    document.addEventListener("mousemove", onMouseMove);
-    document.addEventListener("mouseup", onMouseUp);
-    e.preventDefault();
+  const decreaseScale = () => {
+    if (!contextMenu) return;
+    const newScale = Math.max(0.5, contextMenu.token.scale - 0.1);
+    onUpdateToken(
+      contextMenu.token.entity_type,
+      contextMenu.token.entity_id,
+      contextMenu.token.x,
+      contextMenu.token.y,
+      newScale,
+      contextMenu.token.is_grayscale,
+    );
+    setContextMenu(null);
   };
 
-  const handleTokenContextMenu = (token: MapTokenType, e: React.MouseEvent) => {
-    e.preventDefault();
-    setContextMenu({ x: e.clientX, y: e.clientY, token });
+  const toggleGrayscale = () => {
+    if (!contextMenu) return;
+    onUpdateToken(
+      contextMenu.token.entity_type,
+      contextMenu.token.entity_id,
+      contextMenu.token.x,
+      contextMenu.token.y,
+      contextMenu.token.scale,
+      !contextMenu.token.is_grayscale,
+    );
+    setContextMenu(null);
   };
 
-  const handleToggleGrayscale = () => {
-    if (contextMenu) {
-      updateToken(map.id, {
-        entity_type: contextMenu.token.entity_type,
-        entity_id: contextMenu.token.entity_id,
-        is_grayscale: !contextMenu.token.is_grayscale,
-        scale: contextMenu.token.scale,
-      });
-      setContextMenu(null);
+  const deleteTokenHandler = () => {
+    if (!contextMenu) return;
+    if (confirm(`Удалить токен "${contextMenu.token.entity_name}"?`)) {
+      onDeleteToken(contextMenu.token.entity_type, contextMenu.token.entity_id);
     }
+    setContextMenu(null);
   };
 
-  const handleChangeScale = (delta: number) => {
-    if (contextMenu) {
-      const newScale = Math.min(2, Math.max(0.5, contextMenu.token.scale + delta));
-      updateToken(map.id, {
-        entity_type: contextMenu.token.entity_type,
-        entity_id: contextMenu.token.entity_id,
-        scale: newScale,
-        is_grayscale: contextMenu.token.is_grayscale,
-      });
-      setContextMenu(null);
-    }
-  };
-
-  const handleDeleteToken = () => {
-    if (contextMenu) {
-      deleteToken(map.id, contextMenu.token.entity_type, contextMenu.token.entity_id);
-      setContextMenu(null);
-    }
-  };
+  useCanvasMap(canvasRef, {
+    mapImageUrl: map.image_url,
+    tokens: map.tokens,
+    originalWidth: map.original_width,
+    originalHeight: map.original_height,
+    onTokenDrag: handleTokenDrag,
+    onCanvasContextMenu: handleCanvasContextMenu,
+    onTokenContextMenu: handleTokenContextMenu,
+  });
 
   return (
-    <div className="relative w-full h-full" ref={containerRef}>
-      <img
-        src={map.image_url}
-        alt={map.name}
-        className="w-full h-full object-contain select-none"
-        draggable={false}
-        onClick={handleImageClick}
-      />
-      {map.tokens.map((token) => (
-        <div
-          key={`${token.entity_type}-${token.entity_id}`}
-          className="absolute cursor-move transform -translate-x-1/2 -translate-y-1/2"
-          style={{
-            left: `${token.x * 100}%`,
-            top: `${token.y * 100}%`,
-            width: `${50 * token.scale}px`,
-            height: `${50 * token.scale}px`,
-            filter: token.is_grayscale ? "grayscale(100%)" : "none",
-          }}
-          onMouseDown={(e) => handleTokenDrag(token, e)}
-          onContextMenu={(e) => handleTokenContextMenu(token, e)}
-        >
-          <img
-            src={token.avatar_url || "/default-avatar.png"}
-            alt={token.entity_name}
-            className="w-full h-full rounded-full border-2 border-white shadow-md object-cover"
-            draggable={false}
-          />
-          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 bg-black bg-opacity-70 text-white text-xs px-1 rounded whitespace-nowrap">
-            {token.entity_name}
-          </div>
-        </div>
-      ))}
+    <div className="relative w-full h-full overflow-hidden">
+      <canvas ref={canvasRef} className="w-full h-full cursor-grab" />
       {contextMenu && (
         <div
-          className="fixed bg-white border shadow-md rounded z-50"
-          style={{ left: contextMenu.x, top: contextMenu.y }}
+          className="fixed z-50 bg-[#0A1F44] border border-[#F2E9E4]/30 rounded shadow-lg py-1 min-w-[150px] max-w-[calc(100vw-1rem)]"
+          style={{
+            top: Math.min(contextMenu.y, window.innerHeight - 200),
+            left: Math.min(contextMenu.x, window.innerWidth - 170),
+          }}
+          onClick={(e) => e.stopPropagation()}
         >
-          <ul className="py-1">
-            <li className="px-4 py-2 hover:bg-gray-100 cursor-pointer" onClick={handleToggleGrayscale}>
-              {contextMenu.token.is_grayscale ? "Вернуть цвет" : "Сделать ч/б"}
-            </li>
-            <li className="px-4 py-2 hover:bg-gray-100 cursor-pointer" onClick={() => handleChangeScale(-0.1)}>
-              Уменьшить
-            </li>
-            <li className="px-4 py-2 hover:bg-gray-100 cursor-pointer" onClick={() => handleChangeScale(0.1)}>
-              Увеличить
-            </li>
-            <li className="px-4 py-2 hover:bg-red-100 cursor-pointer text-red-600" onClick={handleDeleteToken}>
-              Удалить с карты
-            </li>
-          </ul>
+          <button
+            className="w-full text-left px-4 py-2 text-sm text-[#F2E9E4] hover:bg-[#0A1F44]/80"
+            onClick={increaseScale}
+          >
+            Увеличить (+)
+          </button>
+          <button
+            className="w-full text-left px-4 py-2 text-sm text-[#F2E9E4] hover:bg-[#0A1F44]/80"
+            onClick={decreaseScale}
+          >
+            Уменьшить (-)
+          </button>
+          <button
+            className="w-full text-left px-4 py-2 text-sm text-[#F2E9E4] hover:bg-[#0A1F44]/80"
+            onClick={toggleGrayscale}
+          >
+            {contextMenu.token.is_grayscale ? 'Цветной' : 'Ч/Б'}
+          </button>
+          <hr className="my-1 border-[#F2E9E4]/30" />
+          <button
+            className="w-full text-left px-4 py-2 text-sm text-[#FF0026] hover:bg-[#0A1F44]/80"
+            onClick={deleteTokenHandler}
+          >
+            Удалить
+          </button>
         </div>
       )}
     </div>
+  );
+};
+
+// Основной компонент
+export const MapEditor: React.FC<{ mapId: number }> = ({ mapId }) => {
+  const { currentMap, updateToken, deleteToken, getAvailableEntities, fetchMap } = useMapStore();
+  const [entities, setEntities] = useState<AvailableEntities | null>(null);
+  const map = currentMap?.id === mapId ? currentMap : null;
+
+  useEffect(() => {
+    if (!map && mapId) {
+      fetchMap(mapId);
+    }
+  }, [mapId, map, fetchMap]);
+
+  useEffect(() => {
+    if (!map) return;
+    socket.emit('join-map', map.id);
+    return () => {
+      socket.emit('leave-map', map.id);
+    };
+  }, [map]);
+
+  useEffect(() => {
+    getAvailableEntities().then(setEntities);
+  }, [getAvailableEntities]);
+
+  const handleUpdateToken = useCallback(async (
+    entity_type: string,
+    entity_id: number,
+    x: number,
+    y: number,
+    scale?: number,
+    is_grayscale?: boolean,
+  ) => {
+    if (!map) return;
+    await updateToken(map.id, {
+      entity_type: entity_type as 'player' | 'npc',
+      entity_id,
+      x,
+      y,
+      is_grayscale: is_grayscale ?? false,
+      scale: scale ?? 1,
+    });
+    // Принудительно обновляем карту, чтобы сразу увидеть изменения
+    await fetchMap(map.id);
+  }, [map, updateToken, fetchMap]);
+
+  const handleDeleteToken = useCallback(async (entity_type: string, entity_id: number) => {
+    if (!map) return;
+    await deleteToken(map.id, entity_type, entity_id);
+    await fetchMap(map.id);
+  }, [map, deleteToken, fetchMap]);
+
+  if (!map) {
+    return (
+      <div className="flex items-center justify-center h-full text-[#F2E9E4]/60">
+        Загрузка карты...
+      </div>
+    );
+  }
+
+  return (
+    <MapEditorInner
+      map={map}
+      entities={entities}
+      onUpdateToken={handleUpdateToken}
+      onDeleteToken={handleDeleteToken}
+    />
   );
 };

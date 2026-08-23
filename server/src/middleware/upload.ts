@@ -5,16 +5,15 @@ import fs from "fs";
 
 const uploadDir = "uploads/avatars";
 
-// Создаём директорию, если её нет
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
+  destination: (_req, _file, cb) => {
     cb(null, uploadDir);
   },
-  filename: (req, file, cb) => {
+  filename: (_req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
     const ext = path.extname(file.originalname);
     cb(null, `avatar-${uniqueSuffix}${ext}`);
@@ -22,7 +21,7 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (
-  req: Express.Request,
+  _req: Express.Request,
   file: Express.Multer.File,
   cb: multer.FileFilterCallback,
 ) => {
@@ -40,7 +39,7 @@ const fileFilter = (
 
 export const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+  limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter,
 });
 
@@ -50,10 +49,10 @@ if (!fs.existsSync(mapUploadDir)) {
 }
 
 const mapStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
+  destination: (_req, _file, cb) => {
     cb(null, mapUploadDir);
   },
-  filename: (req, file, cb) => {
+  filename: (_req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
     const ext = path.extname(file.originalname);
     cb(null, `map-${uniqueSuffix}${ext}`);
@@ -62,6 +61,6 @@ const mapStorage = multer.diskStorage({
 
 export const uploadMap = multer({
   storage: mapStorage,
-  limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB для карт
+  limits: { fileSize: 20 * 1024 * 1024 },
   fileFilter,
 });

@@ -3,44 +3,85 @@ import { create } from "zustand";
 import type { RaceType } from "../types";
 import { socket } from "../lib/socket";
 
+let raceSocketHandlers: {
+  onConnect: () => void;
+  onCreated: (race: RaceType) => void;
+  onUpdated: (race: RaceType) => void;
+  onDeleted: (data: { id: number }) => void;
+} | null = null;
+let raceSocketInitialized = false;
+
 interface RaceState {
   races: RaceType[];
+  roomId: number | null;
   setRaces: (races: RaceType[]) => void;
   initializeSocket: () => void;
+  disconnectSocket: () => void;
+  setRoomId: (roomId: number | null) => void;
   fetchRaces: () => Promise<void>;
   addRace: (race: RaceType) => void;
   updateRace: (race: RaceType) => void;
   removeRace: (id: number) => void;
 }
 
-let raceSocketInitialized = false;
-
 export const useRaceStore = create<RaceState>((set, get) => ({
   races: [],
+  roomId: null,
 
   initializeSocket: () => {
     if (raceSocketInitialized) return;
     raceSocketInitialized = true;
 
-    socket.on("race:created", (race: RaceType) => {
+    const onConnect = async () => {
+      await get().fetchRaces();
+    };
+    const onCreated = (race: RaceType) => {
       set((state) => {
         if (state.races.some((r) => r.id === race.id)) return state;
         return { races: [...state.races, race] };
       });
-    });
-    socket.on("race:updated", (updated: RaceType) => {
+    };
+    const onUpdated = (updated: RaceType) => {
       set((state) => ({
         races: state.races.map((r) => (r.id === updated.id ? updated : r)),
       }));
-    });
-    socket.on("race:deleted", ({ id }: { id: number }) => {
+    };
+    const onDeleted = ({ id }: { id: number }) => {
       set((state) => ({
         races: state.races.filter((r) => r.id !== id),
       }));
-    });
-    socket.on("connect", async () => {
-      await get().fetchRaces();
-    });
+    };
+
+    socket.on("connect", onConnect);
+    socket.on("race:created", onCreated);
+    socket.on("race:updated", onUpdated);
+    socket.on("race:deleted", onDeleted);
+
+    raceSocketHandlers = { onConnect, onCreated, onUpdated, onDeleted };
+
+    const roomId = get().roomId;
+    if (roomId !== null && roomId !== undefined) {
+      socket.emit("join-room", { roomId });
+    }
+  },
+
+  disconnectSocket: () => {
+    if (!raceSocketInitialized || !raceSocketHandlers) return;
+    const { onConnect, onCreated, onUpdated, onDeleted } = raceSocketHandlers;
+    socket.off("connect", onConnect);
+    socket.off("race:created", onCreated);
+    socket.off("race:updated", onUpdated);
+    socket.off("race:deleted", onDeleted);
+    raceSocketInitialized = false;
+    raceSocketHandlers = null;
+    console.log("RaceStore socket handlers removed");
+  },
+
+  setRoomId: (roomId) => {
+    set({ roomId });
+    if (socket.connected) {
+      socket.emit("join-room", { roomId });
+    }
   },
 
   fetchRaces: async () => {
