@@ -120,11 +120,28 @@ export function calculateFinalStats(
   | "created_at"
   | "race_id"
 > {
-  return calculateFinalStatsGeneric(
+  const stats = calculateFinalStatsGeneric(
     basePlayer,
     activeEffects,
     passiveEffectsFromItems,
   );
+  // calculateFinalStatsGeneric возвращает только числовые характеристики,
+  // поэтому явно собираем полное значение, включая room_id и опциональные поля Player
+  return {
+    health: stats.health,
+    max_health: stats.max_health,
+    armor: stats.armor,
+    strength: stats.strength,
+    agility: stats.agility,
+    intelligence: stats.intelligence,
+    physique: stats.physique,
+    wisdom: stats.wisdom,
+    charisma: stats.charisma,
+    access_password: basePlayer.access_password ?? null,
+    avatar_url: basePlayer.avatar_url ?? null,
+    notes: basePlayer.notes ?? null,
+    room_id: basePlayer.room_id,
+  };
 }
 
 export function calculateNpcFinalStats(
@@ -144,11 +161,25 @@ export function calculateNpcFinalStats(
   | "created_at"
   | "race_id"
 > {
-  return calculateFinalStatsGeneric(
+  const stats = calculateFinalStatsGeneric(
     baseNpc,
     activeEffects,
     passiveEffectsFromItems,
   );
+  // Явно собираем полное значение, включая room_id и опциональные поля NPC
+  return {
+    health: stats.health,
+    max_health: stats.max_health,
+    armor: stats.armor,
+    strength: stats.strength,
+    agility: stats.agility,
+    intelligence: stats.intelligence,
+    physique: stats.physique,
+    wisdom: stats.wisdom,
+    charisma: stats.charisma,
+    avatar_url: baseNpc.avatar_url ?? null,
+    room_id: baseNpc.room_id,
+  };
 }
 
 export async function getFullPlayerData(
