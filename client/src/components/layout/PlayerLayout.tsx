@@ -10,6 +10,7 @@ import { useMapStore } from '../../stores/mapStore';
 import { useCombatStore } from '../../stores/combatStore';
 import { useLogStore } from '../../stores/logStore';
 import { socket, ensureConnected } from '../../lib/socket';
+import { disconnectAllSocketHandlers } from '../../lib/socketCleanup';
 
 const PlayerLayout: React.FC = () => {
   const { playerId } = useParams();
@@ -38,8 +39,11 @@ const PlayerLayout: React.FC = () => {
     }
 
     return () => {
+      // Выходим из всех подписок этой сессии (player:<id> и room:*),
+      // а не только из персональной комнаты: раньше оставалась «висячая»
+      // подписка на комнату, и события старой комнаты продолжали приходить.
       if (playerId) {
-        socket.emit('leave', `player:${playerId}`);
+        socket.emit('leave-player', {});
       }
       // Не отключаем обработчики при размонтировании,
       // они будут отключены при логауте через disconnectAllSocketHandlers
@@ -77,6 +81,10 @@ const PlayerLayout: React.FC = () => {
   }, []);
 
   const handleLogout = () => {
+    // Явно выходим из всех подписок сокета (player:<id> и room:*),
+    // иначе сервер продолжит слать этому сокету события старой комнаты.
+    socket.emit("leave-player", {});
+    disconnectAllSocketHandlers();
     clearSession();
     navigate('/');
   };
