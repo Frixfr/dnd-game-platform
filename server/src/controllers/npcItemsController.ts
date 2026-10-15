@@ -142,8 +142,7 @@ export const npcItemsController = {
         return res.status(400).json({ error: "Некорректные ID" });
       }
       const fullNpc = await npcItemsService.useItem(roomId, npcId, npcItemId);
-      const io = getIO();
-      io.to(`room:${roomId}`).emit("npc:updated", fullNpc);
+      // Единственный источник эмиссии npc:updated — сервисный слой (emitNpcUpdate).
       res.json({ success: true, npc: fullNpc });
     } catch (error: any) {
       if (error.message.includes("не найден")) {

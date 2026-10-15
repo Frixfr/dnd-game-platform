@@ -155,9 +155,7 @@ export const playersController = {
       if (!updatedPlayer)
         return res.status(404).json({ error: "Игрок не найден" });
 
-      const fullPlayer = await playersService.getFullDetails(roomId, id);
-      getIO().to(`room:${roomId}`).emit("player:updated", fullPlayer);
-      res.json({ success: true, player: fullPlayer });
+      res.json({ success: true, player: updatedPlayer });
     } catch (error: any) {
       if (error.message === "Пароль уже установлен для этого игрока") {
         return res.status(409).json({ error: error.message });
@@ -322,7 +320,6 @@ export const playersController = {
       if (!updatedPlayer)
         return res.status(404).json({ error: "Игрок не найден" });
       const fullPlayer = await playersService.getFullDetails(roomId, id);
-      if (fullPlayer) getIO().to(`room:${roomId}`).emit("player:updated", fullPlayer);
       res.json({ success: true, player: fullPlayer || updatedPlayer });
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -380,8 +377,6 @@ export const playersController = {
         playerId,
         items,
       );
-      const fullPlayer = await playersService.getFullDetails(roomId, playerId);
-      if (fullPlayer) getIO().to(`room:${roomId}`).emit("player:updated", fullPlayer);
       res.json(result);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -413,8 +408,6 @@ export const playersController = {
         playerId,
         ability_ids,
       );
-      const fullPlayer = await playersService.getFullDetails(roomId, playerId);
-      if (fullPlayer) getIO().to(`room:${roomId}`).emit("player:updated", fullPlayer);
       res.json(result);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -444,8 +437,6 @@ export const playersController = {
         playerId,
         effect_ids,
       );
-      const fullPlayer = await playersService.getFullDetails(roomId, playerId);
-      if (fullPlayer) getIO().to(`room:${roomId}`).emit("player:updated", fullPlayer);
       res.json(result);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -472,8 +463,6 @@ export const playersController = {
         player_id: playerId,
         item_id: itemId,
       });
-      const fullPlayer = await playersService.getFullDetails(roomId, playerId);
-      if (fullPlayer) getIO().to(`room:${roomId}`).emit("player:updated", fullPlayer);
       res.json({ success: true, message: "Предмет удален" });
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -500,8 +489,6 @@ export const playersController = {
         player_id: playerId,
         ability_id: abilityId,
       });
-      const fullPlayer = await playersService.getFullDetails(roomId, playerId);
-      if (fullPlayer) getIO().to(`room:${roomId}`).emit("player:updated", fullPlayer);
       res.json({ success: true, message: "Способность удалена" });
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -528,8 +515,6 @@ export const playersController = {
         player_id: playerId,
         effect_id: effectId,
       });
-      const fullPlayer = await playersService.getFullDetails(roomId, playerId);
-      if (fullPlayer) getIO().to(`room:${roomId}`).emit("player:updated", fullPlayer);
       res.json({ success: true, message: "Эффект удален" });
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -562,8 +547,6 @@ export const playersController = {
         is_equipped,
       );
       getIO().to(`room:${roomId}`).emit("player_item:updated", updated);
-      const fullPlayer = await playersService.getFullDetails(roomId, playerId);
-      if (fullPlayer) getIO().to(`room:${roomId}`).emit("player:updated", fullPlayer);
       res.json({ success: true, player_item: updated });
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -595,8 +578,6 @@ export const playersController = {
         isActiveValue,
       );
       getIO().to(`room:${roomId}`).emit("player_ability:updated", updated);
-      const fullPlayer = await playersService.getFullDetails(roomId, playerId);
-      if (fullPlayer) getIO().to(`room:${roomId}`).emit("player:updated", fullPlayer);
       res.json({ success: true, player_ability: updated });
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -619,8 +600,6 @@ export const playersController = {
     }
     try {
       const result = await playersService.useItem(roomId, playerId, itemId);
-      const fullPlayer = await playersService.getFullDetails(roomId, playerId);
-      if (fullPlayer) getIO().to(`room:${roomId}`).emit("player:updated", fullPlayer);
       res.json(result);
     } catch (error: any) {
       console.error(error);
@@ -644,8 +623,6 @@ export const playersController = {
         playerId,
         abilityId,
       );
-      const fullPlayer = await playersService.getFullDetails(roomId, playerId);
-      if (fullPlayer) getIO().to(`room:${roomId}`).emit("player:updated", fullPlayer);
       res.json(result);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -665,9 +642,7 @@ export const playersController = {
       const avatarUrl = `/uploads/avatars/${req.file.filename}`;
       const updated = await playersService.updateAvatar(roomId, id, avatarUrl);
       if (!updated) return res.status(404).json({ error: "Игрок не найден" });
-      const fullPlayer = await playersService.getFullDetails(roomId, id);
-      if (fullPlayer) getIO().to(`room:${roomId}`).emit("player:updated", fullPlayer);
-      res.json({ success: true, player: fullPlayer || updated, avatarUrl });
+      res.json({ success: true, player: updated, avatarUrl });
     } catch (error) {
       console.error(error);
       res.status(500).json({ error: "Ошибка загрузки аватарки" });
@@ -684,9 +659,7 @@ export const playersController = {
     try {
       const updated = await playersService.deleteAvatar(roomId, id);
       if (!updated) return res.status(404).json({ error: "Игрок не найден" });
-      const fullPlayer = await playersService.getFullDetails(roomId, id);
-      if (fullPlayer) getIO().to(`room:${roomId}`).emit("player:updated", fullPlayer);
-      res.json({ success: true, player: fullPlayer || updated });
+      res.json({ success: true, player: updated });
     } catch (error) {
       console.error(error);
       res.status(500).json({ error: "Ошибка удаления аватарки" });

@@ -711,7 +711,7 @@ export const playersService = {
         });
       }
     }
-    await emitPlayerUpdate(playerId);
+    // Единственный источник эмиссии player:updated — playerItemsService.create/delete.
     return { success: true, message: "Операция завершена", results };
   },
 
@@ -775,7 +775,7 @@ export const playersService = {
         });
       }
     }
-    await emitPlayerUpdate(playerId);
+    // Единственный источник эмиссии player:updated — playerAbilitiesService.create.
     return {
       success: true,
       message: `Успешно: ${results.filter((r) => r.success).length}, ошибок: ${results.filter((r) => !r.success).length}`,
@@ -825,7 +825,7 @@ export const playersService = {
         data: newEffect,
       });
     }
-    await emitPlayerUpdate(playerId);
+    // Единственный источник эмиссии player:updated — playerItemsService.create/delete.
     return { success: true, message: "Операция завершена", results };
   },
 
@@ -971,7 +971,8 @@ export const playersService = {
       room_id: roomId,
     });
 
-    await emitPlayerUpdate(playerId);
+    // Единственный источник эмиссии player:updated — сам playerItemsService.useItem.
+    // Повторный emitPlayerUpdate здесь отправлял бы событие дважды.
     return result;
   },
 

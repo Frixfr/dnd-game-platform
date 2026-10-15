@@ -3,6 +3,7 @@ import { db } from "../db/index.js";
 import { logsService } from "./logsService.js";
 import { itemsService } from "./itemsService.js";
 import { getFullNpcData, applyInstantHealthChange } from "../utils/helpers.js";
+import { emitNpcUpdate } from "../socket/index.js";
 
 export const npcItemsService = {
   async getAll(
@@ -246,6 +247,8 @@ export const npcItemsService = {
       room_id: roomId,
     });
 
+    // Единственный источник эмиссии npc:updated — сервисный слой.
+    await emitNpcUpdate(npcId);
     return getFullNpcData(npcId);
   },
 

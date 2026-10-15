@@ -1,7 +1,7 @@
 // server/src/controllers/playerItemsController.ts
 import { Request, Response } from "express";
 import { playerItemsService } from "../services/playerItemsService.js";
-import { getIO, emitToPlayer } from "../socket/index.js";
+import { getIO } from "../socket/index.js";
 
 export const playerItemsController = {
   async getAll(req: Request, res: Response) {
@@ -160,11 +160,7 @@ export const playerItemsController = {
         playerId,
         playerItemId,
       );
-      // Отправляем обновление конкретному игроку
-      emitToPlayer(playerId, "player:updated", updatedPlayer);
-      // Также отправляем в комнату для мастера и других клиентов
-      const io = getIO();
-      io.to(`room:${roomId}`).emit("player:updated", updatedPlayer);
+      // Единственный источник эмиссии player:updated — сервис (emitPlayerUpdate).
       res.json({ success: true, player: updatedPlayer });
     } catch (error: any) {
       if (error.message.includes("не найден")) {
@@ -199,9 +195,7 @@ export const playerItemsController = {
         playerItemId,
         quantity,
       );
-      emitToPlayer(playerId, "player:updated", updatedPlayer);
-      const io = getIO();
-      io.to(`room:${roomId}`).emit("player:updated", updatedPlayer);
+      // Единственный источник эмиссии player:updated — сервис (emitPlayerUpdate).
       res.json({ success: true, player: updatedPlayer });
     } catch (error: any) {
       if (error.message.includes("не найден")) {
@@ -232,11 +226,7 @@ export const playerItemsController = {
         Number(targetPlayerId),
         Number(quantity),
       );
-      emitToPlayer(playerId, "player:updated", sender);
-      emitToPlayer(Number(targetPlayerId), "player:updated", target);
-      const io = getIO();
-      io.to(`room:${roomId}`).emit("player:updated", sender);
-      io.to(`room:${roomId}`).emit("player:updated", target);
+      // Единственный источник эмиссии player:updated — сервис (emitPlayerUpdate для каждого участника).
       res.json({ success: true, sender, target });
     } catch (error: any) {
       if (error.message.includes("не найден")) {
