@@ -24,6 +24,22 @@ export function getSocket(): Socket {
   return socketInstance;
 }
 
+/**
+ * Гарантирует, что сокет-синглтон жив: если он был разорван (например,
+ * после logout или из-за потери сети), пересоздаём соединение.
+ * Вызывается при входе в игровые зоны (MasterLayout / PlayerLayout),
+ * чтобы навигация между страницами не оставляла "мёртвый" сокет.
+ */
+export function ensureConnected(): Socket {
+  const s = getSocket();
+  if (!s.connected && !s.active) {
+    // active === false и connected === false — сокет намеренно отключён,
+    // реактивировать его штатным reconnect нельзя, переподключаемся явно.
+    s.connect();
+  }
+  return s;
+}
+
 export const socket = getSocket();
 
 declare global {

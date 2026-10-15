@@ -15,6 +15,7 @@ import { useRaceStore } from '../../stores/raceStore';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useNpcStore } from '../../stores/npcStore';
 import { useRoomStore } from '../../stores/roomStore';
+import { ensureConnected } from '../../lib/socket';
 
 const MasterLayout: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -23,7 +24,12 @@ const MasterLayout: React.FC = () => {
 
   const { currentRoom, leaveRoom, logout } = useRoomStore();
 
+  // Вход в игровую зону мастера: гарантируем живое соединение и
+  // инициализируем подписки сторов. Флаги инициализации внутри сторов
+  // идемпотентны, повторные заходы безопасны; обработчики снимаются
+  // только при логауте (disconnectAllSocketHandlers), а не при навигации.
   useEffect(() => {
+    ensureConnected();
     usePlayerStore.getState().initializeSocket();
     useNpcStore.getState().initializeSocket();
     useRaceStore.getState().initializeSocket();

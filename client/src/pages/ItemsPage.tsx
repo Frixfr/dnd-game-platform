@@ -26,13 +26,15 @@ export const ItemsPage = () => {
     limit,
     fetchItems,
     initializeSocket,
-    disconnectSocket,
   } = useItemStore();
 
+  // Подписки инициализируются при входе; обработчики НЕ снимаются при
+  // размонтировании страницы — иначе при навигации сбрасывался флаг
+  // инициализации и сокет мог остаться «мёртвым». Снимаются только при
+  // логауте (disconnectAllSocketHandlers).
   useEffect(() => {
     initializeSocket();
-    return () => disconnectSocket?.();
-  }, [initializeSocket, disconnectSocket]);
+  }, [initializeSocket]);
 
   useEffect(() => {
     const load = async () => {

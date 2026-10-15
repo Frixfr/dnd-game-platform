@@ -19,6 +19,13 @@ import { PlayerMapPage } from './pages/PlayerMapPage';
 import { CombatPage } from './pages/CombatPage';
 import { NotificationProvider } from './contexts/NotificationProvider';
 import { getSocket } from './lib/socket';
+import { MapsPage } from "./pages/MapsPage";
+import { useMapStore } from './stores/mapStore';
+import { PublicMapPage } from './pages/PublicMapPage';
+import { PlayerNotesPage } from './pages/PlayerNotesPage';
+import { MyRoomsPage } from './pages/MyRoomsPage';
+import { ProtectedRoute } from './components/ProtectedRoute';
+import { useRoomStore } from './stores/roomStore';
 import { usePlayerStore } from './stores/playerStore';
 import { useNpcStore } from './stores/npcStore';
 import { useCombatStore } from './stores/combatStore';
@@ -27,36 +34,17 @@ import { useAbilityStore } from './stores/abilityStore';
 import { useEffectStore } from './stores/effectStore';
 import { useItemStore } from './stores/itemStore';
 import { useRaceStore } from './stores/raceStore';
-import { MapsPage } from "./pages/MapsPage";
-import { useMapStore } from './stores/mapStore';
-import { PublicMapPage } from './pages/PublicMapPage';
-import { PlayerNotesPage } from './pages/PlayerNotesPage';
-import { MyRoomsPage } from './pages/MyRoomsPage';
-import { ProtectedRoute } from './components/ProtectedRoute';
-import { useRoomStore } from './stores/roomStore';
 
 const App: React.FC = () => {
-  // Инициализируем сокет один раз при старте приложения
+  // Устанавливаем соединение с сокетом один раз при старте приложения.
+  // ВАЖНО: подписки сторов инициализируются не здесь, а при входе в
+  // игровые зоны (MasterLayout / PlayerLayout), чтобы cleanup отдельных
+  // страниц не сбрасывал флаги инициализации при навигации.
+  // socket.disconnect() из cleanup убран намеренно: синглтон сокета
+  // живёт всю жизнь приложения, иначе после перехода между страницами
+  // оставался «мёртвый» disconnected-сокет.
   useEffect(() => {
-    // Создаём соединение
-    const socket = getSocket();
-    // Инициализируем подписки во всех сторах
-    usePlayerStore.getState().initializeSocket();
-    useNpcStore.getState().initializeSocket();
-    useCombatStore.getState().initializeSocket();
-    useLogStore.getState().initializeSocket();
-    useAbilityStore.getState().initializeSocket();
-    useEffectStore.getState().initializeSocket();
-    useItemStore.getState().initializeSocket();
-    useRaceStore.getState().initializeSocket();
-    useMapStore.getState().initializeSocket();
-
-    // Опционально: закрываем соединение при размонтировании (но приложение обычно не размонтируется)
-    return () => {
-      if (socket.connected) {
-        socket.disconnect();
-      }
-    };
+    getSocket();
   }, []);
 
   // Подписка на изменения текущей комнаты

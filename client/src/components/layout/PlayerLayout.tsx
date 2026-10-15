@@ -9,7 +9,7 @@ import { usePlayerSessionStore } from '../../stores/playerSessionStore';
 import { useMapStore } from '../../stores/mapStore';
 import { useCombatStore } from '../../stores/combatStore';
 import { useLogStore } from '../../stores/logStore';
-import { socket } from '../../lib/socket';
+import { socket, ensureConnected } from '../../lib/socket';
 
 const PlayerLayout: React.FC = () => {
   const { playerId } = useParams();
@@ -18,8 +18,14 @@ const PlayerLayout: React.FC = () => {
   const [hydrated, setHydrated] = useState(false);
   const [showStickyBar, setShowStickyBar] = useState(false);
 
-  // Инициализация сокет-подписок для игрока
+  // Вход в игровую зону игрока: гарантируем живое соединение (после
+  // навигации/логаута сокет мог остаться disconnected) и инициализируем
+  // подписки. Обработчики не снимаются при размонтировании — только при
+  // логауте через disconnectAllSocketHandlers, поэтому флаги
+  // инициализации не сбрасываются между страницами.
   useEffect(() => {
+    ensureConnected();
+
     // Переинициализируем сторы, которые нужны игроку
     usePlayerSessionStore.getState().initializeSessionSocket();
     useMapStore.getState().initializeSocket();
