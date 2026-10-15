@@ -115,78 +115,51 @@ export function calculateFinalStats(
   basePlayer: Player,
   activeEffects: Effect[],
   passiveEffectsFromItems: Effect[],
-): Omit<
+): Pick<
   Player,
-  | "id"
-  | "name"
-  | "gender"
-  | "history"
-  | "in_battle"
-  | "is_online"
-  | "is_card_shown"
-  | "created_at"
-  | "race_id"
+  | "health"
+  | "max_health"
+  | "armor"
+  | "strength"
+  | "agility"
+  | "intelligence"
+  | "physique"
+  | "wisdom"
+  | "charisma"
 > {
-  const stats = calculateFinalStatsGeneric(
+  // final_stats содержит ТОЛЬКО числовые характеристики.
+  // Не-статовые поля (access_password, avatar_url, notes, room_id) раньше
+  // попадали в ответ API дубликатами — теперь они исключены: полный объект
+  // игрока и так возвращается рядом с final_stats.
+  return calculateFinalStatsGeneric(
     basePlayer,
     activeEffects,
     passiveEffectsFromItems,
   );
-  // calculateFinalStatsGeneric возвращает только числовые характеристики,
-  // поэтому явно собираем полное значение, включая room_id и опциональные поля Player
-  return {
-    health: stats.health,
-    max_health: stats.max_health,
-    armor: stats.armor,
-    strength: stats.strength,
-    agility: stats.agility,
-    intelligence: stats.intelligence,
-    physique: stats.physique,
-    wisdom: stats.wisdom,
-    charisma: stats.charisma,
-    access_password: basePlayer.access_password ?? null,
-    avatar_url: basePlayer.avatar_url ?? null,
-    notes: basePlayer.notes ?? null,
-    room_id: basePlayer.room_id,
-  };
 }
 
 export function calculateNpcFinalStats(
   baseNpc: NPC,
   activeEffects: Effect[],
   passiveEffectsFromItems: Effect[],
-): Omit<
+): Pick<
   NPC,
-  | "id"
-  | "name"
-  | "gender"
-  | "history"
-  | "in_battle"
-  | "is_online"
-  | "is_card_shown"
-  | "aggression"
-  | "created_at"
-  | "race_id"
+  | "health"
+  | "max_health"
+  | "armor"
+  | "strength"
+  | "agility"
+  | "intelligence"
+  | "physique"
+  | "wisdom"
+  | "charisma"
 > {
-  const stats = calculateFinalStatsGeneric(
+  // final_stats содержит ТОЛЬКО числовые характеристики (см. calculateFinalStats)
+  return calculateFinalStatsGeneric(
     baseNpc,
     activeEffects,
     passiveEffectsFromItems,
   );
-  // Явно собираем полное значение, включая room_id и опциональные поля NPC
-  return {
-    health: stats.health,
-    max_health: stats.max_health,
-    armor: stats.armor,
-    strength: stats.strength,
-    agility: stats.agility,
-    intelligence: stats.intelligence,
-    physique: stats.physique,
-    wisdom: stats.wisdom,
-    charisma: stats.charisma,
-    avatar_url: baseNpc.avatar_url ?? null,
-    room_id: baseNpc.room_id,
-  };
 }
 
 export async function getFullPlayerData(

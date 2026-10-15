@@ -1,9 +1,48 @@
 // server/src/controllers/mapsController.ts
 import { Request, Response } from "express";
 import { mapsService } from "../services/mapsService.js";
+import { db } from "../db/index.js";
 import { getIO } from "../socket/index.js";
 
 export const mapsController = {
+  // === ПУБЛИЧНЫЕ GET-эндпоинты (без авторизации) ===
+  // Используются игроками (страницы /map и /player/map), у которых нет
+  // мастер-токена. Отдаются только карты активных кампаний с show_to_players.
+
+  // GET /api/maps/public/active — активная карта для игроков + токены
+  async getPublicActiveMap(_req: Request, res: Response) {
+    try {
+      const map = await mapsService.getPublicActiveMap();
+      if (!map) {
+        return res.json(null);
+      }
+      const tokens = await mapsService.getPublicTokensByMapId(map.id);
+      res.json({ ...map, tokens });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Ошибка получения активной карты" });
+    }
+  },
+
+  // GET /api/maps/public/:id — конкретная публичная карта + токены
+  async getPublicMapWithTokens(req: Request, res: Response) {
+    try {
+      const id = parseInt(String(req.params.id));
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Неверный ID карты" });
+      }
+      const map = await db("maps").where("id", id).first();
+      if (!map || !map.show_to_players) {
+        return res.status(404).json({ error: "Карта не найдена" });
+      }
+      const tokens = await mapsService.getPublicTokensByMapId(id);
+      res.json({ ...map, tokens });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Ошибка получения карты" });
+    }
+  },
+
   // Получить все карты
   async getAllMaps(req: Request, res: Response) {
     try {

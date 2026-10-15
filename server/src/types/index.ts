@@ -181,16 +181,18 @@ export interface NpcActiveEffect {
 
 // Расширенные типы для ответов API
 export interface FullPlayerData extends Player {
-  final_stats: Omit<
+  // final_stats — только числовые характеристики (без id/name/room_id/паролей)
+  final_stats: Pick<
     Player,
-    | "id"
-    | "name"
-    | "gender"
-    | "history"
-    | "in_battle"
-    | "is_online"
-    | "is_card_shown"
-    | "created_at"
+    | "health"
+    | "max_health"
+    | "armor"
+    | "strength"
+    | "agility"
+    | "intelligence"
+    | "physique"
+    | "wisdom"
+    | "charisma"
   >;
   abilities: (Ability & { effect?: Effect | null; is_active: boolean })[];
   items: (Item & {
@@ -211,17 +213,18 @@ export interface FullPlayerData extends Player {
 }
 
 export interface FullNPCData extends NPC {
-  final_stats: Omit<
+  // final_stats — только числовые характеристики (без id/name/aggression/room_id)
+  final_stats: Pick<
     NPC,
-    | "id"
-    | "name"
-    | "gender"
-    | "history"
-    | "in_battle"
-    | "is_online"
-    | "is_card_shown"
-    | "aggression"
-    | "created_at"
+    | "health"
+    | "max_health"
+    | "armor"
+    | "strength"
+    | "agility"
+    | "intelligence"
+    | "physique"
+    | "wisdom"
+    | "charisma"
   >;
   abilities: (Ability & { effect?: Effect | null; is_active: boolean })[];
   items: (Item & {
