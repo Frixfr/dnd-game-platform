@@ -53,21 +53,28 @@ export function calculateFinalStatsGeneric<
 
   // Сначала считаем все модификаторы для max_health
   let maxHealthModifier = 0;
-  
+
   activeEffects.forEach((effect) => {
-    if (effect.attribute === "max_health" && typeof effect.modifier === "number") {
+    if (
+      effect.attribute === "max_health" &&
+      typeof effect.modifier === "number"
+    ) {
       maxHealthModifier += effect.modifier;
     }
   });
 
   passiveEffectsFromItems.forEach((effect) => {
-    if (effect.attribute === "max_health" && typeof effect.modifier === "number") {
+    if (
+      effect.attribute === "max_health" &&
+      typeof effect.modifier === "number"
+    ) {
       maxHealthModifier += effect.modifier;
     }
   });
 
   // Применяем модификатор к max_health
-  finalStats.max_health = (entity.max_health + maxHealthModifier) as T["max_health"];
+  finalStats.max_health = (entity.max_health +
+    maxHealthModifier) as T["max_health"];
 
   // health НЕ обрабатываем здесь - лечение/урон применяются сразу в момент создания эффекта
   // и сохраняются в базе данных игрока/NPC. Здесь мы только рассчитываем max_health.
@@ -120,11 +127,28 @@ export function calculateFinalStats(
   | "created_at"
   | "race_id"
 > {
-  return calculateFinalStatsGeneric(
+  const stats = calculateFinalStatsGeneric(
     basePlayer,
     activeEffects,
     passiveEffectsFromItems,
   );
+  // calculateFinalStatsGeneric возвращает только числовые характеристики,
+  // поэтому явно собираем полное значение, включая room_id и опциональные поля Player
+  return {
+    health: stats.health,
+    max_health: stats.max_health,
+    armor: stats.armor,
+    strength: stats.strength,
+    agility: stats.agility,
+    intelligence: stats.intelligence,
+    physique: stats.physique,
+    wisdom: stats.wisdom,
+    charisma: stats.charisma,
+    access_password: basePlayer.access_password ?? null,
+    avatar_url: basePlayer.avatar_url ?? null,
+    notes: basePlayer.notes ?? null,
+    room_id: basePlayer.room_id,
+  };
 }
 
 export function calculateNpcFinalStats(
@@ -144,11 +168,25 @@ export function calculateNpcFinalStats(
   | "created_at"
   | "race_id"
 > {
-  return calculateFinalStatsGeneric(
+  const stats = calculateFinalStatsGeneric(
     baseNpc,
     activeEffects,
     passiveEffectsFromItems,
   );
+  // Явно собираем полное значение, включая room_id и опциональные поля NPC
+  return {
+    health: stats.health,
+    max_health: stats.max_health,
+    armor: stats.armor,
+    strength: stats.strength,
+    agility: stats.agility,
+    intelligence: stats.intelligence,
+    physique: stats.physique,
+    wisdom: stats.wisdom,
+    charisma: stats.charisma,
+    avatar_url: baseNpc.avatar_url ?? null,
+    room_id: baseNpc.room_id,
+  };
 }
 
 export async function getFullPlayerData(
@@ -602,11 +640,17 @@ export function applyInstantHealthChange(
   effect: { attribute: string | null; modifier: number },
   effectiveMaxHealth: number,
 ): number | null {
-  if (effect.attribute === "max_health" && typeof effect.modifier === "number") {
+  if (
+    effect.attribute === "max_health" &&
+    typeof effect.modifier === "number"
+  ) {
     return Math.min(currentHealth + effect.modifier, effectiveMaxHealth);
   }
   if (effect.attribute === "health" && typeof effect.modifier === "number") {
-    return Math.max(0, Math.min(currentHealth + effect.modifier, effectiveMaxHealth));
+    return Math.max(
+      0,
+      Math.min(currentHealth + effect.modifier, effectiveMaxHealth),
+    );
   }
   return null;
 }

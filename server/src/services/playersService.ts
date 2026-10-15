@@ -579,11 +579,16 @@ export const playersService = {
     return getFullPlayerData(String(id)); // getFullPlayerData уже использует room_id из игрока
   },
 
-  async loginWithPassword(password: string): Promise<Player | null> {
-    // Не требует roomId — используется при входе игрока, игроки видят только активную комнату
-    const player = await db("players")
-      .where({ access_password: password })
-      .first();
+  async loginWithPassword(
+    password: string,
+    roomId?: number,
+  ): Promise<Player | null> {
+    // roomId опционален: если передан — ищем игрока только в этой комнате
+    let query = db("players").where({ access_password: password });
+    if (roomId !== undefined && roomId !== null) {
+      query = query.where("room_id", Number(roomId));
+    }
+    const player = await query.first();
     return player || null;
   },
 
