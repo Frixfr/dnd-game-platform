@@ -25,6 +25,7 @@ import logsRouter from "./routes/logs.js";
 import mapsRouter from "./routes/maps.js";
 import masterRouter from "./routes/master.js";
 import roomsRouter from "./routes/rooms.js";
+import publicPlayersRouter from "./routes/publicPlayers.js";
 
 const app = express();
 const server = createServer(app);
@@ -55,6 +56,7 @@ app.get("/api/health", (_req, res) => {
 // Публичные роутеры (без авторизации)
 app.use("/api/master", masterRouter); // только /login
 app.use("/api/rooms", roomsRouter); // /enter не требует authMaster, остальное требует
+app.use("/api/public", publicPlayersRouter); // публичные эндпоинты для игроков
 
 // Роутеры, требующие авторизации мастера с roomId
 // Применяем authMaster ко всем остальным маршрутам

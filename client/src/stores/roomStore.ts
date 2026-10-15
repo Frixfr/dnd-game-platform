@@ -5,6 +5,7 @@ import * as roomsApi from "../api/roomsApi";
 import * as masterApi from "../api/masterApi";
 import type { Room } from "../api/roomsApi";
 import { AxiosError } from "axios";
+import { usePlayerRoomStore } from "./playerRoomStore";
 
 interface RoomStore {
   token: string | null;
@@ -156,6 +157,12 @@ export const useRoomStore = create<RoomStore>()(
         set({ isLoading: true, error: null });
         try {
           await roomsApi.setActiveRoom(id);
+          // Запоминаем активную кампанию на клиенте — используется
+          // игроком при публичном входе по паролю (передаётся roomId).
+          const room = get().rooms.find((r) => r.id === id);
+          usePlayerRoomStore.getState().setRoom(
+            room ? { id: room.id, name: room.name } : { id, name: "" },
+          );
           await get().fetchRooms();
         } catch (err) {
           const errorMsg = getErrorMessage(err) || "Ошибка активации комнаты";

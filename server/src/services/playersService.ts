@@ -579,17 +579,95 @@ export const playersService = {
     return getFullPlayerData(String(id)); // getFullPlayerData уже использует room_id из игрока
   },
 
+  // Активная комната для игроков (is_active_for_players = true)
+  async getActiveRoom(): Promise<{ id: number; name: string } | null> {
+    const room = await db("rooms")
+      .select("id", "name")
+      .where("is_active_for_players", true)
+      .first();
+    return room || null;
+  },
+
   async loginWithPassword(
     password: string,
     roomId?: number,
   ): Promise<Player | null> {
-    // roomId опционален: если передан — ищем игрока только в этой комнате
-    let query = db("players").where({ access_password: password });
-    if (roomId !== undefined && roomId !== null) {
-      query = query.where("room_id", Number(roomId));
+    // Публичный вход по паролю всегда привязан к активной комнате.
+    // Если комната не передана явно — берём активную (is_active_for_players).
+    let targetRoomId = roomId;
+    if (targetRoomId === undefined || targetRoomId === null) {
+      const activeRoom = await db("rooms")
+        .where("is_active_for_players", true)
+        .first();
+      if (!activeRoom) return null;
+      targetRoomId = activeRoom.id;
     }
-    const player = await query.first();
+    const player = await db("players")
+      .where({ access_password: password, room_id: Number(targetRoomId) })
+      .first();
     return player || null;
+  },
+
+  // Публичный список игроков: только активная комната, только показанные карточки
+  // без пароля (выбор нового персонажа) либо с паролем (вход по паролю — id не нужен).
+  async getPublicPlayers(options: {
+    withPasswordOnly?: boolean;
+  }): Promise<Player[]> {
+    const activeRoom = await db("rooms")
+      .where("is_active_for_players", true)
+      .first();
+    if (!activeRoom) return [];
+
+    let query = db("players")
+      .select("*")
+      .where("room_id", activeRoom.id)
+      .where("is_card_shown", true);
+
+    if (options.withPasswordOnly) {
+      query = query.whereNotNull("access_password");
+    } else {
+      query = query.whereNull("access_password");
+    }
+
+    return query;
+  },
+
+  // Публичная установка пароля: только активная комната, карточка показана,
+  // пароль ещё не установлен.
+  async publicSetPassword(
+    playerId: number,
+    password: string,
+  ): Promise<Player | null> {
+    const activeRoom = await db("rooms")
+      .where("is_active_for_players", true)
+      .first();
+    if (!activeRoom) throw new Error("Активная комната не найдена");
+
+    const player = await db("players")
+      .where({ id: playerId, room_id: activeRoom.id })
+      .first();
+    if (!player) throw new Error("Игрок не найден");
+    if (!player.is_card_shown) {
+      throw new Error("Карточка игрока недоступна для выбора");
+    }
+    if (player.access_password !== null) {
+      throw new Error("Пароль уже установлен для этого игрока");
+    }
+
+    const existing = await db("players")
+      .where({ access_password: password })
+      .whereNotNull("access_password")
+      .first();
+    if (existing) {
+      throw new Error("Этот пароль уже используется другим игроком");
+    }
+
+    const [updated] = await db("players")
+      .where({ id: playerId })
+      .update({ access_password: password })
+      .returning("*");
+    if (updated) await emitPlayerUpdate(playerId);
+    return updated || null;
   },
 
   async create(

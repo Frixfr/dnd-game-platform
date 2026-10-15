@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Modal from './Modal';
 import { useNavigate } from 'react-router-dom';
 import { usePlayerSessionStore } from '../../stores/playerSessionStore';
+import { usePlayerRoomStore } from '../../stores/playerRoomStore';
 
 interface PlayerAuthModalProps {
   onClose: () => void;
@@ -27,10 +28,15 @@ const PlayerAuthModal: React.FC<PlayerAuthModalProps> = ({ onClose, onSelectAvai
     setLoading(true);
     setError('');
     try {
-      const response = await fetch('/api/players/login', {
+      // Публичный эндпоинт: не требует мастер-токена, вход привязан к комнате.
+      const { roomId } = usePlayerRoomStore.getState();
+      const response = await fetch('/api/public/players/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: password.trim() }),
+        body: JSON.stringify({
+          password: password.trim(),
+          ...(roomId !== null ? { roomId } : {}),
+        }),
       });
       const data = await response.json();
       if (!response.ok) {
