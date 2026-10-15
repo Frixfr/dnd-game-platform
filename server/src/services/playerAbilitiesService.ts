@@ -285,6 +285,7 @@ export const playerAbilitiesService = {
             player.health,
             { attribute: effect.attribute, modifier: effect.modifier },
             effectiveMaxHealth,
+            player.max_health,
           );
           if (newHealth !== null && newHealth !== player.health) {
             await db("players")
