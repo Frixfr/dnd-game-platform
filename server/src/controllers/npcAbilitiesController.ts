@@ -118,13 +118,7 @@ export const npcAbilitiesController = {
         npcId,
         abilityId,
       );
-      // После использования способности обновляем данные NPC
-      const fullNpc = await npcsService.getFullDetails(
-        roomId,
-        npcId.toString(),
-      );
-      const io = getIO();
-      io.to(`room:${roomId}`).emit("npc:updated", fullNpc);
+      // Единственный источник эмиссии npc:updated — сервисный слой (emitNpcUpdate).
       res.json(result);
     } catch (error: any) {
       if (error.message.includes("не найден")) {
