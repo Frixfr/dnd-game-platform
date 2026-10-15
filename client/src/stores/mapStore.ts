@@ -1,6 +1,7 @@
 // client/src/stores/mapStore.ts
 import { create } from "zustand";
 import { socket } from "../lib/socket";
+import { API_BASE_URL } from "../lib/config";
 import type {
   MapType,
   MapWithTokensType,
@@ -184,9 +185,13 @@ export const useMapStore = create<MapStore>((set, get) => ({
     }
   },
 
+  // Публичный эндпоинт активной карты (без авторизации мастера):
+  // используется игроками на страницах /map и /player/map.
+  // Относительный путь берётся из API_BASE_URL (VITE_API_URL), чтобы
+  // запрос шёл через dev-прокси Vite либо напрямую на бэкенд без прокси.
   fetchActiveMap: async () => {
     try {
-      const res = await fetch("/api/maps/active");
+      const res = await fetch(`${API_BASE_URL}/maps/public/active`);
       if (res.ok) {
         const data = await res.json();
         set({ activeMap: data });
