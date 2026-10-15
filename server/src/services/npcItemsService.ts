@@ -205,6 +205,7 @@ export const npcItemsService = {
             npc?.health ?? 0,
             effect,
             effectiveMaxHealth,
+            npc?.max_health ?? 0,
           );
           if (newHealth !== null && newHealth !== npc?.health) {
             await db("npcs").where("id", npcId).update({ health: newHealth });

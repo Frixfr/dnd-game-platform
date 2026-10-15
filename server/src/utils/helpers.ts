@@ -632,19 +632,35 @@ export async function ensureFrightenedEffect(): Promise<Effect> {
 
 /**
  * Применяет мгновенное изменение health/max_health от эффекта.
- * Возвращает новое значение HP (или null, если эффект не затрагивает здоровье).
+ * Возвращает новое значение ТЕКУЩЕГО HP (или null, если эффект не затрагивает здоровье).
  * Используется для мгновенных эффектов (is_instant), которые не создают запись в active_effects.
+ *
+ * Семантика по атрибутам:
+ * - attribute === "health": эффект изменяет текущее здоровье; результат
+ *   ограничивается диапазоном [0, effectiveMaxHealth].
+ * - attribute === "max_health": у мгновенного эффекта нет записи в active_effects,
+ *   поэтому постоянный пересчёт max_health здесь невозможен. Модификатор
+ *   трактуется как временное (в пределах боя) изменение текущего здоровья —
+ *   на максимальное здоровье в БД он не влияет. При этом текущее здоровье
+ *   никогда не может превысить эффективный максимум (базовый max_health плюс
+ *   модификаторы от активных/пассивных/расовых эффектов), а при отрицательном
+ *   модификаторе здоровье клампится в [0, baseMaxHealth + modifier], чтобы
+ *   текущее HP не могло «пережить» уменьшенный максимум.
  */
 export function applyInstantHealthChange(
   currentHealth: number,
   effect: { attribute: string | null; modifier: number },
   effectiveMaxHealth: number,
+  baseMaxHealth: number = effectiveMaxHealth,
 ): number | null {
   if (
     effect.attribute === "max_health" &&
     typeof effect.modifier === "number"
   ) {
-    return Math.min(currentHealth + effect.modifier, effectiveMaxHealth);
+    // Мгновенный max_health-эффект меняет только текущее здоровье,
+    // с гарантией health <= max_health (в т.ч. при отрицательном модификаторе).
+    const cap = Math.max(0, Math.min(effectiveMaxHealth, baseMaxHealth + effect.modifier));
+    return Math.max(0, Math.min(currentHealth + effect.modifier, cap));
   }
   if (effect.attribute === "health" && typeof effect.modifier === "number") {
     return Math.max(

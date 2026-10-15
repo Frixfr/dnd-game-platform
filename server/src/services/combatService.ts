@@ -178,47 +178,52 @@ export const combatService = {
     });
     for (const p of participants) {
       if (p.entity_type === "player") {
+        // Атомарный декремент с клампом в 0: MAX(0, remaining_turns - 1).
+        // Эффекты с истёкшим (<= 0) сроком удаляются сразу после декремента,
+        // поэтому они не переживают раунд.
         await db("player_active_effects")
           .where({ player_id: p.entity_id })
           .whereNotNull("remaining_turns")
-          .where("remaining_turns", ">", 0)
-          .decrement("remaining_turns", 1);
+          .update({
+            remaining_turns: db.raw("MAX(0, ?? - 1)", ["remaining_turns"]),
+          });
         await db("player_active_effects")
           .where({ player_id: p.entity_id })
-          .where("remaining_turns", 0)
+          .whereNotNull("remaining_turns")
+          .whereRaw("remaining_turns <= 0")
           .delete();
 
         await db("player_abilities")
           .where({ player_id: p.entity_id })
           .whereNotNull("remaining_cooldown_turns")
-          .where("remaining_cooldown_turns", ">", 0)
-          .decrement("remaining_cooldown_turns", 1);
-        await db("player_abilities")
-          .where({ player_id: p.entity_id })
-          .where("remaining_cooldown_turns", "<", 0)
-          .update({ remaining_cooldown_turns: 0 });
+          .update({
+            remaining_cooldown_turns: db.raw("MAX(0, ?? - 1)", [
+              "remaining_cooldown_turns",
+            ]),
+          });
 
         await emitPlayerUpdate(p.entity_id);
       } else {
         await db("npc_active_effects")
           .where({ npc_id: p.entity_id })
           .whereNotNull("remaining_turns")
-          .where("remaining_turns", ">", 0)
-          .decrement("remaining_turns", 1);
+          .update({
+            remaining_turns: db.raw("MAX(0, ?? - 1)", ["remaining_turns"]),
+          });
         await db("npc_active_effects")
           .where({ npc_id: p.entity_id })
-          .where("remaining_turns", 0)
+          .whereNotNull("remaining_turns")
+          .whereRaw("remaining_turns <= 0")
           .delete();
 
         await db("npc_abilities")
           .where({ npc_id: p.entity_id })
           .whereNotNull("remaining_cooldown_turns")
-          .where("remaining_cooldown_turns", ">", 0)
-          .decrement("remaining_cooldown_turns", 1);
-        await db("npc_abilities")
-          .where({ npc_id: p.entity_id })
-          .where("remaining_cooldown_turns", "<", 0)
-          .update({ remaining_cooldown_turns: 0 });
+          .update({
+            remaining_cooldown_turns: db.raw("MAX(0, ?? - 1)", [
+              "remaining_cooldown_turns",
+            ]),
+          });
 
         await emitNpcUpdate(p.entity_id);
       }
@@ -228,19 +233,23 @@ export const combatService = {
 
   // ADDED roomId support
   async advanceDay(roomId: number): Promise<void> {
-    // 1. Уменьшаем дневные кулдауны эффектов для игроков в этой комнате
+    // 1. Уменьшаем дневные кулдауны эффектов для игроков в этой комнаты.
+    // Атомарный декремент с клампом в 0: MAX(0, x - 1). Истёкшие эффекты
+    // (remaining_days <= 0) удаляются сразу после декремента.
     await db("player_active_effects")
       .whereIn("player_id", function () {
         this.select("id").from("players").where("room_id", roomId);
       })
       .whereNotNull("remaining_days")
-      .where("remaining_days", ">", 0)
-      .decrement("remaining_days", 1);
+      .update({
+        remaining_days: db.raw("MAX(0, ?? - 1)", ["remaining_days"]),
+      });
     await db("player_active_effects")
       .whereIn("player_id", function () {
         this.select("id").from("players").where("room_id", roomId);
       })
-      .where("remaining_days", 0)
+      .whereNotNull("remaining_days")
+      .whereRaw("remaining_days <= 0")
       .delete();
 
     await db("npc_active_effects")
@@ -248,13 +257,15 @@ export const combatService = {
         this.select("id").from("npcs").where("room_id", roomId);
       })
       .whereNotNull("remaining_days")
-      .where("remaining_days", ">", 0)
-      .decrement("remaining_days", 1);
+      .update({
+        remaining_days: db.raw("MAX(0, ?? - 1)", ["remaining_days"]),
+      });
     await db("npc_active_effects")
       .whereIn("npc_id", function () {
         this.select("id").from("npcs").where("room_id", roomId);
       })
-      .where("remaining_days", 0)
+      .whereNotNull("remaining_days")
+      .whereRaw("remaining_days <= 0")
       .delete();
 
     // 2. Уменьшаем дневные кулдауны способностей для игроков в этой комнате
@@ -263,28 +274,22 @@ export const combatService = {
         this.select("id").from("players").where("room_id", roomId);
       })
       .whereNotNull("remaining_cooldown_days")
-      .where("remaining_cooldown_days", ">", 0)
-      .decrement("remaining_cooldown_days", 1);
-    await db("player_abilities")
-      .whereIn("player_id", function () {
-        this.select("id").from("players").where("room_id", roomId);
-      })
-      .where("remaining_cooldown_days", "<", 0)
-      .update({ remaining_cooldown_days: 0 });
+      .update({
+        remaining_cooldown_days: db.raw("MAX(0, ?? - 1)", [
+          "remaining_cooldown_days",
+        ]),
+      });
 
     await db("npc_abilities")
       .whereIn("npc_id", function () {
         this.select("id").from("npcs").where("room_id", roomId);
       })
       .whereNotNull("remaining_cooldown_days")
-      .where("remaining_cooldown_days", ">", 0)
-      .decrement("remaining_cooldown_days", 1);
-    await db("npc_abilities")
-      .whereIn("npc_id", function () {
-        this.select("id").from("npcs").where("room_id", roomId);
-      })
-      .where("remaining_cooldown_days", "<", 0)
-      .update({ remaining_cooldown_days: 0 });
+      .update({
+        remaining_cooldown_days: db.raw("MAX(0, ?? - 1)", [
+          "remaining_cooldown_days",
+        ]),
+      });
 
     // 3. Сбрасываем ходовые кулдауны в 0 для игроков в этой комнате
     await db("player_abilities")
@@ -498,6 +503,7 @@ export const combatService = {
           entity.health,
           { attribute: effect.attribute, modifier: effect.modifier },
           effectiveMaxHealth,
+          entity.max_health,
         );
         if (newHealth !== null && newHealth !== entity.health) {
           await db("players")
@@ -565,6 +571,7 @@ export const combatService = {
           entity.health,
           { attribute: effect.attribute, modifier: effect.modifier },
           effectiveMaxHealth,
+          entity.max_health,
         );
         if (newHealth !== null && newHealth !== entity.health) {
           await db("npcs").where("id", entityId).update({ health: newHealth });

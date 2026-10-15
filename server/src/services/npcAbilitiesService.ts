@@ -273,6 +273,7 @@ export const npcAbilitiesService = {
             npc.health,
             { attribute: effect.attribute, modifier: effect.modifier },
             effectiveMaxHealth,
+            npc.max_health,
           );
           if (newHealth !== null && newHealth !== npc.health) {
             await db("npcs").where("id", npcId).update({ health: newHealth });
