@@ -12,6 +12,7 @@ interface PaginatedResponse<T> {
 
 let npcSocketHandlers: {
   onConnect: () => void;
+  onReconnect: () => void;
   onCreated: (npc: NpcType) => void;
   onUpdated: (npc: NpcType) => void;
   onDeleted: (npcId: number) => void;
@@ -79,12 +80,20 @@ export const useNpcStore = create<NpcStore>((set, get) => ({
       }));
     };
 
+    const onReconnect = () => {
+      // После переподключения переподписываемся на текущую комнату
+      const rid = get().roomId;
+      if (rid !== null && rid !== undefined) {
+        socket.emit("join-room", { roomId: rid });
+      }
+    };
+    socket.on("reconnect", onReconnect);
     socket.on("connect", onConnect);
     socket.on("npc:created", onCreated);
     socket.on("npc:updated", onUpdated);
     socket.on("npc:deleted", onDeleted);
 
-    npcSocketHandlers = { onConnect, onCreated, onUpdated, onDeleted };
+    npcSocketHandlers = { onConnect, onReconnect, onCreated, onUpdated, onDeleted };
 
     const roomId = get().roomId;
     if (roomId !== null && roomId !== undefined) {
@@ -94,7 +103,8 @@ export const useNpcStore = create<NpcStore>((set, get) => ({
 
   disconnectSocket: () => {
     if (!npcSocketInitialized || !npcSocketHandlers) return;
-    const { onConnect, onCreated, onUpdated, onDeleted } = npcSocketHandlers;
+    const { onConnect, onReconnect, onCreated, onUpdated, onDeleted } = npcSocketHandlers;
+    socket.off("reconnect", onReconnect);
     socket.off("connect", onConnect);
     socket.off("npc:created", onCreated);
     socket.off("npc:updated", onUpdated);

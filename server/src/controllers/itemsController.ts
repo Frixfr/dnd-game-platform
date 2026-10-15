@@ -65,7 +65,7 @@ export const itemsController = {
         active_effect_ids,
         passive_effect_ids,
       });
-      getIO().emit("item:created", item);
+      getIO().to(`room:${roomId}`).emit("item:created", item);
       res.status(201).json({ success: true, item });
     } catch (error: any) {
       if (error.message.includes("UNIQUE constraint failed")) {
@@ -109,7 +109,7 @@ export const itemsController = {
       passive_effect_ids,
     });
     if (!updated) return res.status(404).json({ error: "Item not found" });
-    getIO().emit("item:updated", updated);
+    getIO().to(`room:${roomId}`).emit("item:updated", updated);
     res.json(updated);
   },
 
@@ -132,7 +132,7 @@ export const itemsController = {
     try {
       const updated = await itemsService.update(roomId, id, updateData);
       if (!updated) return res.status(404).json({ error: "Предмет не найден" });
-      getIO().emit("item:updated", updated);
+      getIO().to(`room:${roomId}`).emit("item:updated", updated);
       res.json({ success: true, item: updated });
     } catch (error: any) {
       if (error.message.includes("UNIQUE constraint failed")) {
@@ -155,7 +155,7 @@ export const itemsController = {
     try {
       const deleted = await itemsService.delete(roomId, id);
       if (!deleted) return res.status(404).json({ error: "Предмет не найден" });
-      getIO().emit("item:deleted", { id });
+      getIO().to(`room:${roomId}`).emit("item:deleted", { id });
       res.json({ success: true, message: "Предмет удалён" });
     } catch (error: any) {
       if (error.message === "Item is in use") {

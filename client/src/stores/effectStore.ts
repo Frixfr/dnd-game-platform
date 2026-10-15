@@ -12,6 +12,7 @@ interface PaginatedResponse<T> {
 
 let effectSocketHandlers: {
   onConnect: () => void;
+  onReconnect: () => void;
   onCreated: () => void;
   onUpdated: () => void;
   onDeleted: () => void;
@@ -68,12 +69,20 @@ export const useEffectStore = create<EffectState>((set, get) => ({
       await fetchEffects(currentPage, limit);
     };
 
+    const onReconnect = () => {
+      // После переподключения переподписываемся на текущую комнату
+      const rid = get().roomId;
+      if (rid !== null && rid !== undefined) {
+        socket.emit("join-room", { roomId: rid });
+      }
+    };
+    socket.on("reconnect", onReconnect);
     socket.on("connect", onConnect);
     socket.on("effect:created", onCreated);
     socket.on("effect:updated", onUpdated);
     socket.on("effect:deleted", onDeleted);
 
-    effectSocketHandlers = { onConnect, onCreated, onUpdated, onDeleted };
+    effectSocketHandlers = { onConnect, onReconnect, onCreated, onUpdated, onDeleted };
 
     const roomId = get().roomId;
     if (roomId !== null && roomId !== undefined) {
@@ -83,7 +92,8 @@ export const useEffectStore = create<EffectState>((set, get) => ({
 
   disconnectSocket: () => {
     if (!effectSocketInitialized || !effectSocketHandlers) return;
-    const { onConnect, onCreated, onUpdated, onDeleted } = effectSocketHandlers;
+    const { onConnect, onReconnect, onCreated, onUpdated, onDeleted } = effectSocketHandlers;
+    socket.off("reconnect", onReconnect);
     socket.off("connect", onConnect);
     socket.off("effect:created", onCreated);
     socket.off("effect:updated", onUpdated);

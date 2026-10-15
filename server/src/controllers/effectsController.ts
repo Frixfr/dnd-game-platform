@@ -136,7 +136,7 @@ export const effectsController = {
         is_instant,
         tags,
       });
-      getIO().emit("effect:created", effect);
+      getIO().to(`room:${roomId}`).emit("effect:created", effect);
       res.status(201).json({ success: true, message: "Эффект создан", effect });
     } catch (error: any) {
       if (error.message.includes("UNIQUE constraint failed")) {
@@ -248,7 +248,7 @@ export const effectsController = {
     try {
       const updated = await effectsService.update(roomId, id, updateData);
       if (!updated) return res.status(404).json({ error: "Эффект не найден" });
-      getIO().emit("effect:updated", updated);
+      getIO().to(`room:${roomId}`).emit("effect:updated", updated);
       res.json({ success: true, effect: updated });
     } catch (error: any) {
       if (error.message.includes("UNIQUE constraint failed")) {
@@ -357,7 +357,7 @@ export const effectsController = {
     try {
       const updated = await effectsService.update(roomId, id, updateData);
       if (!updated) return res.status(404).json({ error: "Эффект не найден" });
-      getIO().emit("effect:updated", updated);
+      getIO().to(`room:${roomId}`).emit("effect:updated", updated);
       res.json({ success: true, effect: updated });
     } catch (error: any) {
       if (error.message.includes("UNIQUE constraint failed")) {
@@ -376,7 +376,7 @@ export const effectsController = {
     try {
       const deleted = await effectsService.delete(roomId, id);
       if (!deleted) return res.status(404).json({ error: "Эффект не найден" });
-      getIO().emit("effect:deleted", { id: Number(id) });
+      getIO().to(`room:${roomId}`).emit("effect:deleted", { id: Number(id) });
       res.json({ success: true, message: "Эффект удалён" });
     } catch (error: any) {
       if (error.message === "Effect is in use") {

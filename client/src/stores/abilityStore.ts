@@ -12,6 +12,7 @@ interface PaginatedResponse<T> {
 
 let abilitySocketHandlers: {
   onConnect: () => void;
+  onReconnect: () => void;
   onCreated: () => void;
   onUpdated: () => void;
   onDeleted: () => void;
@@ -89,12 +90,20 @@ export const useAbilityStore = create<AbilityStore>((set, get) => ({
       await fetchAbilities(currentPage, limit);
     };
 
+    const onReconnect = () => {
+      // После переподключения переподписываемся на текущую комнату
+      const rid = get().roomId;
+      if (rid !== null && rid !== undefined) {
+        socket.emit("join-room", { roomId: rid });
+      }
+    };
+    socket.on("reconnect", onReconnect);
     socket.on("connect", onConnect);
     socket.on("ability:created", onCreated);
     socket.on("ability:updated", onUpdated);
     socket.on("ability:deleted", onDeleted);
 
-    abilitySocketHandlers = { onConnect, onCreated, onUpdated, onDeleted };
+    abilitySocketHandlers = { onConnect, onReconnect, onCreated, onUpdated, onDeleted };
 
     const roomId = get().roomId;
     if (roomId !== null && roomId !== undefined) {
@@ -104,8 +113,8 @@ export const useAbilityStore = create<AbilityStore>((set, get) => ({
 
   disconnectSocket: () => {
     if (!abilitySocketInitialized || !abilitySocketHandlers) return;
-    const { onConnect, onCreated, onUpdated, onDeleted } =
-      abilitySocketHandlers;
+    const { onConnect, onReconnect, onCreated, onUpdated, onDeleted } = abilitySocketHandlers;
+    socket.off("reconnect", onReconnect);
     socket.off("connect", onConnect);
     socket.off("ability:created", onCreated);
     socket.off("ability:updated", onUpdated);

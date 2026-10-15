@@ -12,6 +12,7 @@ interface PaginatedResponse<T> {
 
 let itemSocketHandlers: {
   onConnect: () => void;
+  onReconnect: () => void;
   onCreated: () => void;
   onUpdated: () => void;
   onDeleted: () => void;
@@ -68,12 +69,20 @@ export const useItemStore = create<ItemState>((set, get) => ({
       await fetchItems(currentPage, limit);
     };
 
+    const onReconnect = () => {
+      // После переподключения переподписываемся на текущую комнату
+      const rid = get().roomId;
+      if (rid !== null && rid !== undefined) {
+        socket.emit("join-room", { roomId: rid });
+      }
+    };
+    socket.on("reconnect", onReconnect);
     socket.on("connect", onConnect);
     socket.on("item:created", onCreated);
     socket.on("item:updated", onUpdated);
     socket.on("item:deleted", onDeleted);
 
-    itemSocketHandlers = { onConnect, onCreated, onUpdated, onDeleted };
+    itemSocketHandlers = { onConnect, onReconnect, onCreated, onUpdated, onDeleted };
 
     const roomId = get().roomId;
     if (roomId !== null && roomId !== undefined) {
@@ -83,7 +92,8 @@ export const useItemStore = create<ItemState>((set, get) => ({
 
   disconnectSocket: () => {
     if (!itemSocketInitialized || !itemSocketHandlers) return;
-    const { onConnect, onCreated, onUpdated, onDeleted } = itemSocketHandlers;
+    const { onConnect, onReconnect, onCreated, onUpdated, onDeleted } = itemSocketHandlers;
+    socket.off("reconnect", onReconnect);
     socket.off("connect", onConnect);
     socket.off("item:created", onCreated);
     socket.off("item:updated", onUpdated);

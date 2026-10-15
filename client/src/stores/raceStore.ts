@@ -5,6 +5,7 @@ import { socket } from "../lib/socket";
 
 let raceSocketHandlers: {
   onConnect: () => void;
+  onReconnect: () => void;
   onCreated: (race: RaceType) => void;
   onUpdated: (race: RaceType) => void;
   onDeleted: (data: { id: number }) => void;
@@ -52,12 +53,20 @@ export const useRaceStore = create<RaceState>((set, get) => ({
       }));
     };
 
+    const onReconnect = () => {
+      // После переподключения переподписываемся на текущую комнату
+      const rid = get().roomId;
+      if (rid !== null && rid !== undefined) {
+        socket.emit("join-room", { roomId: rid });
+      }
+    };
+    socket.on("reconnect", onReconnect);
     socket.on("connect", onConnect);
     socket.on("race:created", onCreated);
     socket.on("race:updated", onUpdated);
     socket.on("race:deleted", onDeleted);
 
-    raceSocketHandlers = { onConnect, onCreated, onUpdated, onDeleted };
+    raceSocketHandlers = { onConnect, onReconnect, onCreated, onUpdated, onDeleted };
 
     const roomId = get().roomId;
     if (roomId !== null && roomId !== undefined) {
@@ -67,7 +76,8 @@ export const useRaceStore = create<RaceState>((set, get) => ({
 
   disconnectSocket: () => {
     if (!raceSocketInitialized || !raceSocketHandlers) return;
-    const { onConnect, onCreated, onUpdated, onDeleted } = raceSocketHandlers;
+    const { onConnect, onReconnect, onCreated, onUpdated, onDeleted } = raceSocketHandlers;
+    socket.off("reconnect", onReconnect);
     socket.off("connect", onConnect);
     socket.off("race:created", onCreated);
     socket.off("race:updated", onUpdated);

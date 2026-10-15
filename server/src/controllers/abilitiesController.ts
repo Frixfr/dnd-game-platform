@@ -87,7 +87,7 @@ export const abilitiesController = {
         cooldown_days,
         effect_id,
       });
-      getIO().emit("ability:created", ability);
+      getIO().to(`room:${roomId}`).emit("ability:created", ability);
       res.status(201).json({ success: true, ability });
     } catch (error: any) {
       if (error.message.includes("UNIQUE constraint failed")) {
@@ -130,7 +130,7 @@ export const abilitiesController = {
       const updated = await abilitiesService.update(roomId, id, updateData);
       if (!updated)
         return res.status(404).json({ error: "Способность не найдена" });
-      getIO().emit("ability:updated", updated);
+      getIO().to(`room:${roomId}`).emit("ability:updated", updated);
       res.json({ success: true, ability: updated });
     } catch (error: any) {
       if (error.message.includes("UNIQUE constraint failed")) {
@@ -153,7 +153,7 @@ export const abilitiesController = {
       const deleted = await abilitiesService.delete(roomId, id);
       if (!deleted)
         return res.status(404).json({ error: "Способность не найдена" });
-      getIO().emit("ability:deleted", { id: Number(id) });
+      getIO().to(`room:${roomId}`).emit("ability:deleted", { id: Number(id) });
       res.json({ success: true, message: "Способность удалена" });
     } catch (error: any) {
       if (error.message === "Ability is in use") {
