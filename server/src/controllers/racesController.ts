@@ -44,7 +44,7 @@ export const racesController = {
         { name: name.trim(), description: description || null },
         effect_ids,
       );
-      getIO().emit("race:created", race);
+      getIO().to(`room:${roomId}`).emit("race:created", race);
       res.status(201).json({ success: true, message: "Раса создана", race });
     } catch (error: unknown) {
       if (
@@ -84,7 +84,7 @@ export const racesController = {
         effect_ids,
       );
       if (!updated) return res.status(404).json({ error: "Раса не найдена" });
-      getIO().emit("race:updated", updated);
+      getIO().to(`room:${roomId}`).emit("race:updated", updated);
       res.json({ success: true, race: updated });
     } catch (error: unknown) {
       if (
@@ -106,7 +106,7 @@ export const racesController = {
     try {
       const deleted = await racesService.delete(roomId, id);
       if (!deleted) return res.status(404).json({ error: "Раса не найдена" });
-      getIO().emit("race:deleted", { id: Number(id) });
+      getIO().to(`room:${roomId}`).emit("race:deleted", { id: Number(id) });
       res.json({ success: true, message: "Раса удалена" });
     } catch (error: unknown) {
       if (error instanceof Error) {

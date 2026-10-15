@@ -6,6 +6,7 @@ import { db } from "../db/index.js";
 import { jwtConfig } from "../config/jwt.js";
 import { authMaster } from "../middleware/authMaster.js";
 import type { Room } from "../types/index.js";
+import { emitToAll } from "../socket/index.js";
 
 const router = Router();
 
@@ -157,10 +158,8 @@ router.post("/:id/set-active", authMaster, async (req, res) => {
       .where("id", roomId)
       .update({ is_active_for_players: true, updated_at: db.fn.now() });
 
-    const io = req.app.get("io");
-    if (io) {
-      io.emit("room:active-changed", { roomId, roomName: room.name });
-    }
+    // Публичное (не комнатное) событие — всем клиентам
+    emitToAll("room:active-changed", { roomId, roomName: room.name });
 
     res.json({ success: true, activeRoomId: roomId });
   } catch (error) {

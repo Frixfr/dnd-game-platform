@@ -13,6 +13,7 @@ interface PaginatedResponse<T> {
 // Хранилище для обработчиков сокетов (чтобы потом отключить)
 let playerSocketHandlers: {
   onConnect: () => void;
+  onReconnect: () => void;
   onCreated: (player: PlayerType) => void;
   onUpdated: (player: PlayerType) => void;
   onDeleted: (playerId: number) => void;
@@ -107,12 +108,20 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
       }));
     };
 
+    const onReconnect = () => {
+      // После переподключения переподписываемся на текущую комнату
+      const rid = get().roomId;
+      if (rid !== null && rid !== undefined) {
+        socket.emit("join-room", { roomId: rid });
+      }
+    };
+    socket.on("reconnect", onReconnect);
     socket.on("connect", onConnect);
     socket.on("player:created", onCreated);
     socket.on("player:updated", onUpdated);
     socket.on("player:deleted", onDeleted);
 
-    playerSocketHandlers = { onConnect, onCreated, onUpdated, onDeleted };
+    playerSocketHandlers = { onConnect, onReconnect, onCreated, onUpdated, onDeleted };
 
     // Отправляем join-room с текущим roomId
     const roomId = get().roomId;
@@ -123,7 +132,8 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
 
   disconnectSocket: () => {
     if (!playerSocketInitialized || !playerSocketHandlers) return;
-    const { onConnect, onCreated, onUpdated, onDeleted } = playerSocketHandlers;
+    const { onConnect, onReconnect, onCreated, onUpdated, onDeleted } = playerSocketHandlers;
+    socket.off("reconnect", onReconnect);
     socket.off("connect", onConnect);
     socket.off("player:created", onCreated);
     socket.off("player:updated", onUpdated);

@@ -3,6 +3,7 @@ import { Request, Response } from "express";
 import { roomsService } from "../services/roomsService.js";
 import jwt from "jsonwebtoken";
 import { jwtConfig } from "../config/jwt.js";
+import { emitToAll } from "../socket/index.js";
 
 // Вспомогательная функция для парсинга id из params
 function parseIdParam(param: string | string[]): number {
@@ -84,10 +85,8 @@ export const roomsController = {
       }
 
       const result = await roomsService.setActive(id);
-      const io = req.app.get("io");
-      if (io) {
-        io.emit("room:active-changed", { roomId: id, roomName: room.name });
-      }
+      // Публичное (не комнатное) событие — всем клиентам
+      emitToAll("room:active-changed", { roomId: id, roomName: room.name });
       res.json({ success: true, activeRoomId: result.activeRoomId });
     } catch (error) {
       res.status(500).json({ error: "Ошибка переключения активности" });
