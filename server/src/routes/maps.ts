@@ -2,8 +2,15 @@
 import { Router } from "express";
 import { mapsController } from "../controllers/mapsController.js";
 import { uploadMap } from "../middleware/upload.js";
+import { authMaster } from "../middleware/authMaster.js";
 
 const router = Router();
+
+// Все маршруты этого роутера требуют авторизацию мастера.
+// ПУБЛИЧНЫЕ GET-эндпоинты карт (без авторизации) вынесены отдельно
+// в app.ts: GET /api/maps/public/active и GET /api/maps/public/:id —
+// они используются игроками, у которых нет мастер-токена.
+router.use(authMaster);
 
 // Карты
 router.get("/", mapsController.getAllMaps);

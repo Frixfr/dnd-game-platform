@@ -21,6 +21,23 @@ export const mapsService = {
     return db("maps").where({ id, room_id: roomId }).first();
   },
 
+  // Публичный доступ (для игроков без мастер-токена): карта отдаётся,
+  // только если она принадлежит активной кампании и помечена show_to_players.
+  async getPublicActiveMap(): Promise<Map | undefined> {
+    return db("maps")
+      .join("rooms", "maps.room_id", "rooms.id")
+      .where("rooms.is_active_for_players", true)
+      .where("maps.show_to_players", true)
+      .select("maps.*")
+      .first();
+  },
+
+  async getPublicTokensByMapId(mapId: number) {
+    const map = await db("maps").where("id", mapId).first();
+    if (!map || !map.show_to_players) return [];
+    return this.getTokensByMapId(map.room_id, mapId);
+  },
+
   // ADDED roomId support
   async createMap(
     roomId: number,

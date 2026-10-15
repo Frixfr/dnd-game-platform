@@ -58,6 +58,11 @@ app.use("/api/master", masterRouter); // только /login
 app.use("/api/rooms", roomsRouter); // /enter не требует authMaster, остальное требует
 app.use("/api/public", publicPlayersRouter); // публичные эндпоинты для игроков
 
+// Публичные GET-эндпоинты карт (без авторизации) — активная карта и
+// токены для игроков. Монтируются ДО authMaster-версии "/api/maps".
+app.get("/api/maps/public/active", mapsController.getPublicActiveMap);
+app.get("/api/maps/public/:id", mapsController.getPublicMapWithTokens);
+
 // Роутеры, требующие авторизации мастера с roomId
 // Применяем authMaster ко всем остальным маршрутам
 app.use("/api/players", authMaster, playersRouter);
