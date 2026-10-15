@@ -2,9 +2,12 @@
 import axios from "axios";
 import type { AxiosError } from "axios";
 import { useRoomStore } from "../stores/roomStore";
+import { API_BASE_URL } from "../lib/config";
 
-// Базовый URL бэкенда — берём из переменной окружения или используем относительный путь
-const baseURL = import.meta.env.VITE_API_URL || "/api";
+// Базовый URL бэкенда — из .env (VITE_API_URL), по умолчанию относительный
+// "/api" (через dev-прокси Vite). Конфликт с прокси исключён: абсолютный
+// адрес задаётся только при работе без прокси.
+const baseURL = API_BASE_URL;
 
 export const apiClient = axios.create({
   baseURL,
