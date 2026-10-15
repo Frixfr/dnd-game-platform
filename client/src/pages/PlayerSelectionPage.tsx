@@ -18,7 +18,9 @@ export const PlayerSelectionPage = () => {
     const abortController = new AbortController();
     const fetchAvailablePlayers = async () => {
       try {
-        const response = await fetch('/api/players?available_for_selection=true', { signal: abortController.signal });
+        // Публичный эндпоинт: список доступных персонажей из активной комнаты,
+        // не требует мастер-токена.
+        const response = await fetch('/api/public/players', { signal: abortController.signal });
         if (!response.ok) throw new Error('Ошибка загрузки');
         const data = await response.json();
         setPlayers(data);
@@ -41,7 +43,8 @@ export const PlayerSelectionPage = () => {
 
   const handleSetPassword = async (password: string) => {
     if (!selectedPlayer) return;
-    const response = await fetch(`/api/players/${selectedPlayer.id}/set-password`, {
+    // Публичный эндпоинт: установка пароля без мастер-токена (только активная комната).
+    const response = await fetch(`/api/public/players/${selectedPlayer.id}/set-password`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ password }),

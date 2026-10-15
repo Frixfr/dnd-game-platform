@@ -4,6 +4,13 @@ import { Request, Response } from "express";
 import { playersService } from "../services/playersService.js";
 import { getIO } from "../socket/index.js";
 
+// Убираем пароль из ответа, чтобы не раскрывать его публично
+function sanitizePlayer<T extends { access_password?: string | null }>(
+  player: T,
+): T {
+  return { ...player, access_password: null };
+}
+
 // Разрешённые поля для обновления игрока
 const ALLOWED_UPDATE_FIELDS = new Set([
   "name",
@@ -663,6 +670,131 @@ export const playersController = {
     } catch (error) {
       console.error(error);
       res.status(500).json({ error: "Ошибка удаления аватарки" });
+    }
+  },
+
+  // === ПУБЛИЧНЫЕ ЭНДПОИНТЫ (без мастер-токена, /api/public/...) ===
+
+  // GET /api/public/players — список доступных для выбора персонажей
+  // (активная комната, показанные карточки без пароля)
+  async publicGetPlayers(_req: Request, res: Response) {
+    try {
+      const players = await playersService.getPublicPlayers({
+        withPasswordOnly: false,
+      });
+      res.json(players.map(sanitizePlayer));
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Ошибка загрузки списка игроков" });
+    }
+  },
+
+  // POST /api/public/players/login — вход игрока по паролю в активной комнате.
+  // roomId опционален: если передан и это активная комната — используется он,
+  // иначе всегда берётся активная комната (вход вне активной комнаты запрещён).
+  async publicLogin(req: Request, res: Response) {
+    const { password, roomId } = req.body;
+    if (!password || typeof password !== "string") {
+      return res.status(400).json({ error: "Пароль обязателен" });
+    }
+    try {
+      const activeRoom = await playersService.getActiveRoom();
+      if (!activeRoom) {
+        return res
+          .status(404)
+          .json({ error: "Активная комната не найдена" });
+      }
+
+      let targetRoomId: number = activeRoom.id;
+      if (roomId !== undefined && roomId !== null && roomId !== "") {
+        const parsed = Number(roomId);
+        if (!Number.isInteger(parsed)) {
+          return res.status(400).json({ error: "Некорректный ID комнаты" });
+        }
+        if (parsed !== activeRoom.id) {
+          return res
+            .status(403)
+            .json({ error: "Вход доступен только в активную кампанию" });
+        }
+        targetRoomId = parsed;
+      }
+
+      const player = await playersService.loginWithPassword(
+        password,
+        targetRoomId,
+      );
+      if (!player) {
+        return res.status(401).json({ error: "Неверный пароль" });
+      }
+      const fullPlayer = await playersService.getFullDetails(
+        player.room_id,
+        player.id,
+      );
+      res.json({
+        success: true,
+        player: fullPlayer ? sanitizePlayer(fullPlayer) : null,
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Ошибка сервера" });
+    }
+  },
+
+  // POST /api/public/players/:id/set-password — установка пароля выбранным
+  // игроком (публично, но только для персонажа из активной комнаты)
+  async publicSetPassword(req: Request, res: Response) {
+    const id = Number(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: "Некорректный ID" });
+
+    const { password } = req.body;
+    if (
+      !password ||
+      typeof password !== "string" ||
+      password.trim().length === 0
+    ) {
+      return res.status(400).json({ error: "Пароль обязателен" });
+    }
+    if (password.length < 3) {
+      return res
+        .status(400)
+        .json({ error: "Пароль должен содержать минимум 3 символа" });
+    }
+
+    try {
+      const updatedPlayer = await playersService.publicSetPassword(
+        id,
+        password.trim(),
+      );
+      if (!updatedPlayer) {
+        return res.status(404).json({ error: "Игрок не найден" });
+      }
+
+      const fullPlayer = await playersService.getFullDetails(
+        updatedPlayer.room_id,
+        updatedPlayer.id,
+      );
+      res.json({
+        success: true,
+        player: fullPlayer ? sanitizePlayer(fullPlayer) : null,
+      });
+    } catch (error: any) {
+      if (
+        error.message === "Активная комната не найдена" ||
+        error.message === "Карточка игрока недоступна для выбора"
+      ) {
+        return res.status(403).json({ error: error.message });
+      }
+      if (
+        error.message === "Игрок не найден" ||
+        error.message === "Пароль уже установлен для этого игрока"
+      ) {
+        return res.status(404).json({ error: error.message });
+      }
+      if (error.message === "Этот пароль уже используется другим игроком") {
+        return res.status(409).json({ error: error.message });
+      }
+      console.error(error);
+      res.status(500).json({ error: "Ошибка установки пароля" });
     }
   },
 };
