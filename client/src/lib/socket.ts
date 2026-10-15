@@ -1,12 +1,16 @@
 // client/src/lib/socket.ts
 import { io, Socket } from "socket.io-client";
 import { useRoomStore } from "../stores/roomStore";
+import { SOCKET_URL } from "./config";
 
 let socketInstance: Socket | null = null;
 
 export function getSocket(): Socket {
   if (!socketInstance) {
-    socketInstance = io({
+    // URL не зашиваем: по умолчанию соединение идёт на тот же origin,
+    // что и страница (через dev-прокси Vite). При необходимости адрес
+    // бэкенда задаётся в .env (VITE_SOCKET_URL).
+    socketInstance = io(SOCKET_URL, {
       withCredentials: true,
       transports: ["websocket", "polling"],
       autoConnect: true,
@@ -38,6 +42,31 @@ export function ensureConnected(): Socket {
     s.connect();
   }
   return s;
+}
+
+/**
+ * Выход из всех комнат сокета (игровой `room:<id>`, а также `map:<id>`
+ * и `player:<id>`, к которым присоединяются клиентские подписки).
+ * Используется при leaveRoom/logout, чтобы сервер перестал слать этому
+ * клиенту события комнаты. Обработчики событий при этом снимаются
+ * отдельно — через disconnectAllSocketHandlers().
+ */
+export function leaveAllRooms(): void {
+  if (!socketInstance) return;
+  const rooms = Object.keys(socketInstance.rooms ?? {});
+  for (const room of rooms) {
+    // служебная комната с собственным id сокета — не является "нашей"
+    if (room === socketInstance.id) continue;
+    if (
+      room.startsWith("room:") ||
+      room.startsWith("map:") ||
+      room.startsWith("player:")
+    ) {
+      socketInstance.leave(room);
+    }
+  }
+  // Явно сообщаем серверу о выходе из текущей игровой комнаты
+  socketInstance.emit("leave-room", {});
 }
 
 export const socket = getSocket();
