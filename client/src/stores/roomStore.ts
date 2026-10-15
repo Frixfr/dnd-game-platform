@@ -53,6 +53,16 @@ export const useRoomStore = create<RoomStore>()(
       error: null,
 
       initialize: () => {
+        // Zustand persist — единственный источник истины для токена.
+        // Вызывается один раз при старте приложения: восстанавливает
+        // состояние из хранилища и чистит легаси-ключ в localStorage,
+        // который раньше использовался параллельно со стором и мог
+        // рассинхронизироваться (например, оставался после logout).
+        try {
+          localStorage.removeItem("master-token");
+        } catch {
+          /* localStorage может быть недоступен (приватный режим) */
+        }
         const token = get().token;
         const masterToken = get().masterToken;
         const currentRoom = get().currentRoom;
@@ -61,12 +71,6 @@ export const useRoomStore = create<RoomStore>()(
           masterToken: !!masterToken,
           currentRoom,
         });
-        // Синхронизируем с localStorage для axios-интерцептора
-        if (token) {
-          localStorage.setItem("master-token", token);
-        } else {
-          localStorage.removeItem("master-token");
-        }
       },
 
       loginAsMaster: async (password: string) => {
@@ -79,8 +83,6 @@ export const useRoomStore = create<RoomStore>()(
             token: response.token,
             isLoading: false,
           });
-          // Синхронизация с localStorage
-          localStorage.setItem("master-token", response.token);
         } catch (err) {
           const errorMsg = getErrorMessage(err);
           set({ error: errorMsg, isLoading: false });
@@ -182,8 +184,6 @@ export const useRoomStore = create<RoomStore>()(
             currentRoom: { id: response.room.id, name: response.room.name },
             isLoading: false,
           });
-          // Синхронизация с localStorage
-          localStorage.setItem("master-token", response.token);
           await get().fetchRooms();
         } catch (err) {
           const errorMsg = getErrorMessage(err) || "Ошибка входа в комнату";
@@ -200,8 +200,6 @@ export const useRoomStore = create<RoomStore>()(
             token: masterToken,
             currentRoom: null,
           });
-          // Обновляем localStorage (токен не меняется, но можно перезаписать)
-          localStorage.setItem("master-token", masterToken);
         } else {
           // Если по какой-то причине мастер-токен отсутствует, делаем полный выход
           get().logout();
@@ -209,6 +207,9 @@ export const useRoomStore = create<RoomStore>()(
       },
 
       logout: () => {
+        // Токен удаляется только из стора — persist сам синхронизирует
+        // хранилище. Легаси-ключ также чистим на случай, если он остался
+        // от старых версий приложения.
         set({
           token: null,
           masterToken: null,
@@ -216,7 +217,11 @@ export const useRoomStore = create<RoomStore>()(
           rooms: [],
           error: null,
         });
-        localStorage.removeItem("master-token");
+        try {
+          localStorage.removeItem("master-token");
+        } catch {
+          /* localStorage может быть недоступен */
+        }
       },
 
       clearError: () => set({ error: null }),
