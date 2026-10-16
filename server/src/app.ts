@@ -27,6 +27,9 @@ import masterRouter from "./routes/master.js";
 import roomsRouter from "./routes/rooms.js";
 import publicPlayersRouter from "./routes/publicPlayers.js";
 
+// Контроллеры
+import { mapsController } from "./controllers/mapsController.js";
+
 const app = express();
 const server = createServer(app);
 
