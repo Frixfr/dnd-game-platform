@@ -191,8 +191,12 @@ export const MapEditor: React.FC<{ mapId: number }> = ({ mapId }) => {
   useEffect(() => {
     if (!map) return;
     socket.emit('join-map', map.id);
+    // Трекаем подписку, чтобы leaveAllRooms() (logout/leaveRoom мастера)
+    // мог разослать leave-map: клиент socket.io v4 не хранит список комнат.
+    addMapSubscription(map.id);
     return () => {
       socket.emit('leave-map', map.id);
+      removeMapSubscription(map.id);
     };
   }, [map]);
 
