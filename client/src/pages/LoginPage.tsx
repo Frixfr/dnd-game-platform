@@ -5,7 +5,6 @@ import MasterAuthModal from '../components/ui/MasterAuthModal';
 import PlayerAuthModal from '../components/ui/PlayerAuthModal';
 import { disconnectAllSocketHandlers } from '../lib/socketCleanup';
 import { usePlayerSessionStore } from '../stores/playerSessionStore';
-import { useRoomStore } from '../stores/roomStore';
 import { Shield, Sword, Sparkles } from 'lucide-react';
 
 const LoginPage: React.FC = () => {
@@ -17,17 +16,13 @@ const LoginPage: React.FC = () => {
     disconnectAllSocketHandlers();
     usePlayerSessionStore.getState().clearSession();
 
-    // Проверяем состояние комнаты
-    const { token, currentRoom } = useRoomStore.getState();
-    if (token) {
-      if (currentRoom) {
-        // Если есть токен и комната — редирект на мастер-интерфейс
-        navigate('/master');
-      } else {
-        // Если есть токен, но нет комнаты — на страницу комнат
-        navigate('/rooms');
-      }
-    }
+    // Страница входа всегда показывает выбор роли (Мастер / Игрок).
+    // Автоматический редирект по сохранённому токену убран намеренно:
+    // из-за него при заходе на сайт пользователя выбрасывало в /rooms
+    // (или /master), если у него оставалась старая мастер-сессия в
+    // localStorage, и выбор «зайти как игрок» становился недоступным.
+    // Переходы после входа выполняются явно: onSuccess мастера ведёт в
+    // /rooms, вход игрока — в /player/select.
   }, [navigate]);
 
   const handleMasterLoginSuccess = () => {
