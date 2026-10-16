@@ -6,6 +6,12 @@ import * as masterApi from "../api/masterApi";
 import type { Room } from "../api/roomsApi";
 import { AxiosError } from "axios";
 import { usePlayerRoomStore } from "./playerRoomStore";
+// Импорт типа + ленивый импорт самого модуля socket.ts: прямое
+// top-level-импортирование value-модуля создало бы циклическую зависимость
+// (socket.ts -> roomStore.ts -> socket.ts). Динамический import() разрывает
+// цикл и гарантирует, что выход из комнат выполняется только когда сокет
+// действительно был создан.
+import type { Socket } from "socket.io-client";
 
 interface RoomStore {
   token: string | null;
@@ -41,6 +47,47 @@ const getErrorMessage = (err: unknown): string => {
   }
   return "Неизвестная ошибка";
 };
+
+/**
+ * Централизованный выход сокета из всех игровых подписок.
+ *
+ * ВАЖНО: в socket.io-client v4 клиент НЕ хранит локальный список комнат
+ * (свойства `socket.rooms`/`socket.leave()` есть только на сервере),
+ * поэтому выход выполняется серверными событиями:
+ *  - `leave-room` без id — сервер выходит из всех `room:*`
+ *    (см. server/src/socket/index.ts, leaveAllGameRooms);
+ *  - `leave-player` — сервер выходит из `player:<id>` и всех отслеживаемых
+ *    через join-player комнат;
+ *  - `leave-map` для каждой карты из локального реестра подписок — сервер
+ *    выходит из `map:<id>`.
+ *
+ * Реестр карт ведётся на клиенте (lib/mapSubscriptions.ts), т.к. подписки
+ * на карты создаёт MapEditor через `join-map`.
+ */
+async function leaveAllRoomsSafe(): Promise<void> {
+  try {
+    const socketModule = await import("../lib/socket");
+    socketModule.leaveAllRooms();
+  } catch {
+    /* модуль сокета недоступен — выходим напрямую через window.__socket */
+    const s: Socket | undefined =
+      typeof window !== "undefined" ? window.__socket : undefined;
+    if (s) {
+      s.emit("leave-room", {});
+      s.emit("leave-player", {});
+      void import("../lib/mapSubscriptions")
+        .then(({ getSubscribedMaps, removeMapSubscription }) => {
+          for (const mapId of getSubscribedMaps()) {
+            s.emit("leave-map", mapId);
+            removeMapSubscription(mapId);
+          }
+        })
+        .catch(() => {
+          /* реестр недоступен — подписки снимет disconnect */
+        });
+    }
+  }
+}
 
 export const useRoomStore = create<RoomStore>()(
   persist(
@@ -200,6 +247,11 @@ export const useRoomStore = create<RoomStore>()(
             token: masterToken,
             currentRoom: null,
           });
+          // Снимаем подписки сокета на комнаты старой кампании.
+          // Динамический import не поднимает сокет, если он ещё не создан,
+          // а fire-and-forget уместен: следующий join-room (при входе в
+          // другую комнату или при reconnect) переподпишется сам.
+          void leaveAllRoomsSafe();
         } else {
           // Если по какой-то причине мастер-токен отсутствует, делаем полный выход
           get().logout();
@@ -207,6 +259,10 @@ export const useRoomStore = create<RoomStore>()(
       },
 
       logout: () => {
+        // Сначала выходим из всех комнат сокета (room:*/map:*/player:*),
+        // иначе сервер продолжит слать этому клиенту события старой
+        // кампании до полного отключения соединения (утечка подписок).
+        void leaveAllRoomsSafe();
         // Токен удаляется только из стора — persist сам синхронизирует
         // хранилище. Легаси-ключ также чистим на случай, если он остался
         // от старых версий приложения.
